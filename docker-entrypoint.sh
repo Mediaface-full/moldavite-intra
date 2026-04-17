@@ -20,6 +20,15 @@ if [ "$(id -u)" = "0" ]; then
     chmod -R u+rwX,g+rwX "$PHOTOS_WEB_PATH" 2>/dev/null || true
   fi
 
+  # Same treatment for the originals bindmount — needed for box-photo uploads
+  # which the app writes into .../<boxCode>/_box_photos/. Without this, the
+  # nextjs user can't mkdir under admin-owned K0001/, K0002/ etc.
+  PHOTOS_DIR="${PHOTOS_PATH:-/data/photos}"
+  if [ -d "$PHOTOS_DIR" ]; then
+    chown -R 1001:1001 "$PHOTOS_DIR" 2>/dev/null || echo "[entrypoint] warning: chown on $PHOTOS_DIR failed"
+    chmod -R u+rwX,g+rwX "$PHOTOS_DIR" 2>/dev/null || true
+  fi
+
   exec su-exec nextjs:nodejs "$0" "$@"
 fi
 

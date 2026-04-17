@@ -11,6 +11,7 @@ interface BoxPhotoUploadProps {
 export default function BoxPhotoUpload({ boxId, boxCode, existingPhotos }: BoxPhotoUploadProps) {
   const [photos, setPhotos] = useState<string[]>(existingPhotos || []);
   const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -23,6 +24,7 @@ export default function BoxPhotoUpload({ boxId, boxCode, existingPhotos }: BoxPh
     }
 
     setUploading(true);
+    setUploadError('');
     const formData = new FormData();
     for (let i = 0; i < files.length; i++) {
       formData.append('photos', files[i]);
@@ -33,12 +35,21 @@ export default function BoxPhotoUpload({ boxId, boxCode, existingPhotos }: BoxPh
         method: 'POST',
         body: formData,
       });
-      if (res.ok) {
-        const data = await res.json();
+      const text = await res.text();
+      let data: { photos?: string[]; error?: string } = {};
+      try {
+        data = JSON.parse(text);
+      } catch {
+        data = { error: `HTTP ${res.status} — odpověď nelze parsovat` };
+      }
+      if (res.ok && data.photos) {
         setPhotos(data.photos);
+      } else {
+        setUploadError(data.error || `Upload selhal (HTTP ${res.status})`);
       }
     } catch (err) {
       console.error('Upload failed:', err);
+      setUploadError(err instanceof Error ? err.message : 'Upload selhal');
     } finally {
       setUploading(false);
       if (fileRef.current) fileRef.current.value = '';
@@ -82,6 +93,12 @@ export default function BoxPhotoUpload({ boxId, boxCode, existingPhotos }: BoxPh
           </button>
         )}
       </div>
+
+      {uploadError && (
+        <div className="mb-3 p-3 rounded-lg bg-red-900/30 border border-red-800 text-red-300 text-sm">
+          {uploadError}
+        </div>
+      )}
 
       {photos.length > 0 ? (
         <div className="flex gap-2 overflow-x-auto pb-2">
