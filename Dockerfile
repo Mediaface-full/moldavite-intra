@@ -25,8 +25,8 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
-# pg_dump for backups
-RUN apk add --no-cache postgresql16-client
+# pg_dump for backups + su-exec to drop root after fixing volume perms
+RUN apk add --no-cache postgresql16-client su-exec
 
 RUN addgroup --system --gid 1001 nodejs \
  && adduser --system --uid 1001 nextjs
@@ -56,7 +56,10 @@ COPY --from=builder /app/scripts ./scripts
 RUN chmod +x ./docker-entrypoint.sh
 
 RUN chown -R nextjs:nodejs /app
-USER nextjs
+
+# Intentionally run as root so the entrypoint can chown the named volume
+# /data/photos-cache (owned by root by default) before dropping privileges
+# to nextjs via su-exec. See docker-entrypoint.sh.
 
 EXPOSE 3000
 ENV PORT=3000
