@@ -9,12 +9,15 @@ if [ "$(id -u)" = "0" ]; then
   mkdir -p "$CACHE_DIR"
   chown -R 1001:1001 "$CACHE_DIR" || echo "[entrypoint] warning: could not chown $CACHE_DIR"
 
-  # Web-resized originals live in a bindmount from the host; make sure it
-  # exists and its top level is writable by the nextjs user (subdirs stay
-  # whatever permissions they had from File Station).
+  # Web-resized originals live in a bindmount from the host; Synology DSM
+  # can create subdirectories with admin:users ownership or ACLs that block
+  # the nextjs uid. Recursively hand the whole tree over to uid 1001 and
+  # make sure it's writable. Both ops are idempotent and cheap on a mostly-
+  # already-correct tree.
   if [ -n "$PHOTOS_WEB_PATH" ]; then
     mkdir -p "$PHOTOS_WEB_PATH" 2>/dev/null || true
-    chown 1001:1001 "$PHOTOS_WEB_PATH" 2>/dev/null || echo "[entrypoint] warning: could not chown $PHOTOS_WEB_PATH"
+    chown -R 1001:1001 "$PHOTOS_WEB_PATH" 2>/dev/null || echo "[entrypoint] warning: chown on $PHOTOS_WEB_PATH failed"
+    chmod -R u+rwX,g+rwX "$PHOTOS_WEB_PATH" 2>/dev/null || true
   fi
 
   exec su-exec nextjs:nodejs "$0" "$@"
