@@ -79,14 +79,14 @@ export default function ThumbnailsManager() {
 
   // Web-resize can process hundreds of photos which is well over the 60 s
   // reverse proxy timeout. Call the endpoint in a loop until remaining=0.
+  // Each batch re-walks the tree from scratch, so `skipped` already counts
+  // everything done in previous batches + this one — using the last response
+  // as-is is the correct running total (don't accumulate across batches).
   async function webResizeLoop(force: boolean) {
     if (busy) return;
     if (!confirm('Spustí se generování webových verzí. Může to trvat několik minut, nezavírej stránku.')) return;
     setBusy(force ? 'web-resize-force' : 'web-resize');
     setError('');
-    let totalCreated = 0;
-    let totalSkipped = 0;
-    let totalFailed = 0;
     try {
       while (true) {
         const res = await fetch('/api/admin/web-resize', {
@@ -95,7 +95,6 @@ export default function ThumbnailsManager() {
           body: JSON.stringify({ force }),
         });
         if (!res.ok) {
-          // Try to parse JSON; if proxy returned HTML, give a clearer message.
           const text = await res.text();
           try {
             const j = JSON.parse(text);
@@ -107,13 +106,9 @@ export default function ThumbnailsManager() {
           }
         }
         const data: WebStats = await res.json();
-        totalCreated += data.created || 0;
-        totalSkipped += data.skipped || 0;
-        totalFailed += data.failed || 0;
-        // Merge running totals into displayed stats for progress feedback.
-        setWeb({ ...data, created: totalCreated, skipped: totalSkipped, failed: totalFailed });
-        // force only needs to run on the first pass; afterwards files are
-        // already written and mtime-guards make subsequent calls skip them.
+        setWeb(data);
+        // force only needs to run on the first pass; afterwards mtime guards
+        // handle idempotency.
         force = false;
         if (data.done || !data.remaining) break;
       }
