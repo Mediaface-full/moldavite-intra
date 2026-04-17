@@ -34,9 +34,12 @@ export async function POST(
     return NextResponse.json({ error: 'Povoleno 1-5 fotek' }, { status: 400 });
   }
 
+  // New layout: box photos live in <photos>/_box_photos/<boxCode>/, so they
+  // survive when per-box original folders (K0001/, K0002/...) are deleted
+  // after the web-resize step.
   const photosRoot = path.resolve(PHOTOS_PATH);
-  const boxPhotoDir = path.resolve(path.join(photosRoot, box.code, '_box_photos'));
-  if (!boxPhotoDir.startsWith(photosRoot + path.sep) && boxPhotoDir !== photosRoot) {
+  const boxPhotoDir = path.resolve(path.join(photosRoot, '_box_photos', box.code));
+  if (!boxPhotoDir.startsWith(photosRoot + path.sep)) {
     return NextResponse.json({ error: 'Invalid destination' }, { status: 500 });
   }
   if (!fs.existsSync(boxPhotoDir)) {
@@ -65,7 +68,7 @@ export async function POST(
     const filename = `box_${i + 1}${ext}`;
     const filePath = path.join(boxPhotoDir, filename);
     fs.writeFileSync(filePath, buf);
-    photoPaths.push(`${box.code}/_box_photos/${filename}`);
+    photoPaths.push(`_box_photos/${box.code}/${filename}`);
   }
 
   await prisma.box.update({ where: { id: boxId }, data: { photos: photoPaths } });
