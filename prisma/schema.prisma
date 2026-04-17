@@ -1,0 +1,111 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  USER
+}
+
+model User {
+  id           Int           @id @default(autoincrement())
+  email        String        @unique
+  password     String
+  name         String?
+  role         Role          @default(USER)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  activityLogs ActivityLog[]
+}
+
+model ActivityLog {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+  action    String   // e.g. "item.update", "item.sold", "export.upgates"
+  target    String   @default("") // e.g. "K0001-0005"
+  details   String   @default("") // JSON or text details
+  ip        String   @default("")
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([createdAt])
+}
+
+model Box {
+  id        Int      @id @default(autoincrement())
+  code      String   @unique // e.g. "K0001"
+  name      String?
+  placement String   @default("") // kde je krabice umístěna
+  photos    String[] @default([]) // až 5 fotek krabice (cesty)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  items     Item[]
+}
+
+model Item {
+  id            Int      @id @default(autoincrement())
+  evidNumber    String   // e.g. "0001"
+  boxId         Int
+  box           Box      @relation(fields: [boxId], references: [id])
+  name          String   @default("") // název produktu CZ
+  nameEn        String   @default("") // název produktu EN
+  description   String   @default("") // krátký popis CZ
+  descriptionEn String   @default("") // krátký popis EN
+  longDescription String @default("") // delší popis CZ (HTML)
+  longDescriptionEn String @default("") // delší popis EN (HTML)
+  location      String   @default("") // místo nálezu
+  storage       String   @default("") // lokace
+  purchasePrice Decimal  @default(0) @db.Decimal(10, 2)
+  salePrice     Decimal  @default(0) @db.Decimal(10, 2)
+  priceEUR      Decimal  @default(0) @db.Decimal(10, 2) // přepočtená cena EUR
+  priceUSD      Decimal  @default(0) @db.Decimal(10, 2) // přepočtená cena USD
+  weight        Decimal  @default(0) @db.Decimal(8, 2) // gramy
+  weightCt      Decimal  @default(0) @db.Decimal(8, 2) // karáty (1g = 5ct)
+  sold          Boolean  @default(false) // prodáno
+  onShop        Boolean  @default(false) // Upgates eshop
+  onEtsy        Boolean  @default(false) // Etsy
+  upgatesId     String   @default("") // ID pro Upgates export
+  etsyId        String   @default("") // ID pro Etsy export
+  certHash      String   @default("") // hash pro verifikační stránku
+  certIssuedAt  DateTime? // datum vydání certifikátu
+  mainPhoto     Int      @default(1) // index hlavního obrázku (1-24)
+  photoPath     String   @default("") // relativní cesta k fotkám
+  rangeFolder   String   @default("") // e.g. "0001-0005"
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([boxId, evidNumber])
+  @@index([boxId])
+  @@index([onShop])
+  @@index([onEtsy])
+}
+
+model ExchangeRate {
+  id        Int      @id @default(autoincrement())
+  currency  String   // EUR, USD
+  rate      Decimal  @db.Decimal(10, 4) // kurz k CZK
+  quantity  Int      @default(1)
+  source    String   @default("CNB")
+  fetchedAt DateTime @default(now())
+
+  @@index([currency])
+}
+
+model ExportConfig {
+  id             Int      @id @default(autoincrement())
+  exportType     String   @unique // "upgates" or "etsy"
+  currencies     String[] @default(["CZK"]) // ["CZK", "EUR", "USD"]
+  primaryCurrency String  @default("CZK")
+  commission     Decimal  @default(0) @db.Decimal(5, 2) // provize v %
+  roundPrices    Boolean  @default(true)
+  languages      String[] @default(["cz"]) // ["cz", "en"]
+  primaryLanguage String  @default("cz")
+  updatedAt      DateTime @updatedAt
+}

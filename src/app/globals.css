@@ -1,26 +1,91 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Moldavite Color Palette */
+  --moldavite-50: #f0f7f1;
+  --moldavite-100: #d9edd9;
+  --moldavite-200: #b5dbb8;
+  --moldavite-300: #85c28d;
+  --moldavite-400: #57a561;
+  --moldavite-500: #3d8b47;
+  --moldavite-600: #2d6e35;
+  --moldavite-700: #25582d;
+  --moldavite-800: #1f4726;
+  --moldavite-900: #1a3b21;
+  --moldavite-950: #0d2013;
+
+  /* Dark green backgrounds */
+  --bg-primary: #0f1f13;
+  --bg-secondary: #162419;
+  --bg-card: #1a2e1f;
+  --bg-card-hover: #213826;
+
+  /* Text colors */
+  --text-primary: #eaf2eb;
+  --text-secondary: #cdddd0;
+  --text-muted: #a8c4ad;
+
+  /* Accent - gold */
+  --accent-gold: #c9a84c;
+  --accent-gold-light: #dfc477;
+
+  /* Borders */
+  --border-color: #3a5540;
+  --border-hover: #4d6d53;
+
+  --background: var(--bg-primary);
+  --foreground: var(--text-primary);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-moldavite-50: var(--moldavite-50);
+  --color-moldavite-100: var(--moldavite-100);
+  --color-moldavite-200: var(--moldavite-200);
+  --color-moldavite-300: var(--moldavite-300);
+  --color-moldavite-400: var(--moldavite-400);
+  --color-moldavite-500: var(--moldavite-500);
+  --color-moldavite-600: var(--moldavite-600);
+  --color-moldavite-700: var(--moldavite-700);
+  --color-moldavite-800: var(--moldavite-800);
+  --color-moldavite-900: var(--moldavite-900);
+  --color-moldavite-950: var(--moldavite-950);
+  --color-bg-primary: var(--bg-primary);
+  --color-bg-secondary: var(--bg-secondary);
+  --color-bg-card: var(--bg-card);
+  --color-bg-card-hover: var(--bg-card-hover);
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-muted: var(--text-muted);
+  --color-accent-gold: var(--accent-gold);
+  --color-accent-gold-light: var(--accent-gold-light);
+  --color-border-color: var(--border-color);
+  --color-border-hover: var(--border-hover);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-secondary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--moldavite-700);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--moldavite-600);
 }
