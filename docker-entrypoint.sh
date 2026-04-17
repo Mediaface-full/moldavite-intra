@@ -8,6 +8,15 @@ if [ "$(id -u)" = "0" ]; then
   CACHE_DIR="${THUMB_CACHE_PATH:-/data/photos-cache}"
   mkdir -p "$CACHE_DIR"
   chown -R 1001:1001 "$CACHE_DIR" || echo "[entrypoint] warning: could not chown $CACHE_DIR"
+
+  # Web-resized originals live in a bindmount from the host; make sure it
+  # exists and its top level is writable by the nextjs user (subdirs stay
+  # whatever permissions they had from File Station).
+  if [ -n "$PHOTOS_WEB_PATH" ]; then
+    mkdir -p "$PHOTOS_WEB_PATH" 2>/dev/null || true
+    chown 1001:1001 "$PHOTOS_WEB_PATH" 2>/dev/null || echo "[entrypoint] warning: could not chown $PHOTOS_WEB_PATH"
+  fi
+
   exec su-exec nextjs:nodejs "$0" "$@"
 fi
 

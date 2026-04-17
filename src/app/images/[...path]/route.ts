@@ -4,7 +4,24 @@ import * as path from 'path';
 import * as crypto from 'crypto';
 
 const PHOTOS_PATH = process.env.PHOTOS_PATH || path.join(process.cwd(), '../kameny/FOTO_MOLDAVITE');
+const PHOTOS_WEB_PATH = process.env.PHOTOS_WEB_PATH || '';
 const CACHE_PATH = process.env.THUMB_CACHE_PATH || path.join(PHOTOS_PATH, '..', '.photos-cache');
+
+// If a web-optimised variant of this image exists under PHOTOS_WEB_PATH,
+// return its absolute path. The web folder mirrors PHOTOS_PATH structure.
+function findWebVariant(segments: string[]): string | null {
+  if (!PHOTOS_WEB_PATH) return null;
+  try {
+    const webFile = path.join(PHOTOS_WEB_PATH, ...segments);
+    const webBase = path.resolve(PHOTOS_WEB_PATH);
+    const webResolved = path.resolve(webFile);
+    if (webResolved !== webBase && !webResolved.startsWith(webBase + path.sep)) return null;
+    if (!fs.existsSync(webResolved)) return null;
+    return webResolved;
+  } catch {
+    return null;
+  }
+}
 
 const MIME_TYPES: Record<string, string> = {
   '.jpg': 'image/jpeg',
@@ -31,6 +48,9 @@ export async function GET(
     }
   }
 
+  // Prefer web-optimised variant if it exists (smaller JPEGs mirror originals).
+  const webPath = findWebVariant(segments);
+
   const filePath = path.join(PHOTOS_PATH, ...segments);
   const resolvedBase = path.resolve(PHOTOS_PATH);
   const resolvedPath = path.resolve(filePath);
@@ -38,18 +58,22 @@ export async function GET(
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
-  if (!fs.existsSync(resolvedPath)) {
+  // Accept the request if either the web variant or the original exists.
+  if (!webPath && !fs.existsSync(resolvedPath)) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 });
   }
 
-  // Follow symlinks and re-verify the real path is still under PHOTOS_PATH.
+  // Follow symlinks and re-verify the real path is still under PHOTOS_PATH
+  // (or under PHOTOS_WEB_PATH if the web variant wins).
   let realPath: string;
   try {
-    realPath = fs.realpathSync(resolvedPath);
+    realPath = webPath ? fs.realpathSync(webPath) : fs.realpathSync(resolvedPath);
   } catch {
     return NextResponse.json({ error: 'Not found' }, { status: 404 });
   }
-  const realBase = fs.realpathSync(resolvedBase);
+  const realBase = webPath
+    ? fs.realpathSync(path.resolve(PHOTOS_WEB_PATH))
+    : fs.realpathSync(resolvedBase);
   if (realPath !== realBase && !realPath.startsWith(realBase + path.sep)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
