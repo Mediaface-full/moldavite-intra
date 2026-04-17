@@ -29,6 +29,9 @@ interface WebStats {
   created?: number;
   skipped?: number;
   failed?: number;
+  remaining?: number;
+  done?: boolean;
+  totalOriginals?: number;
   errors?: string[];
 }
 
@@ -67,6 +70,53 @@ export default function ThumbnailsManager() {
       if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
       if (url.includes('thumbnails')) setThumbs(data);
       if (url.includes('web-resize')) setWeb(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  // Web-resize can process hundreds of photos which is well over the 60 s
+  // reverse proxy timeout. Call the endpoint in a loop until remaining=0.
+  async function webResizeLoop(force: boolean) {
+    if (busy) return;
+    if (!confirm('Spustí se generování webových verzí. Může to trvat několik minut, nezavírej stránku.')) return;
+    setBusy(force ? 'web-resize-force' : 'web-resize');
+    setError('');
+    let totalCreated = 0;
+    let totalSkipped = 0;
+    let totalFailed = 0;
+    try {
+      while (true) {
+        const res = await fetch('/api/admin/web-resize', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ force }),
+        });
+        if (!res.ok) {
+          // Try to parse JSON; if proxy returned HTML, give a clearer message.
+          const text = await res.text();
+          try {
+            const j = JSON.parse(text);
+            throw new Error(j.error || `HTTP ${res.status}`);
+          } catch {
+            throw new Error(
+              `HTTP ${res.status} — pravděpodobně proxy timeout. Server jede dál, klikni "Aktualizovat statistiky" za chvíli.`
+            );
+          }
+        }
+        const data: WebStats = await res.json();
+        totalCreated += data.created || 0;
+        totalSkipped += data.skipped || 0;
+        totalFailed += data.failed || 0;
+        // Merge running totals into displayed stats for progress feedback.
+        setWeb({ ...data, created: totalCreated, skipped: totalSkipped, failed: totalFailed });
+        // force only needs to run on the first pass; afterwards files are
+        // already written and mtime-guards make subsequent calls skip them.
+        force = false;
+        if (data.done || !data.remaining) break;
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -126,16 +176,38 @@ export default function ThumbnailsManager() {
             <div className="text-xs text-text-muted mb-4">
               Parametry: max {web.maxWidth} px, JPEG quality {web.quality}. Cesta: <code>{web.webPath}</code>
             </div>
+            {busy?.startsWith('web-resize') && web.totalOriginals && (
+              <div className="mb-4">
+                <div className="flex justify-between text-xs text-text-muted mb-1">
+                  <span>
+                    {web.created || 0} / {web.totalOriginals} hotovo
+                    {web.remaining !== undefined && web.remaining > 0 ? ` (${web.remaining} zbývá)` : ''}
+                  </span>
+                  <span>
+                    {Math.round((((web.created || 0) + (web.skipped || 0)) / Math.max(web.totalOriginals, 1)) * 100)} %
+                  </span>
+                </div>
+                <div className="h-2 bg-bg-secondary rounded overflow-hidden">
+                  <div
+                    className="h-full bg-moldavite-500 transition-all"
+                    style={{
+                      width: `${Math.round((((web.created || 0) + (web.skipped || 0)) / Math.max(web.totalOriginals, 1)) * 100)}%`,
+                    }}
+                  />
+                </div>
+              </div>
+            )}
+
             <div className="flex flex-wrap gap-3">
               <button
-                onClick={() => action('/api/admin/web-resize', 'POST', { force: false }, 'web-resize')}
+                onClick={() => webResizeLoop(false)}
                 disabled={busy !== null || !web.sharpAvailable}
                 className="bg-moldavite-600 hover:bg-moldavite-500 disabled:opacity-40 text-white px-4 py-2.5 rounded-lg text-sm font-medium"
               >
                 {busy === 'web-resize' ? 'Zpracovávám…' : 'Vytvořit / aktualizovat webové verze'}
               </button>
               <button
-                onClick={() => action('/api/admin/web-resize', 'POST', { force: true }, 'web-resize-force')}
+                onClick={() => webResizeLoop(true)}
                 disabled={busy !== null || !web.sharpAvailable}
                 className="border border-border-color text-text-secondary hover:border-border-hover disabled:opacity-40 px-4 py-2.5 rounded-lg text-sm font-medium"
               >

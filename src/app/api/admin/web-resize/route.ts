@@ -50,12 +50,26 @@ export async function POST(request: Request) {
     return PROCESSABLE_EXTS.includes(ext);
   });
 
+  // Time budget: return before DSM reverse proxy 60 s read timeout so the
+  // client always gets a JSON response. Client re-calls until remaining=0.
+  const BUDGET_MS = 50_000;
+  const start = Date.now();
+
   let created = 0;
   let skipped = 0;
   let failed = 0;
+  let remaining = 0;
   const errors: string[] = [];
 
-  for (const rel of originals) {
+  for (let i = 0; i < originals.length; i++) {
+    const rel = originals[i];
+
+    if (Date.now() - start > BUDGET_MS) {
+      // Everything from here onwards is still outstanding.
+      remaining = originals.length - i;
+      break;
+    }
+
     const src = path.join(PHOTOS_PATH, rel);
     // Keep same extension as original (.jpg stays .jpg) so existing URLs match.
     const dst = path.join(PHOTOS_WEB_PATH, rel);
@@ -94,11 +108,21 @@ export async function POST(request: Request) {
     session.id,
     'admin.web-resize',
     '',
-    `created=${created} skipped=${skipped} failed=${failed}`
+    `created=${created} skipped=${skipped} failed=${failed} remaining=${remaining}`
   );
 
   const stats = await collectStats();
-  return NextResponse.json({ ok: true, created, skipped, failed, errors, ...stats });
+  return NextResponse.json({
+    ok: true,
+    created,
+    skipped,
+    failed,
+    remaining,
+    done: remaining === 0,
+    totalOriginals: originals.length,
+    errors,
+    ...stats,
+  });
 }
 
 async function collectStats() {
