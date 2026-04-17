@@ -6,13 +6,14 @@ const DEFAULT_PROMPT = `Jsi zkušený copywriter pro e-shopy s drahými kameny. 
 - Katalogové číslo: {katalogove_cislo}
 - Hmotnost: {hmotnost}
 - Místo nálezu: {misto_nalezu}
+- Primární aerodynamický tvar: {tvar_cz} ({tvar_en}) — {tvar_popis_cz}
 
 Vytvoř:
-1. Krátký název produktu v češtině (max 60 znaků)
-2. Krátký název produktu v angličtině (max 60 znaků)
-3. Poutavý marketingový popis v češtině (cca 3-4 věty)
+1. Krátký název produktu v češtině (max 60 znaků, ideálně zmiň tvar)
+2. Krátký název produktu v angličtině (max 60 znaků, mention shape)
+3. Poutavý marketingový popis v češtině (cca 3-4 věty, využij tvar)
 4. Seznam 3 hlavních výhod v odrážkách v češtině
-5. Překlad popisu do profesionální angličtiny
+5. Překlad popisu do profesionální angličtiny (use {tvar_en})
 6. Seznam 3 výhod v angličtině
 
 Výstup formátuj POUZE jako JSON (bez dalšího textu) s klíči:
@@ -32,6 +33,10 @@ const TAGS = [
   { tag: '{cena_czk}', label: 'Cena CZK' },
   { tag: '{cena_eur}', label: 'Cena EUR' },
   { tag: '{cena_usd}', label: 'Cena USD' },
+  { tag: '{tvar_cz}', label: 'Tvar CZ' },
+  { tag: '{tvar_en}', label: 'Tvar EN' },
+  { tag: '{tvar_popis_cz}', label: 'Popis tvaru CZ' },
+  { tag: '{tvar_popis_en}', label: 'Popis tvaru EN' },
 ];
 
 interface AiResult {

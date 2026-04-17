@@ -31,6 +31,7 @@ export default async function ItemsPage() {
           onEtsy: item.onEtsy,
           mainPhoto: item.mainPhoto,
           photoPath: item.photoPath,
+          pasShape: item.pasShape,
           box: item.box,
         }))}
       />

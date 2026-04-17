@@ -7,6 +7,7 @@ const ALLOWED_FIELDS = [
   'name', 'nameEn', 'description', 'descriptionEn', 'longDescription', 'longDescriptionEn',
   'location', 'storage', 'purchasePrice', 'salePrice',
   'weight', 'onShop', 'onEtsy', 'sold', 'mainPhoto', 'upgatesId', 'etsyId',
+  'pasShape',
 ];
 
 export async function GET(

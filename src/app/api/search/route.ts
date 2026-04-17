@@ -21,6 +21,7 @@ export async function GET(request: NextRequest) {
   const hasDescription = sp.get('hasDescription');
   const noPrice = sp.get('noPrice');
   const noWeight = sp.get('noWeight');
+  const pasShape = sp.get('pasShape');
   const sortBy = sp.get('sortBy') || 'evidNumber';
   const sortDir = sp.get('sortDir') || 'asc';
 
@@ -86,6 +87,13 @@ export async function GET(request: NextRequest) {
   // Missing weight
   if (noWeight === 'true') {
     conditions.push({ weight: { equals: 0 } });
+  }
+
+  // PAS shape filter: specific key or "NONE" for items without a shape
+  if (pasShape === 'NONE') {
+    conditions.push({ pasShape: '' });
+  } else if (pasShape) {
+    conditions.push({ pasShape });
   }
 
   // Build orderBy

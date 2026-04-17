@@ -89,6 +89,7 @@ export default async function BoxDetailPage({
           onEtsy: item.onEtsy,
           mainPhoto: item.mainPhoto,
           photoPath: item.photoPath,
+          pasShape: item.pasShape,
         }))}
       />
     </div>

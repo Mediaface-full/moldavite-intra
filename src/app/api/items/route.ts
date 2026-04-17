@@ -9,6 +9,7 @@ export async function GET(request: NextRequest) {
 
   const searchParams = request.nextUrl.searchParams;
   const rawBoxId = searchParams.get('boxId');
+  const pasShape = searchParams.get('pasShape');
 
   const where: Record<string, unknown> = {};
   if (rawBoxId) {
@@ -17,6 +18,9 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid boxId' }, { status: 400 });
     }
     where.boxId = boxId;
+  }
+  if (pasShape) {
+    where.pasShape = pasShape;
   }
 
   const items = await prisma.item.findMany({

@@ -78,6 +78,7 @@ model Item {
   mainPhoto     Int      @default(1) // index hlavního obrázku (1-24)
   photoPath     String   @default("") // relativní cesta k fotkám
   rangeFolder   String   @default("") // e.g. "0001-0005"
+  pasShape      String   @default("") // Primary Aerodynamic Shape — klíč z lib/pasShapes.ts
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -85,6 +86,7 @@ model Item {
   @@index([boxId])
   @@index([onShop])
   @@index([onEtsy])
+  @@index([pasShape])
 }
 
 model ExchangeRate {

@@ -2,7 +2,7 @@ import { prisma } from '@/lib/prisma';
 import { NextResponse } from 'next/server';
 import { getSession, logActivity } from '@/lib/auth';
 
-const ALLOWED_BULK_FIELDS = ['salePrice', 'purchasePrice', 'onShop', 'onEtsy', 'sold'];
+const ALLOWED_BULK_FIELDS = ['salePrice', 'purchasePrice', 'onShop', 'onEtsy', 'sold', 'pasShape'];
 
 export async function PATCH(request: Request) {
   const session = await getSession();

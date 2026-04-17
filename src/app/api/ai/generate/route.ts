@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma';
 import { NextResponse } from 'next/server';
 import { getSession, logActivity } from '@/lib/auth';
+import { getPasShape } from '@/lib/pasShapes';
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
 const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
@@ -28,6 +29,7 @@ export async function POST(request: Request) {
   }
 
   const catalogNumber = `${item.box.code}-${item.evidNumber}`;
+  const shape = getPasShape(item.pasShape);
 
   // Replace tags in prompt
   const filledPrompt = prompt
@@ -36,7 +38,11 @@ export async function POST(request: Request) {
     .replace(/\{katalogove_cislo\}/g, catalogNumber)
     .replace(/\{cena_czk\}/g, `${item.salePrice} CZK`)
     .replace(/\{cena_eur\}/g, `${item.priceEUR} EUR`)
-    .replace(/\{cena_usd\}/g, `${item.priceUSD} USD`);
+    .replace(/\{cena_usd\}/g, `${item.priceUSD} USD`)
+    .replace(/\{tvar_cz\}/g, shape?.cz || 'neurčeno')
+    .replace(/\{tvar_en\}/g, shape?.en || 'undetermined')
+    .replace(/\{tvar_popis_cz\}/g, shape?.descCz || '')
+    .replace(/\{tvar_popis_en\}/g, shape?.descEn || '');
 
   try {
     const geminiRes = await fetch(GEMINI_URL, {

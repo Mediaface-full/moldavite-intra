@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback } from 'react';
+import { PAS_SHAPES } from '@/lib/pasShapes';
 import Link from 'next/link';
 import { getThumbnailUrl, getCatalogNumber, formatWeight, formatPrice } from '@/lib/utils';
 
@@ -40,6 +41,7 @@ export default function SearchPage() {
   const [hasDescription, setHasDescription] = useState('');
   const [noPrice, setNoPrice] = useState(false);
   const [noWeight, setNoWeight] = useState(false);
+  const [pasShape, setPasShape] = useState('');
   const [sortBy, setSortBy] = useState('evidNumber');
   const [sortDir, setSortDir] = useState('asc');
   const [results, setResults] = useState<SearchResult | null>(null);
@@ -61,6 +63,7 @@ export default function SearchPage() {
     if (hasDescription) params.set('hasDescription', hasDescription);
     if (noPrice) params.set('noPrice', 'true');
     if (noWeight) params.set('noWeight', 'true');
+    if (pasShape) params.set('pasShape', pasShape);
     params.set('sortBy', sortBy);
     params.set('sortDir', sortDir);
 
@@ -73,7 +76,7 @@ export default function SearchPage() {
     } finally {
       setSearching(false);
     }
-  }, [query, boxCode, weightMin, weightMax, priceMin, priceMax, sold, onShop, onEtsy, hasDescription, noPrice, noWeight, sortBy, sortDir]);
+  }, [query, boxCode, weightMin, weightMax, priceMin, priceMax, sold, onShop, onEtsy, hasDescription, noPrice, noWeight, pasShape, sortBy, sortDir]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') handleSearch();
@@ -83,6 +86,7 @@ export default function SearchPage() {
     setQuery(''); setBoxCode(''); setWeightMin(''); setWeightMax('');
     setPriceMin(''); setPriceMax(''); setSold(''); setOnShop(''); setOnEtsy('');
     setHasDescription(''); setNoPrice(false); setNoWeight(false);
+    setPasShape('');
     setSortBy('evidNumber'); setSortDir('asc');
     setResults(null);
   };
@@ -193,6 +197,15 @@ export default function SearchPage() {
             <option value="">Popis: Vše</option>
             <option value="true">Má popis</option>
             <option value="false">Bez popisu</option>
+          </select>
+
+          <select value={pasShape} onChange={(e) => setPasShape(e.target.value)}
+            className="bg-bg-secondary border border-border-color rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-moldavite-500">
+            <option value="">Tvar: Vše</option>
+            <option value="NONE">— bez tvaru —</option>
+            {PAS_SHAPES.map((s) => (
+              <option key={s.key} value={s.key}>{s.cz}</option>
+            ))}
           </select>
 
           <label className="flex items-center gap-2 text-sm text-text-secondary cursor-pointer">

@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useMemo } from 'react';
 import Link from 'next/link';
 import { getThumbnailUrl, getCatalogNumber } from '@/lib/utils';
+import { PAS_SHAPES, pasShapeCz } from '@/lib/pasShapes';
 import AiButton from './AiButton';
 
 interface Item {
@@ -19,6 +20,7 @@ interface Item {
   onEtsy: boolean;
   mainPhoto: number;
   photoPath: string;
+  pasShape?: string;
   box?: { code: string };
 }
 
@@ -31,11 +33,17 @@ interface ItemsTableProps {
 export default function ItemsTable({ items: initialItems, boxCode, isAdmin = true }: ItemsTableProps) {
   const [localItems, setLocalItems] = useState(initialItems);
   const [searchQuery, setSearchQuery] = useState('');
+  const [pasFilter, setPasFilter] = useState<string>(''); // '' = all, 'NONE' = not set, otherwise key
   const [showBulkModal, setShowBulkModal] = useState(false);
   const [bulkSaving, setBulkSaving] = useState(false);
   const saveTimers = useRef<Record<string, NodeJS.Timeout>>({});
 
-  const filteredItems = localItems.filter((item) => {
+  const filteredItems = useMemo(() => localItems.filter((item) => {
+    if (pasFilter) {
+      const current = item.pasShape || '';
+      if (pasFilter === 'NONE' && current !== '') return false;
+      if (pasFilter !== 'NONE' && current !== pasFilter) return false;
+    }
     if (!searchQuery) return true;
     const q = searchQuery.toLowerCase();
     return (
@@ -43,7 +51,7 @@ export default function ItemsTable({ items: initialItems, boxCode, isAdmin = tru
       item.description.toLowerCase().includes(q) ||
       item.location.toLowerCase().includes(q)
     );
-  });
+  }), [localItems, searchQuery, pasFilter]);
 
   const autoSave = useCallback(async (itemId: number, field: string, value: unknown) => {
     const key = `${itemId}-${field}`;
@@ -131,14 +139,18 @@ export default function ItemsTable({ items: initialItems, boxCode, isAdmin = tru
     }
   }, [localItems]);
 
-  const handleBulkApply = useCallback(async (data: { description?: string; location?: string; storage?: string }) => {
+  const handleBulkApply = useCallback(async (data: { description?: string; location?: string; storage?: string; pasShape?: string }) => {
     setBulkSaving(true);
     try {
-      for (const item of localItems) {
+      // Apply only to currently visible (filtered) items so PAS filter can scope
+      // the operation, e.g. "set Kapka for only currently shown stones".
+      const targetItems = filteredItems;
+      for (const item of targetItems) {
         const fields: Record<string, string> = {};
         if (data.description) fields.description = data.description;
         if (data.location) fields.location = data.location;
         if (data.storage) fields.storage = data.storage;
+        if (data.pasShape !== undefined) fields.pasShape = data.pasShape;
         if (Object.keys(fields).length > 0) {
           await fetch(`/api/items/${item.id}`, {
             method: 'PATCH',
@@ -148,11 +160,14 @@ export default function ItemsTable({ items: initialItems, boxCode, isAdmin = tru
         }
       }
       // Optimistic update
+      const targetIds = new Set(targetItems.map((i) => i.id));
       setLocalItems(prev => prev.map(item => {
+        if (!targetIds.has(item.id)) return item;
         const updated = { ...item };
         if (data.description) updated.description = data.description;
         if (data.location) updated.location = data.location;
         if (data.storage) updated.storage = data.storage;
+        if (data.pasShape !== undefined) updated.pasShape = data.pasShape;
         return updated;
       }));
       setShowBulkModal(false);
@@ -161,7 +176,7 @@ export default function ItemsTable({ items: initialItems, boxCode, isAdmin = tru
     } finally {
       setBulkSaving(false);
     }
-  }, [localItems]);
+  }, [filteredItems]);
 
   const getBoxCode = (item: Item) => boxCode || item.box?.code || '';
 
@@ -169,17 +184,31 @@ export default function ItemsTable({ items: initialItems, boxCode, isAdmin = tru
     <div>
       {/* Toolbar */}
       <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
-        <div className="relative flex-1 max-w-sm">
-          <input
-            type="text"
-            placeholder="Hledat kameny..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-bg-secondary border border-border-color rounded-lg px-4 py-2 pl-10 text-sm text-text-primary placeholder-text-muted focus:outline-none focus:border-moldavite-500"
-          />
-          <svg className="absolute left-3 top-2.5 w-4 h-4 text-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
-          </svg>
+        <div className="flex items-center gap-2 flex-1 max-w-2xl">
+          <div className="relative flex-1 max-w-sm">
+            <input
+              type="text"
+              placeholder="Hledat kameny..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full bg-bg-secondary border border-border-color rounded-lg px-4 py-2 pl-10 text-sm text-text-primary placeholder-text-muted focus:outline-none focus:border-moldavite-500"
+            />
+            <svg className="absolute left-3 top-2.5 w-4 h-4 text-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+            </svg>
+          </div>
+          <select
+            value={pasFilter}
+            onChange={(e) => setPasFilter(e.target.value)}
+            title="Filtrovat podle primárního tvaru"
+            className="bg-bg-secondary border border-border-color rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-moldavite-500"
+          >
+            <option value="">Všechny tvary</option>
+            <option value="NONE">— bez tvaru —</option>
+            {PAS_SHAPES.map((s) => (
+              <option key={s.key} value={s.key}>{s.cz}</option>
+            ))}
+          </select>
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
@@ -229,6 +258,7 @@ export default function ItemsTable({ items: initialItems, boxCode, isAdmin = tru
               <th className="text-left px-3 py-3 text-text-secondary font-medium w-14">Foto</th>
               <th className="text-left px-3 py-3 text-text-secondary font-medium">Kat. č.</th>
               <th className="text-left px-3 py-3 text-text-secondary font-medium">Místo nálezu</th>
+              <th className="text-left px-3 py-3 text-text-secondary font-medium w-36">Tvar (PAS)</th>
               <th className="text-right px-3 py-3 text-text-secondary font-medium">Hmotnost (g)</th>
               {isAdmin && (
                 <th className="text-right px-3 py-3 text-text-secondary font-medium">Nákupka</th>
@@ -266,6 +296,24 @@ export default function ItemsTable({ items: initialItems, boxCode, isAdmin = tru
 
                 {/* Location */}
                 <td className="px-3 py-2 text-text-secondary">{item.location || '-'}</td>
+
+                {/* PAS shape — inline select */}
+                <td className="px-3 py-2">
+                  <select
+                    value={item.pasShape || ''}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      setLocalItems(prev => prev.map(i => i.id === item.id ? { ...i, pasShape: v } : i));
+                      autoSave(item.id, 'pasShape', v);
+                    }}
+                    className="w-full bg-bg-secondary border border-border-color rounded px-2 py-1 text-xs text-text-primary focus:outline-none focus:border-moldavite-500"
+                  >
+                    <option value="">—</option>
+                    {PAS_SHAPES.map((s) => (
+                      <option key={s.key} value={s.key}>{s.cz}</option>
+                    ))}
+                  </select>
+                </td>
 
                 {/* Weight */}
                 <td className="px-3 py-2 text-right">
@@ -389,12 +437,13 @@ function BulkEditModal({
 }: {
   itemCount: number;
   onClose: () => void;
-  onApply: (data: { description?: string; location?: string; storage?: string }) => void;
+  onApply: (data: { description?: string; location?: string; storage?: string; pasShape?: string }) => void;
   saving: boolean;
 }) {
   const [description, setDescription] = useState('');
   const [location, setLocation] = useState('');
   const [storage, setStorage] = useState('');
+  const [pasShape, setPasShape] = useState<string>('__unchanged__'); // special marker: don't change
 
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
@@ -426,9 +475,30 @@ function BulkEditModal({
             <input type="text" value={storage} onChange={(e) => setStorage(e.target.value)} placeholder="Propsat umístění ke všem..."
               className="w-full bg-bg-secondary border border-border-color rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-moldavite-500 placeholder-text-muted" />
           </div>
+          <div>
+            <label className="block text-xs text-text-muted mb-1 uppercase tracking-wider">Primární tvar (PAS)</label>
+            <select value={pasShape} onChange={(e) => setPasShape(e.target.value)}
+              className="w-full bg-bg-secondary border border-border-color rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-moldavite-500">
+              <option value="__unchanged__">— neměnit —</option>
+              <option value="">— smazat / nenastaveno —</option>
+              {PAS_SHAPES.map((s) => (
+                <option key={s.key} value={s.key}>{s.cz} ({s.en})</option>
+              ))}
+            </select>
+            <p className="text-xs text-text-muted mt-1">
+              Propíše se pouze do kamenů zobrazených v aktuálním filtru ({itemCount}).
+            </p>
+          </div>
         </div>
         <div className="mt-6 flex items-center gap-3">
-          <button onClick={() => onApply({ description, location, storage })} disabled={saving || (!description && !location && !storage)}
+          <button
+            onClick={() => onApply({
+              description,
+              location,
+              storage,
+              ...(pasShape !== '__unchanged__' ? { pasShape } : {}),
+            })}
+            disabled={saving || (!description && !location && !storage && pasShape === '__unchanged__')}
             className="flex-1 bg-moldavite-600 hover:bg-moldavite-500 disabled:opacity-50 text-white px-4 py-2.5 rounded-lg text-sm font-medium transition-colors">
             {saving ? 'Ukládám...' : 'Propsat ke všem kamenům'}
           </button>

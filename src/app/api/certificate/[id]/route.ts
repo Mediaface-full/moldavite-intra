@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma';
 import { NextResponse } from 'next/server';
 import { getSession, logActivity } from '@/lib/auth';
+import { getPasShape } from '@/lib/pasShapes';
 import { createHash, randomBytes } from 'crypto';
 import PDFDocument from 'pdfkit';
 import QRCode from 'qrcode';
@@ -118,13 +119,17 @@ export async function GET(
     .text('SPECIFICATIONS', leftX, specY);
   specY += 25;
 
-  const specs = [
+  const shape = getPasShape(item.pasShape);
+  const specs: Array<[string, string]> = [
     ['Mineral Species:', 'Tektite'],
     ['Variety:', 'Moldavite (Vltavín)'],
     ['Origin:', 'Southern Bohemia, Czech Republic'],
     ['Locality:', item.location ? `${item.location} - Czech Republic` : 'Czech Republic'],
     ['Weight:', `${weightG.toFixed(2)} g / ${weightCt.toFixed(2)} ct`],
   ];
+  if (shape) {
+    specs.push(['Primary Shape:', `${shape.en} / ${shape.cz}`]);
+  }
 
   for (const [label, value] of specs) {
     doc.fontSize(10).fillColor('#444').font('Helvetica-Bold')

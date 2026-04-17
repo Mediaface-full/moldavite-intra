@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { formatPrice } from '@/lib/utils';
+import { PAS_SHAPES, getPasShape } from '@/lib/pasShapes';
 import dynamic from 'next/dynamic';
 import AutocompleteInput from './AutocompleteInput';
 
@@ -24,6 +25,7 @@ interface ItemData {
   sold: boolean;
   onShop: boolean;
   onEtsy: boolean;
+  pasShape: string;
   box: { code: string; id: number };
   priceEUR?: number;
   priceUSD?: number;
@@ -46,6 +48,7 @@ export default function ItemDetailForm({ item }: { item: ItemData }) {
     sold: item.sold,
     onShop: item.onShop,
     onEtsy: item.onEtsy,
+    pasShape: item.pasShape || '',
   });
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -71,6 +74,7 @@ export default function ItemDetailForm({ item }: { item: ItemData }) {
           sold: formData.sold,
           onShop: formData.onShop,
           onEtsy: formData.onEtsy,
+          pasShape: formData.pasShape,
         }),
       });
       if (res.ok) {
@@ -211,6 +215,36 @@ export default function ItemDetailForm({ item }: { item: ItemData }) {
               className="w-full bg-bg-secondary border border-border-color rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-moldavite-500 placeholder-text-muted"
             />
           </div>
+        </div>
+
+        {/* Primary Aerodynamic Shape */}
+        <div>
+          <label className="block text-xs text-text-muted mb-1 uppercase tracking-wider">
+            Primární aerodynamický tvar (PAS)
+            <span className="ml-2 text-[10px] text-text-muted normal-case">
+              {lang === 'en' ? 'shown to English buyers:' : 'anglický název pro export:'}
+              <strong className="ml-1 text-text-secondary">
+                {getPasShape(formData.pasShape)?.[lang === 'en' ? 'en' : 'cz'] || (lang === 'en' ? 'not set' : 'nenastaveno')}
+              </strong>
+            </span>
+          </label>
+          <select
+            value={formData.pasShape}
+            onChange={(e) => setFormData((f) => ({ ...f, pasShape: e.target.value }))}
+            className="w-full bg-bg-secondary border border-border-color rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-moldavite-500"
+          >
+            <option value="">— nezvoleno —</option>
+            {PAS_SHAPES.map((s) => (
+              <option key={s.key} value={s.key}>
+                {s.cz} ({s.en})
+              </option>
+            ))}
+          </select>
+          {formData.pasShape && (
+            <p className="mt-1.5 text-xs text-text-muted italic">
+              {lang === 'en' ? getPasShape(formData.pasShape)?.descEn : getPasShape(formData.pasShape)?.descCz}
+            </p>
+          )}
         </div>
 
         {/* Weight + Prices */}

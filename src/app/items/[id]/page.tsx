@@ -128,6 +128,7 @@ export default async function ItemDetailPage({
               sold: item.sold,
               onShop: item.onShop,
               onEtsy: item.onEtsy,
+              pasShape: item.pasShape,
               box: { code: item.box.code, id: item.box.id },
               priceEUR: Number(item.priceEUR),
               priceUSD: Number(item.priceUSD),
