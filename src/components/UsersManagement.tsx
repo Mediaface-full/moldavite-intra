@@ -13,6 +13,7 @@ interface User {
 export default function UsersManagement() {
   const [users, setUsers] = useState<User[]>([]);
   const [showCreate, setShowCreate] = useState(false);
+  const [editingUser, setEditingUser] = useState<User | null>(null);
   const [newEmail, setNewEmail] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [newName, setNewName] = useState('');
@@ -107,10 +108,16 @@ export default function UsersManagement() {
                   {new Date(user.createdAt).toLocaleDateString('cs-CZ')}
                 </td>
                 <td className="px-4 py-3 text-right">
-                  <button onClick={() => handleDelete(user.id)}
-                    className="text-text-muted hover:text-red-400 transition-colors text-xs">
-                    Smazat
-                  </button>
+                  <div className="flex items-center gap-3 justify-end">
+                    <button onClick={() => setEditingUser(user)}
+                      className="text-text-secondary hover:text-moldavite-400 transition-colors text-xs">
+                      Upravit
+                    </button>
+                    <button onClick={() => handleDelete(user.id)}
+                      className="text-text-muted hover:text-red-400 transition-colors text-xs">
+                      Smazat
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
@@ -162,6 +169,119 @@ export default function UsersManagement() {
           </div>
         </div>
       )}
+
+      {/* Edit modal */}
+      {editingUser && (
+        <EditUserModal
+          user={editingUser}
+          onClose={() => setEditingUser(null)}
+          onSaved={() => { setEditingUser(null); loadUsers(); }}
+        />
+      )}
+    </div>
+  );
+}
+
+function EditUserModal({ user, onClose, onSaved }: {
+  user: User;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [name, setName] = useState(user.name || '');
+  const [email, setEmail] = useState(user.email);
+  const [password, setPassword] = useState('');
+  const [role, setRole] = useState<'ADMIN' | 'USER'>(user.role);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+    setError('');
+    try {
+      const body: Record<string, unknown> = {};
+      if (name !== (user.name || '')) body.name = name;
+      if (email !== user.email) body.email = email;
+      if (role !== user.role) body.role = role;
+      if (password) body.password = password;
+
+      if (Object.keys(body).length === 0) {
+        onClose();
+        return;
+      }
+
+      const res = await fetch(`/api/admin/users/${user.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (res.ok) {
+        onSaved();
+      } else {
+        const data = await res.json();
+        setError(data.error || 'Úprava selhala');
+      }
+    } catch {
+      setError('Chyba sítě');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+      <div className="bg-bg-card border border-border-color rounded-xl p-6 w-full max-w-md shadow-2xl">
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="text-lg font-semibold">Upravit uživatele</h3>
+          <button onClick={onClose} className="text-text-muted hover:text-text-primary">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-xs text-text-muted mb-1 uppercase tracking-wider">Jméno</label>
+            <input type="text" value={name} onChange={(e) => setName(e.target.value)}
+              className="w-full bg-bg-secondary border border-border-color rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-moldavite-500" />
+          </div>
+          <div>
+            <label className="block text-xs text-text-muted mb-1 uppercase tracking-wider">Email</label>
+            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required
+              className="w-full bg-bg-secondary border border-border-color rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-moldavite-500" />
+          </div>
+          <div>
+            <label className="block text-xs text-text-muted mb-1 uppercase tracking-wider">
+              Nové heslo
+              <span className="ml-2 normal-case text-[10px] text-text-muted">
+                nech prázdné, pokud nechceš měnit
+              </span>
+            </label>
+            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} minLength={6}
+              placeholder="min. 6 znaků"
+              className="w-full bg-bg-secondary border border-border-color rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-moldavite-500 placeholder-text-muted" />
+          </div>
+          <div>
+            <label className="block text-xs text-text-muted mb-1 uppercase tracking-wider">Role</label>
+            <select value={role} onChange={(e) => setRole(e.target.value as 'ADMIN' | 'USER')}
+              className="w-full bg-bg-secondary border border-border-color rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-moldavite-500">
+              <option value="USER">Uživatel</option>
+              <option value="ADMIN">Administrátor</option>
+            </select>
+          </div>
+          {error && <p className="text-red-400 text-sm">{error}</p>}
+          <div className="flex gap-3 pt-2">
+            <button type="submit" disabled={saving}
+              className="flex-1 bg-moldavite-600 hover:bg-moldavite-500 disabled:opacity-50 text-white px-4 py-2.5 rounded-lg text-sm font-medium transition-colors">
+              {saving ? 'Ukládám…' : 'Uložit změny'}
+            </button>
+            <button type="button" onClick={onClose}
+              className="px-4 py-2.5 rounded-lg text-sm text-text-secondary border border-border-color hover:border-border-hover transition-colors">
+              Zrušit
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }
