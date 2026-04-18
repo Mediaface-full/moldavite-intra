@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { apiFetch } from '@/lib/apiFetch';
 
 export default function RefreshRatesButton() {
   const [loading, setLoading] = useState(false);
@@ -10,7 +11,7 @@ export default function RefreshRatesButton() {
   const handleRefresh = async () => {
     setLoading(true);
     try {
-      await fetch('/api/rates', { method: 'POST' });
+      await apiFetch('/api/rates', { method: 'POST' });
       router.refresh();
     } catch (err) {
       console.error('Failed to refresh rates:', err);

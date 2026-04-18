@@ -63,6 +63,13 @@ export async function PATCH(
     return NextResponse.json({ error: 'Nic k úpravě' }, { status: 400 });
   }
 
+  // Bump tokenVersion so every outstanding JWT for this user stops working
+  // whenever a security-relevant field changes (password/email/role).
+  const securityRelevant = data.password !== undefined || data.email !== undefined || data.role !== undefined;
+  if (securityRelevant) {
+    (data as Record<string, unknown>).tokenVersion = { increment: 1 };
+  }
+
   const user = await prisma.user.update({
     where: { id: userId },
     data,

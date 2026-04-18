@@ -29,6 +29,7 @@ export interface SessionUser {
   email: string;
   name: string | null;
   role: 'ADMIN' | 'USER';
+  tokenVersion?: number; // snapshot at token creation; verified against DB in getSession
 }
 
 export async function authenticateUser(email: string, password: string): Promise<SessionUser | null> {
@@ -39,7 +40,7 @@ export async function authenticateUser(email: string, password: string): Promise
   const valid = await bcrypt.compare(password, hashToCheck);
 
   if (!user || !valid) return null;
-  return { id: user.id, email: user.email, name: user.name, role: user.role };
+  return { id: user.id, email: user.email, name: user.name, role: user.role, tokenVersion: user.tokenVersion };
 }
 
 export function createToken(user: SessionUser): string {
@@ -58,7 +59,37 @@ export async function getSession(): Promise<SessionUser | null> {
   const cookieStore = await cookies();
   const token = cookieStore.get(COOKIE_NAME)?.value;
   if (!token) return null;
-  return verifyToken(token);
+  const decoded = verifyToken(token);
+  if (!decoded) return null;
+
+  // Check token version against DB — lets us invalidate all outstanding
+  // tokens for a user by bumping tokenVersion (on logout, password change,
+  // admin revocation). One extra indexed query per request; negligible for
+  // our intranet scale.
+  const current = await prisma.user.findUnique({
+    where: { id: decoded.id },
+    select: { tokenVersion: true, role: true, email: true, name: true },
+  });
+  if (!current) return null;
+  if ((decoded.tokenVersion ?? 0) !== current.tokenVersion) return null;
+
+  // Role can change in DB without re-login; always return the DB-current value.
+  return {
+    id: decoded.id,
+    email: current.email,
+    name: current.name,
+    role: current.role,
+    tokenVersion: current.tokenVersion,
+  };
+}
+
+// Bump a user's tokenVersion, invalidating every outstanding JWT for them.
+// Call on logout, password change, or admin-triggered revoke.
+export async function invalidateUserTokens(userId: number): Promise<void> {
+  await prisma.user.update({
+    where: { id: userId },
+    data: { tokenVersion: { increment: 1 } },
+  });
 }
 
 export async function requireAuth(): Promise<SessionUser> {

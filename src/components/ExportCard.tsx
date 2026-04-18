@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { apiFetch } from '@/lib/apiFetch';
 
 const AVAILABLE_CURRENCIES = ['CZK', 'EUR', 'USD'];
 
@@ -32,7 +33,7 @@ export default function ExportCard({
   const saveConfig = async () => {
     setSaving(true);
     try {
-      await fetch('/api/admin/export-config', {
+      await apiFetch('/api/admin/export-config', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ exportType: type, ...config }),
@@ -236,7 +237,7 @@ function RecalcButton() {
     setRecalcing(true);
     setResult('');
     try {
-      const res = await fetch('/api/rates/recalc', { method: 'POST' });
+      const res = await apiFetch('/api/rates/recalc', { method: 'POST' });
       const data = await res.json();
       if (res.ok) {
         setResult(`Přepočteno ${data.recalculated} kamenů`);

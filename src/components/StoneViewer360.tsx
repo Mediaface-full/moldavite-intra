@@ -2,6 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { get360Photos, getGifUrl } from '@/lib/utils';
+import { apiFetch } from '@/lib/apiFetch';
 
 interface StoneViewer360Props {
   photoPath: string;
@@ -68,7 +69,7 @@ export default function StoneViewer360({ photoPath, evidNumber, itemId, mainPhot
     const photoNumber = currentIndex + 1;
     setSaving(true);
     try {
-      await fetch(`/api/items/${itemId}`, {
+      await apiFetch(`/api/items/${itemId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ mainPhoto: photoNumber }),

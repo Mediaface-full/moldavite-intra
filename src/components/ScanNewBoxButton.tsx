@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { apiFetch } from '@/lib/apiFetch';
 
 export default function ScanNewBoxButton() {
   const [scanning, setScanning] = useState(false);
@@ -10,7 +11,7 @@ export default function ScanNewBoxButton() {
     setScanning(true);
     setResult(null);
     try {
-      const res = await fetch('/api/scan', { method: 'POST' });
+      const res = await apiFetch('/api/scan', { method: 'POST' });
       const data = await res.json();
       if (res.ok) {
         setResult(`Načteno: ${data.created} nových, ${data.updated} aktualizováno`);

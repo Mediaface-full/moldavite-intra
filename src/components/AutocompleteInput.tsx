@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { apiFetch } from '@/lib/apiFetch';
 
 interface AutocompleteInputProps {
   value: string;
@@ -23,7 +24,7 @@ export default function AutocompleteInput({
   const loadSuggestions = async () => {
     if (loaded) return;
     try {
-      const res = await fetch(`/api/suggest?field=${field}`);
+      const res = await apiFetch(`/api/suggest?field=${field}`);
       if (res.ok) {
         const data = await res.json();
         setSuggestions(data);

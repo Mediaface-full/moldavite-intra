@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef } from 'react';
+import { apiFetch } from '@/lib/apiFetch';
 
 interface BoxPhotoUploadProps {
   boxId: number;
@@ -31,7 +32,7 @@ export default function BoxPhotoUpload({ boxId, boxCode, existingPhotos }: BoxPh
     }
 
     try {
-      const res = await fetch(`/api/boxes/${boxId}/photos`, {
+      const res = await apiFetch(`/api/boxes/${boxId}/photos`, {
         method: 'POST',
         body: formData,
       });
@@ -58,7 +59,7 @@ export default function BoxPhotoUpload({ boxId, boxCode, existingPhotos }: BoxPh
 
   const handleDelete = async () => {
     try {
-      await fetch(`/api/boxes/${boxId}/photos`, { method: 'DELETE' });
+      await apiFetch(`/api/boxes/${boxId}/photos`, { method: 'DELETE' });
       setPhotos([]);
     } catch (err) {
       console.error('Delete failed:', err);

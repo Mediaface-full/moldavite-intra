@@ -2,6 +2,7 @@
 
 import { useState, useRef } from 'react';
 import AutocompleteInput from './AutocompleteInput';
+import { apiFetch } from '@/lib/apiFetch';
 
 interface BoxPlacementProps {
   boxId: number;
@@ -21,7 +22,7 @@ export default function BoxPlacement({ boxId, placement: initial }: BoxPlacement
     const propagate = !prevValue.current && value;
 
     try {
-      await fetch(`/api/boxes/${boxId}`, {
+      await apiFetch(`/api/boxes/${boxId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ placement: value, propagatePlacement: propagate }),

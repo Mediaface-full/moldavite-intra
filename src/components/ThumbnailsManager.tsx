@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { apiFetch } from '@/lib/apiFetch';
 
 interface ThumbStats {
   totalItems: number;
@@ -45,8 +46,8 @@ export default function ThumbnailsManager() {
     setError('');
     try {
       const [t, w] = await Promise.all([
-        fetch('/api/admin/thumbnails').then((r) => r.json()),
-        fetch('/api/admin/web-resize').then((r) => r.json()),
+        apiFetch('/api/admin/thumbnails').then((r) => r.json()),
+        apiFetch('/api/admin/web-resize').then((r) => r.json()),
       ]);
       setThumbs(t);
       setWeb(w);
@@ -61,7 +62,7 @@ export default function ThumbnailsManager() {
     setBusy(key || url);
     setError('');
     try {
-      const res = await fetch(url, {
+      const res = await apiFetch(url, {
         method,
         headers: body ? { 'Content-Type': 'application/json' } : undefined,
         body: body ? JSON.stringify(body) : undefined,
@@ -89,7 +90,7 @@ export default function ThumbnailsManager() {
     setError('');
     try {
       while (true) {
-        const res = await fetch('/api/admin/web-resize', {
+        const res = await apiFetch('/api/admin/web-resize', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ force }),

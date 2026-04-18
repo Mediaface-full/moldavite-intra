@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { apiFetch } from '@/lib/apiFetch';
 
 const DEFAULT_PROMPT = `Jsi zkušený copywriter pro e-shopy s drahými kameny. Na základě těchto parametrů:
 - Katalogové číslo: {katalogove_cislo}
@@ -72,7 +73,7 @@ export default function AiGenerateModal({ itemId, catalogNumber, onClose, onAppl
     setError('');
     setResult(null);
     try {
-      const res = await fetch('/api/ai/generate', {
+      const res = await apiFetch('/api/ai/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ itemId, prompt }),
@@ -97,7 +98,7 @@ export default function AiGenerateModal({ itemId, catalogNumber, onClose, onAppl
     if (!result) return;
     setApplying(true);
     try {
-      await fetch('/api/ai/generate', {
+      await apiFetch('/api/ai/generate', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

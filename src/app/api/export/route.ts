@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma';
 import { NextResponse } from 'next/server';
 import { getSession, logActivity } from '@/lib/auth';
+import { getPasShape } from '@/lib/pasShapes';
 
 export async function GET() {
   const session = await getSession();
@@ -60,8 +61,15 @@ export async function GET() {
       ? (item.longDescriptionEn || item.descriptionEn || item.longDescription || item.description)
       : (item.longDescription || item.description);
 
+    // Prepend "Tvar: X / Y" paragraph to the description if shape is set.
+    const shape = getPasShape(item.pasShape);
+    const shapeLineCz = shape ? `<p><strong>Tvar:</strong> ${shape.cz} / ${shape.en}</p>` : '';
+    const shapeLineEn = shape ? `<p><strong>Shape:</strong> ${shape.en} / ${shape.cz}</p>` : '';
+    const primaryShapeLine = primaryLang === 'en' ? shapeLineEn : shapeLineCz;
+    const descWithShape = primaryShapeLine + (desc || '');
+
     xml += `    <PRODUCTNAME>${productName}</PRODUCTNAME>\n`;
-    xml += `    <DESCRIPTION><![CDATA[${desc}]]></DESCRIPTION>\n`;
+    xml += `    <DESCRIPTION><![CDATA[${descWithShape}]]></DESCRIPTION>\n`;
 
     // Second language variant
     if (languages.length > 1) {
@@ -70,8 +78,10 @@ export async function GET() {
       const altDesc = otherLang === 'en'
         ? (item.longDescriptionEn || item.descriptionEn || '')
         : (item.longDescription || item.description || '');
+      const altShapeLine = otherLang === 'en' ? shapeLineEn : shapeLineCz;
+      const altDescWithShape = altShapeLine + (altDesc || '');
       if (altName) xml += `    <PRODUCTNAME_ALT><![CDATA[${altName}]]></PRODUCTNAME_ALT>\n`;
-      if (altDesc) xml += `    <DESCRIPTION_ALT><![CDATA[${altDesc}]]></DESCRIPTION_ALT>\n`;
+      if (altDescWithShape) xml += `    <DESCRIPTION_ALT><![CDATA[${altDescWithShape}]]></DESCRIPTION_ALT>\n`;
     }
     xml += `    <PRICE>${price}</PRICE>\n`;
     xml += `    <PRICE_VAT>${price}</PRICE_VAT>\n`;
@@ -105,6 +115,9 @@ export async function GET() {
     xml += `    <EAN>${catalogNumber}</EAN>\n`;
     xml += `    <PARAM><PARAM_NAME>Hmotnost</PARAM_NAME><VAL>${item.weight} g</VAL></PARAM>\n`;
     xml += `    <PARAM><PARAM_NAME>Lokalita</PARAM_NAME><VAL>${item.location}</VAL></PARAM>\n`;
+    if (shape) {
+      xml += `    <PARAM><PARAM_NAME>Tvar</PARAM_NAME><VAL>${shape.cz} / ${shape.en}</VAL></PARAM>\n`;
+    }
     xml += '  </SHOPITEM>\n';
   }
 

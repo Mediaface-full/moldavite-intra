@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { authenticateUser, createToken, logActivity } from '@/lib/auth';
 import { checkRateLimit, resetRateLimit, getClientIp } from '@/lib/rateLimit';
+import { issueCsrfToken, CSRF_COOKIE_NAME, csrfCookieOptions } from '@/lib/csrf';
 
 const MAX_ATTEMPTS = 10;
 const WINDOW_MS = 15 * 60 * 1000;
@@ -40,6 +41,13 @@ export async function POST(request: Request) {
     maxAge: 24 * 60 * 60,
     path: '/',
   });
+  // Double-submit CSRF token. Clients read this cookie and echo it as
+  // x-csrf-token header on state-changing calls.
+  response.cookies.set(
+    CSRF_COOKIE_NAME,
+    issueCsrfToken(),
+    csrfCookieOptions(process.env.NODE_ENV === 'production')
+  );
 
   return response;
 }

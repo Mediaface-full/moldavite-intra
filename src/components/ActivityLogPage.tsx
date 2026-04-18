@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { apiFetch } from '@/lib/apiFetch';
 
 interface LogEntry {
   id: number;
@@ -60,7 +61,7 @@ export default function ActivityLogPage() {
     (async () => {
       const params = new URLSearchParams({ limit: String(limit), offset: String(page * limit) });
       if (actionFilter) params.set('action', actionFilter);
-      const res = await fetch(`/api/admin/logs?${params}`);
+      const res = await apiFetch(`/api/admin/logs?${params}`);
       if (res.ok) {
         const data = await res.json();
         setLogs(data.logs);
@@ -166,7 +167,7 @@ function CleanupButton({ onDone }: { onDone: () => void }) {
     if (!confirm('Smazat záznamy starší než 1 rok?')) return;
     setCleaning(true);
     try {
-      const res = await fetch('/api/admin/logs/cleanup', { method: 'POST' });
+      const res = await apiFetch('/api/admin/logs/cleanup', { method: 'POST' });
       const data = await res.json();
       if (res.ok) {
         alert(`Smazáno ${data.deleted} starých záznamů`);

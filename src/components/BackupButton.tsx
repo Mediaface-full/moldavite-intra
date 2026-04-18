@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { apiFetch } from '@/lib/apiFetch';
 
 export default function BackupButton() {
   const [backing, setBacking] = useState(false);
@@ -10,7 +11,7 @@ export default function BackupButton() {
     setBacking(true);
     setResult(null);
     try {
-      const res = await fetch('/api/admin/backup', { method: 'POST' });
+      const res = await apiFetch('/api/admin/backup', { method: 'POST' });
       const data = await res.json();
       if (res.ok) {
         setResult(`Záloha vytvořena: ${data.filename} (${data.size})`);

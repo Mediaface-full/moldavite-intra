@@ -19,6 +19,7 @@ model User {
   password     String
   name         String?
   role         Role          @default(USER)
+  tokenVersion Int           @default(0) // bump = invaliduje všechny existující JWT tokeny uživatele
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
   activityLogs ActivityLog[]

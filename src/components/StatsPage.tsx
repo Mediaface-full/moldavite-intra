@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { apiFetch } from '@/lib/apiFetch';
 
 interface Stats {
   overview: {
@@ -41,7 +42,7 @@ export default function StatsPage() {
     if (dateFrom) params.set('from', dateFrom);
     if (dateTo) params.set('to', dateTo);
     try {
-      const res = await fetch(`/api/stats?${params}`);
+      const res = await apiFetch(`/api/stats?${params}`);
       if (res.ok) setStats(await res.json());
     } catch {} finally { setLoading(false); }
   }, [dateFrom, dateTo]);

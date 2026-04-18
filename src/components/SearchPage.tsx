@@ -4,6 +4,7 @@ import { useState, useCallback } from 'react';
 import { PAS_SHAPES } from '@/lib/pasShapes';
 import Link from 'next/link';
 import { getThumbnailUrl, getCatalogNumber, formatWeight, formatPrice } from '@/lib/utils';
+import { apiFetch } from '@/lib/apiFetch';
 
 interface SearchItem {
   id: number;
@@ -68,7 +69,7 @@ export default function SearchPage() {
     params.set('sortDir', sortDir);
 
     try {
-      const res = await fetch(`/api/search?${params.toString()}`);
+      const res = await apiFetch(`/api/search?${params.toString()}`);
       const data = await res.json();
       setResults(data);
     } catch (err) {

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { getThumbnailUrl, getCatalogNumber } from '@/lib/utils';
 import { PAS_SHAPES, pasShapeCz } from '@/lib/pasShapes';
 import AiButton from './AiButton';
+import { apiFetch } from '@/lib/apiFetch';
 
 interface Item {
   id: number;
@@ -58,7 +59,7 @@ export default function ItemsTable({ items: initialItems, boxCode, isAdmin = tru
     if (saveTimers.current[key]) clearTimeout(saveTimers.current[key]);
     saveTimers.current[key] = setTimeout(async () => {
       try {
-        await fetch(`/api/items/${itemId}`, {
+        await apiFetch(`/api/items/${itemId}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ [field]: value }),
@@ -91,7 +92,7 @@ export default function ItemsTable({ items: initialItems, boxCode, isAdmin = tru
       item.id === itemId ? { ...item, [field]: !currentValue } : item
     ));
     try {
-      await fetch(`/api/items/${itemId}`, {
+      await apiFetch(`/api/items/${itemId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ [field]: !currentValue }),
@@ -128,7 +129,7 @@ export default function ItemsTable({ items: initialItems, boxCode, isAdmin = tru
       eligibleIds.has(item.id) ? { ...item, [field]: value } : item
     ));
     try {
-      await fetch('/api/items/bulk', {
+      await apiFetch('/api/items/bulk', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ updates }),
@@ -152,7 +153,7 @@ export default function ItemsTable({ items: initialItems, boxCode, isAdmin = tru
         if (data.storage) fields.storage = data.storage;
         if (data.pasShape !== undefined) fields.pasShape = data.pasShape;
         if (Object.keys(fields).length > 0) {
-          await fetch(`/api/items/${item.id}`, {
+          await apiFetch(`/api/items/${item.id}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(fields),

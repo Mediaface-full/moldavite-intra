@@ -5,6 +5,7 @@ import { formatPrice } from '@/lib/utils';
 import { PAS_SHAPES, getPasShape } from '@/lib/pasShapes';
 import dynamic from 'next/dynamic';
 import AutocompleteInput from './AutocompleteInput';
+import { apiFetch } from '@/lib/apiFetch';
 
 const RichTextEditor = dynamic(() => import('./RichTextEditor'), { ssr: false });
 
@@ -56,7 +57,7 @@ export default function ItemDetailForm({ item }: { item: ItemData }) {
   const handleSave = async () => {
     setSaving(true);
     try {
-      const res = await fetch(`/api/items/${item.id}`, {
+      const res = await apiFetch(`/api/items/${item.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

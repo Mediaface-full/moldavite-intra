@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { apiFetch } from '@/lib/apiFetch';
 
 interface User {
   id: number;
@@ -22,7 +23,7 @@ export default function UsersManagement() {
   const [error, setError] = useState('');
 
   const loadUsers = useCallback(async () => {
-    const res = await fetch('/api/admin/users');
+    const res = await apiFetch('/api/admin/users');
     if (res.ok) setUsers(await res.json());
   }, []);
 
@@ -33,7 +34,7 @@ export default function UsersManagement() {
     setCreating(true);
     setError('');
     try {
-      const res = await fetch('/api/admin/users', {
+      const res = await apiFetch('/api/admin/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: newEmail, password: newPassword, name: newName, role: newRole }),
@@ -51,12 +52,12 @@ export default function UsersManagement() {
 
   const handleDelete = async (userId: number) => {
     if (!confirm('Opravdu smazat tohoto uživatele?')) return;
-    await fetch(`/api/admin/users/${userId}`, { method: 'DELETE' });
+    await apiFetch(`/api/admin/users/${userId}`, { method: 'DELETE' });
     loadUsers();
   };
 
   const handleRoleChange = async (userId: number, role: string) => {
-    await fetch(`/api/admin/users/${userId}`, {
+    await apiFetch(`/api/admin/users/${userId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ role }),
@@ -210,7 +211,7 @@ function EditUserModal({ user, onClose, onSaved }: {
         return;
       }
 
-      const res = await fetch(`/api/admin/users/${user.id}`, {
+      const res = await apiFetch(`/api/admin/users/${user.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),

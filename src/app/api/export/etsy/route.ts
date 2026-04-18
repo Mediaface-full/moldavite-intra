@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma';
 import { NextResponse } from 'next/server';
 import { getSession, logActivity } from '@/lib/auth';
+import { getPasShape } from '@/lib/pasShapes';
 
 export async function GET() {
   const session = await getSession();
@@ -46,10 +47,18 @@ export async function GET() {
     const title = primaryLang === 'en'
       ? (item.nameEn || `Natural Czech Moldavite ${catalogNumber} - ${item.weight}g`)
       : (item.name || `Moldavit ${catalogNumber} - ${item.weight}g`);
-    const desc = primaryLang === 'en'
+    const baseDesc = primaryLang === 'en'
       ? (item.longDescriptionEn || item.descriptionEn || `Genuine Bohemian Moldavite. Weight: ${item.weight}g.`)
       : (item.longDescription || item.description || `Český moldavit. Hmotnost: ${item.weight}g.`);
-    const tags = 'moldavite,czech moldavite,tektite,natural moldavite,genuine moldavite,raw moldavite,green tektite,bohemian moldavite';
+    // Prefix shape info when set.
+    const shape = getPasShape(item.pasShape);
+    const shapePrefix = shape
+      ? (primaryLang === 'en' ? `Shape: ${shape.en} / ${shape.cz}\n\n` : `Tvar: ${shape.cz} / ${shape.en}\n\n`)
+      : '';
+    const desc = shapePrefix + baseDesc;
+    // Etsy allows max 13 tags; add shape as one extra tag when set (lowercase, no spaces issue).
+    const baseTags = 'moldavite,czech moldavite,tektite,natural moldavite,genuine moldavite,raw moldavite,green tektite,bohemian moldavite';
+    const tags = shape ? `${baseTags},${shape.en.split('/')[0].trim().toLowerCase()}` : baseTags;
     const materials = 'moldavite,tektite';
 
     const mainIdx = item.mainPhoto || 1;
