@@ -3,8 +3,30 @@ import { NextResponse } from 'next/server';
 import { getSession, logActivity } from '@/lib/auth';
 import { getPasShape } from '@/lib/pasShapes';
 import { createHash, randomBytes } from 'crypto';
+import * as fs from 'fs';
+import * as path from 'path';
 import PDFDocument from 'pdfkit';
 import QRCode from 'qrcode';
+
+// Cached logo bytes — loaded once per process. PDFKit accepts the buffer
+// directly so we don't depend on cwd at request time.
+let LOGO_BUFFER: Buffer | null = null;
+function getLogoBuffer(): Buffer | null {
+  if (LOGO_BUFFER) return LOGO_BUFFER;
+  for (const candidate of [
+    path.join(process.cwd(), 'public', 'logo-pdf.png'),
+    path.join(process.cwd(), '.next', 'standalone', 'public', 'logo-pdf.png'),
+  ]) {
+    try {
+      LOGO_BUFFER = fs.readFileSync(candidate);
+      return LOGO_BUFFER;
+    } catch {
+      /* try next */
+    }
+  }
+  console.warn('[certificate] logo-pdf.png not found in public/');
+  return null;
+}
 
 export async function GET(
   request: Request,
@@ -92,16 +114,22 @@ export async function GET(
   doc.moveTo(W - 35, H - 35).lineTo(W - 55, H - 35).stroke();
   doc.moveTo(W - 35, H - 35).lineTo(W - 35, H - 55).stroke();
 
+  // Logo — Bohemian Moldavite branding centered at the top
+  const logo = getLogoBuffer();
+  let titleY = 55;
+  if (logo) {
+    // Logo source is 1500×750 (2:1). Render at 160×80 centered.
+    const logoW = 160;
+    const logoH = 80;
+    doc.image(logo, (W - logoW) / 2, 45, { width: logoW, height: logoH });
+    titleY = 45 + logoH + 12;
+  }
+
   // Title
-  doc.fontSize(28).fillColor(darkGreen).font('Helvetica-Bold')
-    .text('CERTIFICATE OF AUTHENTICITY', 50, 55, { align: 'center', width: W - 100 });
+  doc.fontSize(24).fillColor(darkGreen).font('Helvetica-Bold')
+    .text('CERTIFICATE OF AUTHENTICITY', 50, titleY, { align: 'center', width: W - 100 });
 
-  // Subtitle
-  doc.moveDown(0.4);
-  doc.fontSize(14).fillColor('#555').font('Helvetica')
-    .text('Natural Bohemian Moldavite', { align: 'center', width: W - 100 });
-
-  doc.moveDown(0.2);
+  doc.moveDown(0.3);
   doc.fontSize(10).fillColor('#888').font('Helvetica')
     .text(`Serial Number: ${catalogNumber}`, { align: 'center', width: W - 100 });
 

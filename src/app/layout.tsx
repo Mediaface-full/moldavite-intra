@@ -52,9 +52,9 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
         {session ? (
           <>
             <aside className="w-64 bg-bg-secondary border-r border-border-color flex flex-col min-h-screen">
-              <div className="p-6 border-b border-border-color">
-                <h1 className="text-xl font-bold text-accent-gold tracking-wide">BOHEMIAN</h1>
-                <p className="text-sm text-text-secondary tracking-widest">MOLDAVITE</p>
+              <div className="p-6 border-b border-border-color flex items-center justify-center">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/logo.svg" alt="Bohemian Moldavite" className="h-12 w-auto" />
               </div>
 
               <nav className="flex-1 p-4 space-y-1">

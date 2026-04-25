@@ -39,9 +39,9 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen bg-bg-primary flex items-center justify-center p-4">
       <div className="w-full max-w-sm">
-        <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold text-accent-gold tracking-wide">BOHEMIAN</h1>
-          <p className="text-sm text-text-secondary tracking-widest">MOLDAVITE</p>
+        <div className="flex justify-center mb-8">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo.svg" alt="Bohemian Moldavite" className="h-20 w-auto" />
         </div>
 
         <div className="bg-bg-card border border-border-color rounded-xl p-6">

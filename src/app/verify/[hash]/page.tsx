@@ -27,6 +27,10 @@ export default async function VerifyPage({
       <div className="max-w-2xl mx-auto px-6 py-12">
         {/* Header */}
         <div className="text-center mb-8">
+          <div className="flex justify-center mb-6">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logo-light.svg" alt="Bohemian Moldavite" className="h-20 w-auto" />
+          </div>
           <div className="inline-flex items-center gap-2 bg-green-50 border border-green-200 text-green-800 px-4 py-2 rounded-full text-sm font-medium mb-6">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -34,7 +38,6 @@ export default async function VerifyPage({
             Verified Authentic
           </div>
           <h1 className="text-3xl font-bold text-gray-900 mb-1">Certificate of Authenticity</h1>
-          <p className="text-gray-500">Bohemian Moldavite</p>
         </div>
 
         {/* 360° Viewer - compact, same width as content */}
