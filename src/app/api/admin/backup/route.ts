@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getSession, logActivity } from '@/lib/auth';
+import { sendEmail } from '@/lib/email';
+import { tmplBackupReport, tmplBackupFailed } from '@/lib/emailTemplates';
 import { spawn } from 'child_process';
 import { timingSafeEqual } from 'crypto';
 import * as fs from 'fs';
@@ -72,6 +74,7 @@ export async function POST(request: Request) {
   const port = parsed.port || '5432';
   const dbname = parsed.pathname.replace(/^\//, '');
 
+  const startedAt = Date.now();
   try {
     await runBackup({ user, password, host, port, dbname, filepath });
 
@@ -82,9 +85,29 @@ export async function POST(request: Request) {
 
     const stats = fs.statSync(filepath);
     const sizeMB = (stats.size / 1024 / 1024).toFixed(2);
+    const durationSec = Math.round((Date.now() - startedAt) / 1000);
 
     if (auth.userId !== null) {
       await logActivity(auth.userId, 'admin.backup', '', `Záloha: ${filename} (${sizeMB} MB)`);
+    }
+
+    // Send report email for cron-triggered backups (admin manual ones can
+    // see the result in UI directly, no need to email).
+    if (auth.tag === 'cron' && process.env.BACKUP_REPORT_EMAIL) {
+      const totalBackups = countBackups(backupDir);
+      const totalDiskMB = sumBackupSize(backupDir);
+      try {
+        await sendEmail(tmplBackupReport({
+          to: process.env.BACKUP_REPORT_EMAIL,
+          filename,
+          sizeMB,
+          durationSec,
+          totalBackups,
+          totalDiskMB: Math.round(totalDiskMB),
+        }));
+      } catch (err) {
+        console.error('[admin/backup] report email failed:', err);
+      }
     }
 
     return NextResponse.json({
@@ -95,7 +118,36 @@ export async function POST(request: Request) {
     });
   } catch (err) {
     console.error('[admin/backup] failed', err);
+    if (auth.tag === 'cron' && process.env.BACKUP_REPORT_EMAIL) {
+      try {
+        await sendEmail(tmplBackupFailed({
+          to: process.env.BACKUP_REPORT_EMAIL,
+          error: err instanceof Error ? err.message : String(err),
+          when: new Date(),
+        }));
+      } catch (mailErr) {
+        console.error('[admin/backup] failure email failed:', mailErr);
+      }
+    }
     return NextResponse.json({ error: 'Záloha selhala' }, { status: 500 });
+  }
+}
+
+function countBackups(dir: string): number {
+  try {
+    return fs.readdirSync(dir).filter((f) => f.endsWith('.sql.gz')).length;
+  } catch {
+    return 0;
+  }
+}
+
+function sumBackupSize(dir: string): number {
+  try {
+    return fs.readdirSync(dir)
+      .filter((f) => f.endsWith('.sql.gz'))
+      .reduce((sum, f) => sum + fs.statSync(path.join(dir, f)).size, 0) / 1024 / 1024;
+  } catch {
+    return 0;
   }
 }
 

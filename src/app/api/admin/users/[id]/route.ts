@@ -1,12 +1,16 @@
 import { prisma } from '@/lib/prisma';
 import { NextResponse } from 'next/server';
 import { getSession, logActivity } from '@/lib/auth';
+import { sendEmail } from '@/lib/email';
+import { tmplPasswordChanged } from '@/lib/emailTemplates';
+import { getClientIp } from '@/lib/rateLimit';
 import * as bcrypt from 'bcryptjs';
 
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const ip = getClientIp(request);
   const session = await getSession();
   if (!session || session.role !== 'ADMIN') {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
@@ -78,6 +82,21 @@ export async function PATCH(
 
   const changedFields = Object.keys(data).filter((k) => k !== 'password').join(',') + (data.password ? ',password' : '');
   await logActivity(session.id, 'admin.user.update', user.email, `Upraveno: ${changedFields}`);
+
+  // Notify the user when their password changed (regardless of who did it).
+  if (data.password) {
+    try {
+      await sendEmail(tmplPasswordChanged({
+        to: user.email,
+        name: user.name,
+        changedBy: session.id === userId ? 'self' : 'admin',
+        ip,
+        when: new Date(),
+      }));
+    } catch (err) {
+      console.error('[admin/users] password-changed email failed:', err);
+    }
+  }
 
   return NextResponse.json(user);
 }

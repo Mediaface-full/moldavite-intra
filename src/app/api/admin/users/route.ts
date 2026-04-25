@@ -1,6 +1,8 @@
 import { prisma } from '@/lib/prisma';
 import { NextResponse } from 'next/server';
 import { getSession, logActivity } from '@/lib/auth';
+import { sendEmail } from '@/lib/email';
+import { tmplWelcomeUser } from '@/lib/emailTemplates';
 import * as bcrypt from 'bcryptjs';
 
 export async function GET() {
@@ -45,6 +47,13 @@ export async function POST(request: Request) {
   });
 
   await logActivity(session.id, 'admin.user.create', user.email, `Vytvořen uživatel: ${user.email} (${user.role})`);
+
+  // Welcome email — silently no-op if SMTP isn't configured.
+  try {
+    await sendEmail(tmplWelcomeUser({ to: user.email, name: user.name, password }));
+  } catch (err) {
+    console.error('[admin/users] welcome email failed:', err);
+  }
 
   return NextResponse.json(user, { status: 201 });
 }
