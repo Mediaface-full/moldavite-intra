@@ -118,11 +118,12 @@ export async function GET(
   const logo = getLogoBuffer();
   let titleY = 55;
   if (logo) {
-    // Logo source is 1500×750 (2:1). Render at 160×80 centered.
-    const logoW = 160;
-    const logoH = 80;
-    doc.image(logo, (W - logoW) / 2, 45, { width: logoW, height: logoH });
-    titleY = 45 + logoH + 12;
+    // Logo source is 1500×750 (2:1). Render at 280×140 centered — bigger
+    // so the brand reads at first glance from arm's length.
+    const logoW = 280;
+    const logoH = 140;
+    doc.image(logo, (W - logoW) / 2, 35, { width: logoW, height: logoH });
+    titleY = 35 + logoH + 8;
   }
 
   // Title
