@@ -96,8 +96,16 @@ export function proxy(request: NextRequest) {
     return res;
   }
 
-  // Allow static files and images
-  if (pathname.startsWith('/_next') || pathname.startsWith('/images') || pathname === '/favicon.ico') {
+  // Allow static files and images.
+  // public/ assets (logo*.svg, favicon, og images, etc.) musí být dostupné
+  // i na login page (před autentizací), jinak je proxy odřízne 307→/login
+  // a obrázky se rozbijí. Bezpečné: pouští se jen statické přípony.
+  if (
+    pathname.startsWith('/_next') ||
+    pathname.startsWith('/images') ||
+    pathname === '/favicon.ico' ||
+    /\.(svg|png|jpe?g|gif|webp|ico|woff2?|ttf|eot|otf|css|js|map|txt)$/i.test(pathname)
+  ) {
     const res = NextResponse.next({ request: { headers: forwardedHeaders } });
     applySecurityHeaders(res, nonce, isProd);
     return res;
