@@ -36,6 +36,8 @@ jobs:
           file: ./Dockerfile
           push: true
           platforms: linux/amd64
+          build-args: |
+            COMMIT_SHA=${{ github.sha }}
           tags: |
             ghcr.io/${{ steps.repo.outputs.name }}/app:latest
             ghcr.io/${{ steps.repo.outputs.name }}/app:${{ github.sha }}

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { PAS_SHAPES } from '@/lib/pasShapes';
 import Link from 'next/link';
 import { getThumbnailUrl, getCatalogNumber, formatWeight, formatPrice } from '@/lib/utils';
@@ -320,6 +321,7 @@ function GroupedView({ grouped }: { grouped: Record<string, SearchItem[]> }) {
 }
 
 function FlatView({ items }: { items: SearchItem[] }) {
+  const router = useRouter();
   return (
     <div className="overflow-x-auto rounded-xl border border-border-color">
       <table className="w-full text-sm">
@@ -337,19 +339,21 @@ function FlatView({ items }: { items: SearchItem[] }) {
         </thead>
         <tbody>
           {items.map((item) => (
-            <tr key={item.id} className="border-b border-border-color hover:bg-bg-card-hover transition-colors">
+            <tr
+              key={item.id}
+              onClick={() => router.push(`/items/${item.id}`)}
+              className="border-b border-border-color hover:bg-bg-card-hover transition-colors cursor-pointer"
+            >
               <td className="px-3 py-2">
-                <Link href={`/items/${item.id}`}>
-                  <div className="w-10 h-10 rounded-lg overflow-hidden bg-white border border-border-color">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={getThumbnailUrl(item.photoPath, item.mainPhoto)} alt="" className="object-cover w-full h-full" />
-                  </div>
-                </Link>
+                <div className="w-10 h-10 rounded-lg overflow-hidden bg-white border border-border-color">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={getThumbnailUrl(item.photoPath, item.mainPhoto)} alt="" className="object-cover w-full h-full" />
+                </div>
               </td>
               <td className="px-3 py-2">
-                <Link href={`/items/${item.id}`} className="text-foreground hover:text-primary font-mono text-xs font-semibold tracking-tight transition-colors">
+                <span className="text-foreground font-mono text-xs font-semibold tracking-tight">
                   {getCatalogNumber(item.box.code, item.evidNumber)}
-                </Link>
+                </span>
               </td>
               <td className="px-3 py-2 text-text-secondary max-w-xs truncate">{item.description || '-'}</td>
               <td className="px-3 py-2 text-text-secondary">{item.location || '-'}</td>

@@ -7,6 +7,7 @@ import RefreshRatesButton from '@/components/RefreshRatesButton';
 import BackupButton from '@/components/BackupButton';
 import Sparkline from '@/components/charts/Sparkline';
 import Donut from '@/components/charts/Donut';
+import ClickableRow from '@/components/ClickableRow';
 
 export default async function DashboardPage() {
   const session = await getSession();
@@ -314,11 +315,15 @@ export default async function DashboardPage() {
               </thead>
               <tbody>
                 {recentlyAdded.map((item) => (
-                  <tr key={item.id} className="border-b border-border last:border-0 hover:bg-muted/40 transition-colors">
+                  <ClickableRow
+                    key={item.id}
+                    href={`/items/${item.id}`}
+                    className="border-b border-border last:border-0 hover:bg-muted/40 transition-colors"
+                  >
                     <td className="px-4 py-2">
-                      <Link href={`/items/${item.id}`} className="font-mono font-semibold text-foreground hover:text-primary tracking-tight transition-colors">
+                      <span className="font-mono font-semibold text-foreground tracking-tight">
                         {item.box.code}-{item.evidNumber}
-                      </Link>
+                      </span>
                     </td>
                     <td className="px-4 py-2 text-muted-foreground">{item.location || '—'}</td>
                     <td className="px-4 py-2 text-right font-mono">{Number(item.weight).toFixed(2)} g</td>
@@ -327,7 +332,7 @@ export default async function DashboardPage() {
                         ? `${Math.round(Number(item.salePrice)).toLocaleString('cs-CZ')} Kč`
                         : '—'}
                     </td>
-                  </tr>
+                  </ClickableRow>
                 ))}
               </tbody>
             </table>

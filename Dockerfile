@@ -16,6 +16,13 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
+
+# Commit SHA z CI (GitHub Actions: --build-arg COMMIT_SHA=${{ github.sha }}).
+# Bez argumentu zůstane "" → klient zobrazí "v0.1.0 · dev".
+# NEXT_PUBLIC_ prefix → Next.js inlinuje hodnotu do client bundlu při buildu.
+ARG COMMIT_SHA=""
+ENV NEXT_PUBLIC_COMMIT_SHA=${COMMIT_SHA}
+
 RUN node node_modules/prisma/build/index.js generate
 RUN node node_modules/next/dist/bin/next build
 

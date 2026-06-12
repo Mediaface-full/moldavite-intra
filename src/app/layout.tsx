@@ -5,6 +5,7 @@ import { getSession } from "@/lib/auth";
 import { themeInitScript } from "@/lib/theme";
 import LogoutButton from "@/components/LogoutButton";
 import ThemeToggle from "@/components/ThemeToggle";
+import { BUILD_INFO } from "@/lib/buildInfo";
 import "./globals.css";
 
 // MediaFace Admin styl — Space Grotesk pro nadpisy a UI, JetBrains Mono
@@ -103,7 +104,12 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
                     <LogoutButton />
                   </div>
                 </div>
-                <p className="text-xs text-sidebar-muted font-mono">Moldavite Intra v1.0</p>
+                <p
+                  className="text-xs text-sidebar-muted font-mono"
+                  title={BUILD_INFO.commit ? `Commit ${BUILD_INFO.commit}` : 'Lokální build (dev)'}
+                >
+                  Moldavite Intra <span className="opacity-70">{BUILD_INFO.label}</span>
+                </p>
               </div>
             </aside>
             <main className="flex-1 overflow-auto">

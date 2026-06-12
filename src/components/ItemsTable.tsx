@@ -1,11 +1,18 @@
 'use client';
 
 import { useState, useCallback, useRef, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { getThumbnailUrl, getCatalogNumber } from '@/lib/utils';
 import { PAS_SHAPES, pasShapeCz } from '@/lib/pasShapes';
 import AiButton from './AiButton';
 import { apiFetch } from '@/lib/apiFetch';
+
+// Buňky ve kterých je interaktivní prvek (input, select, button, toggle) —
+// klik nesmí propagovat na řádek, aby uživatel mohl klidně editovat.
+function stopRowClick(e: React.MouseEvent | React.PointerEvent) {
+  e.stopPropagation();
+}
 
 interface Item {
   id: number;
@@ -32,6 +39,7 @@ interface ItemsTableProps {
 }
 
 export default function ItemsTable({ items: initialItems, boxCode, isAdmin = true }: ItemsTableProps) {
+  const router = useRouter();
   const [localItems, setLocalItems] = useState(initialItems);
   const [searchQuery, setSearchQuery] = useState('');
   const [pasFilter, setPasFilter] = useState<string>(''); // '' = all, 'NONE' = not set, otherwise key
@@ -273,33 +281,35 @@ export default function ItemsTable({ items: initialItems, boxCode, isAdmin = tru
           </thead>
           <tbody>
             {filteredItems.map((item) => (
-              <tr key={item.id} className={`border-b border-border-color hover:bg-bg-card-hover transition-colors ${item.sold ? 'opacity-50' : ''}`}>
+              <tr
+                key={item.id}
+                onClick={() => router.push(`/items/${item.id}`)}
+                className={`border-b border-border-color hover:bg-bg-card-hover transition-colors cursor-pointer ${item.sold ? 'opacity-50' : ''}`}
+              >
                 {/* Thumbnail */}
                 <td className="px-3 py-2">
-                  <Link href={`/items/${item.id}`}>
-                    <div className="w-11 h-11 rounded-lg overflow-hidden bg-white border border-border-color">
-                      {item.photoPath ? (
-                        /* eslint-disable-next-line @next/next/no-img-element */
-                        <img src={getThumbnailUrl(item.photoPath, item.mainPhoto)} alt={item.evidNumber} className="object-cover w-full h-full" />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-text-muted text-xs">N/A</div>
-                      )}
-                    </div>
-                  </Link>
+                  <div className="w-11 h-11 rounded-lg overflow-hidden bg-white border border-border-color">
+                    {item.photoPath ? (
+                      /* eslint-disable-next-line @next/next/no-img-element */
+                      <img src={getThumbnailUrl(item.photoPath, item.mainPhoto)} alt={item.evidNumber} className="object-cover w-full h-full" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-text-muted text-xs">N/A</div>
+                    )}
+                  </div>
                 </td>
 
                 {/* Catalog Number */}
                 <td className="px-3 py-2">
-                  <Link href={`/items/${item.id}`} className="text-foreground hover:text-primary font-mono font-semibold transition-colors text-xs tracking-tight">
+                  <span className="text-foreground font-mono font-semibold text-xs tracking-tight">
                     {getCatalogNumber(getBoxCode(item), item.evidNumber)}
-                  </Link>
+                  </span>
                 </td>
 
                 {/* Location */}
                 <td className="px-3 py-2 text-text-secondary">{item.location || '-'}</td>
 
                 {/* PAS shape — inline select */}
-                <td className="px-3 py-2">
+                <td className="px-3 py-2" onClick={stopRowClick}>
                   <select
                     value={item.pasShape || ''}
                     onChange={(e) => {
@@ -317,7 +327,7 @@ export default function ItemsTable({ items: initialItems, boxCode, isAdmin = tru
                 </td>
 
                 {/* Weight */}
-                <td className="px-3 py-2 text-right">
+                <td className="px-3 py-2 text-right" onClick={stopRowClick}>
                   <ZeroInput
                     step="0.01" width="w-20"
                     initial={typeof item.weight === 'string' ? parseFloat(item.weight) : item.weight}
@@ -327,7 +337,7 @@ export default function ItemsTable({ items: initialItems, boxCode, isAdmin = tru
 
                 {/* Purchase Price */}
                 {isAdmin && (
-                  <td className="px-3 py-2 text-right">
+                  <td className="px-3 py-2 text-right" onClick={stopRowClick}>
                     <ZeroInput
                       width="w-24"
                       initial={typeof item.purchasePrice === 'string' ? parseFloat(item.purchasePrice) : item.purchasePrice}
@@ -337,7 +347,7 @@ export default function ItemsTable({ items: initialItems, boxCode, isAdmin = tru
                 )}
 
                 {/* Sale Price */}
-                <td className="px-3 py-2 text-right">
+                <td className="px-3 py-2 text-right" onClick={stopRowClick}>
                   <ZeroInput
                     width="w-24"
                     initial={typeof item.salePrice === 'string' ? parseFloat(item.salePrice) : item.salePrice}
@@ -346,7 +356,7 @@ export default function ItemsTable({ items: initialItems, boxCode, isAdmin = tru
                 </td>
 
                 {/* Eshop Toggle - disabled if sold */}
-                <td className="px-3 py-2 text-center">
+                <td className="px-3 py-2 text-center" onClick={stopRowClick}>
                   {item.sold ? (
                     <span className="relative inline-flex h-5 w-9 items-center rounded-full bg-muted opacity-50 cursor-not-allowed ring-1 ring-inset ring-border">
                       <span className="inline-block h-3.5 w-3.5 transform rounded-full bg-muted-foreground/40 translate-x-0.5" />
@@ -368,7 +378,7 @@ export default function ItemsTable({ items: initialItems, boxCode, isAdmin = tru
                 </td>
 
                 {/* Etsy Toggle - disabled if sold */}
-                <td className="px-3 py-2 text-center">
+                <td className="px-3 py-2 text-center" onClick={stopRowClick}>
                   {item.sold ? (
                     <span className="relative inline-flex h-5 w-9 items-center rounded-full bg-muted opacity-50 cursor-not-allowed ring-1 ring-inset ring-border">
                       <span className="inline-block h-3.5 w-3.5 transform rounded-full bg-muted-foreground/40 translate-x-0.5" />
@@ -390,7 +400,7 @@ export default function ItemsTable({ items: initialItems, boxCode, isAdmin = tru
                 </td>
 
                 {/* Sold button - only one-way in table (mark as sold, unmark only from detail) */}
-                <td className="px-3 py-2 text-center">
+                <td className="px-3 py-2 text-center" onClick={stopRowClick}>
                   {item.sold ? (
                     <span
                       style={{ background: 'color-mix(in srgb, var(--destructive) 12%, transparent)', color: 'var(--destructive)', borderColor: 'color-mix(in srgb, var(--destructive) 30%, transparent)' }}
@@ -414,7 +424,7 @@ export default function ItemsTable({ items: initialItems, boxCode, isAdmin = tru
 
                 {/* AI button - admin only */}
                 {isAdmin && (
-                  <td className="px-2 py-2 text-center">
+                  <td className="px-2 py-2 text-center" onClick={stopRowClick}>
                     <AiButton itemId={item.id} catalogNumber={getCatalogNumber(getBoxCode(item), item.evidNumber)} size="sm" />
                   </td>
                 )}
