@@ -302,39 +302,84 @@ export default function ItemDetailForm({ item }: { item: ItemData }) {
 
         {/* Sold + Toggles */}
         <div className="space-y-3 pt-2">
-          <div className={`flex items-center justify-between p-3 rounded-lg border ${
-            formData.sold ? 'bg-red-900/30 border-red-800' : 'bg-bg-secondary border-border-color'
-          }`}>
+          <div
+            className="flex items-center justify-between p-3 rounded-lg border transition-colors"
+            style={formData.sold ? {
+              background: 'color-mix(in srgb, var(--destructive) 12%, transparent)',
+              borderColor: 'color-mix(in srgb, var(--destructive) 30%, transparent)',
+            } : {
+              background: 'color-mix(in srgb, var(--muted) 50%, transparent)',
+              borderColor: 'var(--border)',
+            }}
+          >
             <div>
-              <label className="block text-xs text-text-muted uppercase tracking-wider">Status</label>
-              <p className="text-sm mt-0.5">
-                {formData.sold ? <span className="text-red-300 font-semibold">PRODÁNO</span> : <span className="text-text-secondary">Neprodáno</span>}
+              <label className="block text-[10px] text-muted-foreground uppercase tracking-wider font-mono">Status</label>
+              <p className="text-sm mt-1">
+                {formData.sold ? (
+                  <span
+                    style={{ color: 'var(--destructive)' }}
+                    className="font-mono font-semibold uppercase tracking-wider text-xs"
+                  >
+                    Prodáno
+                  </span>
+                ) : (
+                  <span className="text-muted-foreground">Neprodáno</span>
+                )}
               </p>
             </div>
-            <button onClick={() => setFormData((f) => ({ ...f, sold: !f.sold }))}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                formData.sold ? 'bg-bg-secondary border border-border-color text-text-secondary hover:text-text-primary' : 'bg-red-800 hover:bg-red-700 text-white border border-red-700'
-              }`}>
-              {formData.sold ? 'Zrušit prodej' : 'Označit jako prodané'}
-            </button>
+            {formData.sold ? (
+              <button
+                onClick={() => setFormData((f) => ({ ...f, sold: !f.sold }))}
+                className="bg-transparent border border-border hover:border-foreground/40 text-muted-foreground hover:text-foreground px-3 py-1.5 rounded-md text-xs font-mono uppercase tracking-wider transition-colors"
+              >
+                Zrušit prodej
+              </button>
+            ) : (
+              <button
+                onClick={() => setFormData((f) => ({ ...f, sold: !f.sold }))}
+                style={{
+                  color: 'var(--destructive)',
+                  borderColor: 'color-mix(in srgb, var(--destructive) 30%, transparent)',
+                }}
+                className="bg-transparent border hover:bg-[color-mix(in_srgb,var(--destructive)_10%,transparent)] px-3 py-1.5 rounded-md text-xs font-mono uppercase tracking-wider transition-colors"
+              >
+                Označit jako prodané
+              </button>
+            )}
           </div>
 
           <div className="flex items-center justify-between">
             <div>
-              <label className="block text-xs text-text-muted mb-0.5 uppercase tracking-wider">Vystavit na Eshop</label>
-              <p className="text-xs text-text-secondary">Prodejní cena: {formatPrice(formData.salePrice)}</p>
+              <label className="block text-[10px] text-muted-foreground mb-0.5 uppercase tracking-wider font-mono">Vystavit na Eshop</label>
+              <p className="text-xs text-muted-foreground">Prodejní cena: {formatPrice(formData.salePrice)}</p>
             </div>
-            <button onClick={() => setFormData((f) => ({ ...f, onShop: !f.onShop }))}
-              className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors ${formData.onShop ? 'bg-moldavite-500' : 'bg-gray-600'}`}>
-              <span className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${formData.onShop ? 'translate-x-6' : 'translate-x-1'}`} />
+            <button
+              onClick={() => setFormData((f) => ({ ...f, onShop: !f.onShop }))}
+              style={formData.onShop ? { background: 'var(--success)' } : undefined}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ring-1 ring-inset ${
+                formData.onShop ? 'ring-transparent' : 'bg-muted ring-border'
+              }`}
+              aria-label="Vystavit na Eshop"
+            >
+              <span className={`inline-block h-4 w-4 transform rounded-full bg-card shadow-sm transition-transform ${
+                formData.onShop ? 'translate-x-[22px]' : 'translate-x-0.5'
+              }`} />
             </button>
           </div>
 
           <div className="flex items-center justify-between">
-            <label className="block text-xs text-text-muted uppercase tracking-wider">Vystavit na Etsy</label>
-            <button onClick={() => setFormData((f) => ({ ...f, onEtsy: !f.onEtsy }))}
-              className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors ${formData.onEtsy ? 'bg-orange-500' : 'bg-gray-600'}`}>
-              <span className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${formData.onEtsy ? 'translate-x-6' : 'translate-x-1'}`} />
+            <label className="block text-[10px] text-muted-foreground uppercase tracking-wider font-mono">Vystavit na Etsy</label>
+            <button
+              onClick={() => setFormData((f) => ({ ...f, onEtsy: !f.onEtsy }))}
+              style={formData.onEtsy ? { background: 'var(--warning)' } : undefined}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ring-1 ring-inset ${
+                formData.onEtsy ? 'ring-transparent' : 'bg-muted ring-border'
+              }`}
+              aria-label="Vystavit na Etsy"
+            >
+              <span className={`inline-block h-4 w-4 transform rounded-full bg-card shadow-sm transition-transform ${
+                formData.onEtsy ? 'translate-x-[22px]' : 'translate-x-0.5'
+              }`} />
             </button>
           </div>
         </div>
@@ -342,11 +387,18 @@ export default function ItemDetailForm({ item }: { item: ItemData }) {
 
       {/* Save */}
       <div className="mt-6 flex items-center gap-3">
-        <button onClick={handleSave} disabled={saving}
-          className="bg-moldavite-600 hover:bg-moldavite-500 disabled:opacity-50 text-white px-6 py-2.5 rounded-lg text-sm font-medium transition-colors">
-          {saving ? 'Ukládám...' : 'Uložit změny'}
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          className="bg-primary hover:bg-primary/90 disabled:opacity-50 text-primary-foreground px-6 py-2.5 rounded-lg text-sm font-medium transition-colors"
+        >
+          {saving ? 'Ukládám…' : 'Uložit změny'}
         </button>
-        {saved && <span className="text-moldavite-400 text-sm">Uloženo!</span>}
+        {saved && (
+          <span style={{ color: 'var(--success)' }} className="text-sm font-mono uppercase tracking-wider text-xs">
+            ✓ Uloženo
+          </span>
+        )}
       </div>
     </div>
   );
