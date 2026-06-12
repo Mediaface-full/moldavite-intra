@@ -66,10 +66,10 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
         {session ? (
           <>
             <aside className="w-64 bg-sidebar text-sidebar-foreground border-r border-sidebar-border flex flex-col min-h-screen">
-              <div className="p-6 border-b border-sidebar-border flex flex-col items-center gap-2">
+              <div className="px-4 pt-6 pb-5 border-b border-sidebar-border flex flex-col items-center gap-2.5">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/logo-white.svg" alt="Bohemian Moldavite" className="h-12 w-auto" />
-                <p className="text-[10px] text-sidebar-muted uppercase tracking-[0.2em] font-mono">Intra · Evidence</p>
+                <img src="/logo-white.svg" alt="Bohemian Moldavite" className="w-full max-w-[200px] h-auto" />
+                <p className="text-[10px] text-sidebar-muted uppercase tracking-[0.25em] font-mono">Intra · Evidence</p>
               </div>
 
               <nav className="flex-1 p-4 space-y-1">
