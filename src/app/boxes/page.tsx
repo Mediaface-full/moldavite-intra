@@ -19,43 +19,45 @@ export default async function BoxesPage() {
     <div>
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-3xl font-bold">Krabice</h1>
-          <p className="text-text-secondary mt-1">Správa krabic s moldavity</p>
+          <p className="text-[10px] text-muted-foreground uppercase tracking-[0.25em] font-mono mb-1">
+            Bohemian Moldavite · Intra
+          </p>
+          <h1 className="text-3xl font-bold tracking-tight">Krabice</h1>
+          <p className="text-sm text-muted-foreground mt-1">Správa krabic s moldavity</p>
         </div>
         <ScanNewBoxButton />
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
         {boxes.map((box) => (
           <Link
             key={box.id}
             href={`/boxes/${box.id}`}
-            className="bg-bg-card border border-border-color rounded-xl p-6 hover:border-moldavite-600 hover:bg-bg-card-hover transition-all group"
+            className="bg-card border border-border rounded-xl p-5 hover:border-ring/60 hover:shadow-md transition-all group shadow-sm flex flex-col"
           >
             {/* Photos preview */}
             <BoxPhotoPreview photos={box.photos as string[]} />
 
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-2xl font-bold text-text-primary group-hover:text-accent-gold transition-colors tracking-wide">
+            <div className="flex items-start justify-between gap-3 mb-2">
+              <h3 className="text-lg font-semibold text-foreground group-hover:text-primary transition-colors font-mono tracking-tight">
                 {box.code}
               </h3>
-              <div className="w-10 h-10 bg-moldavite-900 rounded-lg flex items-center justify-center">
-                <svg className="w-5 h-5 text-moldavite-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                </svg>
-              </div>
+              <span className="text-[10px] bg-muted text-muted-foreground px-2 py-1 rounded font-mono uppercase tracking-wider flex-shrink-0">
+                {box._count.items} ks
+              </span>
             </div>
 
             {box.name && (
-              <p className="text-sm text-text-secondary mb-3">{box.name}</p>
+              <p className="text-sm text-muted-foreground mb-3 line-clamp-1">{box.name}</p>
             )}
 
-            <div className="flex items-center gap-4 text-sm">
-              <span className="text-text-secondary">
-                <span className="text-text-primary font-semibold">{box._count.items}</span> kamenů
+            <div className="mt-auto pt-3 border-t border-border flex items-center justify-between text-[11px] font-mono uppercase tracking-wider">
+              <span className="text-muted-foreground">
+                <span className="text-foreground font-semibold">{box._count.items}</span> kamenů
               </span>
-              <span className="text-text-secondary">
-                <span className="text-moldavite-400 font-semibold">{box.items.length}</span> na eshopu
+              <span className="inline-flex items-center gap-1.5" style={{ color: 'var(--success)' }}>
+                <span className="w-1.5 h-1.5 rounded-full" style={{ background: 'var(--success)' }} />
+                {box.items.length} eshop
               </span>
             </div>
           </Link>
