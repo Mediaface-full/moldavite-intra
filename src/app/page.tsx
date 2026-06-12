@@ -316,7 +316,7 @@ export default async function DashboardPage() {
                 {recentlyAdded.map((item) => (
                   <tr key={item.id} className="border-b border-border last:border-0 hover:bg-muted/40 transition-colors">
                     <td className="px-4 py-2">
-                      <Link href={`/items/${item.id}`} className="font-mono text-primary hover:underline">
+                      <Link href={`/items/${item.id}`} className="font-mono font-semibold text-foreground hover:text-primary tracking-tight transition-colors">
                         {item.box.code}-{item.evidNumber}
                       </Link>
                     </td>

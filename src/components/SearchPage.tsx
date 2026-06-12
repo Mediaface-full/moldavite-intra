@@ -347,7 +347,7 @@ function FlatView({ items }: { items: SearchItem[] }) {
                 </Link>
               </td>
               <td className="px-3 py-2">
-                <Link href={`/items/${item.id}`} className="text-moldavite-300 hover:text-accent-gold font-mono text-xs font-medium transition-colors">
+                <Link href={`/items/${item.id}`} className="text-foreground hover:text-primary font-mono text-xs font-semibold tracking-tight transition-colors">
                   {getCatalogNumber(item.box.code, item.evidNumber)}
                 </Link>
               </td>

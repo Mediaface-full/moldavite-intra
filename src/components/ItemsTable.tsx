@@ -290,7 +290,7 @@ export default function ItemsTable({ items: initialItems, boxCode, isAdmin = tru
 
                 {/* Catalog Number */}
                 <td className="px-3 py-2">
-                  <Link href={`/items/${item.id}`} className="text-moldavite-300 hover:text-accent-gold font-mono font-medium transition-colors text-xs">
+                  <Link href={`/items/${item.id}`} className="text-foreground hover:text-primary font-mono font-semibold transition-colors text-xs tracking-tight">
                     {getCatalogNumber(getBoxCode(item), item.evidNumber)}
                   </Link>
                 </td>
@@ -348,18 +348,20 @@ export default function ItemsTable({ items: initialItems, boxCode, isAdmin = tru
                 {/* Eshop Toggle - disabled if sold */}
                 <td className="px-3 py-2 text-center">
                   {item.sold ? (
-                    <span className="relative inline-flex h-6 w-11 items-center rounded-full bg-gray-700 opacity-40 cursor-not-allowed">
-                      <span className="inline-block h-4 w-4 transform rounded-full bg-gray-400 translate-x-1" />
+                    <span className="relative inline-flex h-5 w-9 items-center rounded-full bg-muted opacity-50 cursor-not-allowed ring-1 ring-inset ring-border">
+                      <span className="inline-block h-3.5 w-3.5 transform rounded-full bg-muted-foreground/40 translate-x-0.5" />
                     </span>
                   ) : (
                     <button
                       onClick={() => toggleField(item.id, 'onShop', item.onShop)}
-                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                        item.onShop ? 'bg-moldavite-500' : 'bg-gray-600'
+                      style={item.onShop ? { background: 'var(--success)' } : undefined}
+                      className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ring-1 ring-inset ${
+                        item.onShop ? 'ring-transparent' : 'bg-muted ring-border'
                       }`}
+                      aria-label="Vystaveno na eshopu"
                     >
-                      <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                        item.onShop ? 'translate-x-6' : 'translate-x-1'
+                      <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-card shadow-sm transition-transform ${
+                        item.onShop ? 'translate-x-[18px]' : 'translate-x-0.5'
                       }`} />
                     </button>
                   )}
@@ -368,18 +370,20 @@ export default function ItemsTable({ items: initialItems, boxCode, isAdmin = tru
                 {/* Etsy Toggle - disabled if sold */}
                 <td className="px-3 py-2 text-center">
                   {item.sold ? (
-                    <span className="relative inline-flex h-6 w-11 items-center rounded-full bg-gray-700 opacity-40 cursor-not-allowed">
-                      <span className="inline-block h-4 w-4 transform rounded-full bg-gray-400 translate-x-1" />
+                    <span className="relative inline-flex h-5 w-9 items-center rounded-full bg-muted opacity-50 cursor-not-allowed ring-1 ring-inset ring-border">
+                      <span className="inline-block h-3.5 w-3.5 transform rounded-full bg-muted-foreground/40 translate-x-0.5" />
                     </span>
                   ) : (
                     <button
                       onClick={() => toggleField(item.id, 'onEtsy', item.onEtsy)}
-                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                        item.onEtsy ? 'bg-orange-500' : 'bg-gray-600'
+                      style={item.onEtsy ? { background: 'var(--warning)' } : undefined}
+                      className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ring-1 ring-inset ${
+                        item.onEtsy ? 'ring-transparent' : 'bg-muted ring-border'
                       }`}
+                      aria-label="Vystaveno na Etsy"
                     >
-                      <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                        item.onEtsy ? 'translate-x-6' : 'translate-x-1'
+                      <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-card shadow-sm transition-transform ${
+                        item.onEtsy ? 'translate-x-[18px]' : 'translate-x-0.5'
                       }`} />
                     </button>
                   )}
@@ -388,8 +392,11 @@ export default function ItemsTable({ items: initialItems, boxCode, isAdmin = tru
                 {/* Sold button - only one-way in table (mark as sold, unmark only from detail) */}
                 <td className="px-3 py-2 text-center">
                   {item.sold ? (
-                    <span className="px-2.5 py-1 rounded text-xs font-bold bg-red-800 text-red-200 border border-red-700">
-                      PRODÁNO
+                    <span
+                      style={{ background: 'color-mix(in srgb, var(--destructive) 12%, transparent)', color: 'var(--destructive)', borderColor: 'color-mix(in srgb, var(--destructive) 30%, transparent)' }}
+                      className="px-2 py-0.5 rounded font-mono text-[10px] uppercase tracking-wider border"
+                    >
+                      Prodáno
                     </span>
                   ) : (
                     <button
@@ -398,7 +405,7 @@ export default function ItemsTable({ items: initialItems, boxCode, isAdmin = tru
                           toggleField(item.id, 'sold', false);
                         }
                       }}
-                      className="px-2.5 py-1 rounded text-xs font-medium bg-bg-secondary border border-border-color text-text-muted hover:text-red-300 hover:border-red-800 hover:bg-red-900/20 transition-colors"
+                      className="px-2 py-0.5 rounded text-[10px] font-mono uppercase tracking-wider bg-transparent border border-border text-muted-foreground hover:text-destructive hover:border-destructive/40 transition-colors"
                     >
                       Prodat
                     </button>
