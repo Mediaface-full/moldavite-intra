@@ -1,18 +1,24 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Space_Grotesk, JetBrains_Mono } from "next/font/google";
 import Link from "next/link";
 import { getSession } from "@/lib/auth";
+import { themeInitScript } from "@/lib/theme";
 import LogoutButton from "@/components/LogoutButton";
+import ThemeToggle from "@/components/ThemeToggle";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
+// MediaFace Admin styl — Space Grotesk pro nadpisy a UI, JetBrains Mono
+// pro čísla / katalogová čísla / kód.
+const spaceGrotesk = Space_Grotesk({
+  variable: "--font-sans-runtime",
+  weight: ["400", "500", "600", "700"],
+  subsets: ["latin", "latin-ext"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
+const jetbrainsMono = JetBrains_Mono({
+  variable: "--font-mono-runtime",
+  weight: ["400", "500", "600"],
+  subsets: ["latin", "latin-ext"],
 });
 
 export const metadata: Metadata = {
@@ -34,8 +40,8 @@ const icons: Record<string, string> = {
 
 function NavLink({ href, icon, children }: { href: string; icon: string; children: React.ReactNode }) {
   return (
-    <Link href={href} className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-text-secondary hover:text-text-primary hover:bg-bg-card transition-colors group">
-      <svg className="w-5 h-5 text-text-muted group-hover:text-moldavite-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+    <Link href={href} className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sidebar-foreground hover:text-sidebar-accent-foreground hover:bg-sidebar-accent transition-colors group">
+      <svg className="w-5 h-5 text-sidebar-muted group-hover:text-primary transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
         <path strokeLinecap="round" strokeLinejoin="round" d={icons[icon]} />
       </svg>
       <span className="text-sm font-medium">{children}</span>
@@ -47,14 +53,17 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   const session = await getSession();
 
   return (
-    <html lang="cs" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
-      <body className="min-h-full flex bg-bg-primary text-text-primary">
+    <html lang="cs" className={`${spaceGrotesk.variable} ${jetbrainsMono.variable} h-full antialiased`}>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+      </head>
+      <body className="min-h-full flex bg-background text-foreground">
         {session ? (
           <>
-            <aside className="w-64 bg-bg-secondary border-r border-border-color flex flex-col min-h-screen">
-              <div className="p-6 border-b border-border-color flex items-center justify-center">
+            <aside className="w-64 bg-sidebar text-sidebar-foreground border-r border-sidebar-border flex flex-col min-h-screen">
+              <div className="p-6 border-b border-sidebar-border flex items-center justify-center">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/logo.svg" alt="Bohemian Moldavite" className="h-12 w-auto" />
+                <img src="/logo-white.svg" alt="Bohemian Moldavite" className="h-12 w-auto" />
               </div>
 
               <nav className="flex-1 p-4 space-y-1">
@@ -67,7 +76,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
                 {session.role === 'ADMIN' && (
                   <>
                     <div className="pt-6 pb-2">
-                      <p className="text-xs text-text-muted uppercase tracking-wider px-3">Správa</p>
+                      <p className="text-xs text-sidebar-muted uppercase tracking-wider px-3 font-mono">Správa</p>
                     </div>
                     <NavLink href="/export" icon="export">Exporty</NavLink>
                     <NavLink href="/admin/thumbnails" icon="thumbnails">Obrázky</NavLink>
@@ -77,15 +86,18 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
                 )}
               </nav>
 
-              <div className="p-4 border-t border-border-color">
-                <div className="flex items-center justify-between mb-2">
-                  <div>
-                    <p className="text-sm font-medium text-text-primary">{session.name || session.email}</p>
-                    <p className="text-xs text-text-muted">{session.role === 'ADMIN' ? 'Administrátor' : 'Uživatel'}</p>
+              <div className="p-4 border-t border-sidebar-border">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-sidebar-accent-foreground truncate">{session.name || session.email}</p>
+                    <p className="text-xs text-sidebar-muted">{session.role === 'ADMIN' ? 'Administrátor' : 'Uživatel'}</p>
                   </div>
-                  <LogoutButton />
+                  <div className="flex items-center gap-1 flex-shrink-0">
+                    <ThemeToggle />
+                    <LogoutButton />
+                  </div>
                 </div>
-                <p className="text-xs text-text-muted">Moldavite Intra v1.0</p>
+                <p className="text-xs text-sidebar-muted font-mono">Moldavite Intra v1.0</p>
               </div>
             </aside>
             <main className="flex-1 overflow-auto">

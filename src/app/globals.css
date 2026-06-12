@@ -1,45 +1,168 @@
+/* ─────────────────────────────────────────────────────────
+ * Moldavite Intra — MediaFace Admin theme (warm cream + coral)
+ *
+ * Token-driven podle /CLOUDS/CLOUDE PROJECTS/_mediaface_admin_design/.
+ * Light = teplý cream papír · Dark = AA-tuned tmavý (v2) ·
+ * Sidebar vždy tmavý warm-near-black.
+ *
+ * Legacy mapping: existující třídy (`bg-bg-card`, `text-text-muted`,
+ * `bg-moldavite-500`, `text-accent-gold` …) zůstávají platné a ukazují
+ * na nové sémantické tokeny — refactor komponent může přijít postupně.
+ * ───────────────────────────────────────────────────────── */
+
 @import "tailwindcss";
 
+/* ── LIGHT (warm cream) ────────────────────────────────── */
 :root {
-  /* Moldavite Color Palette */
-  --moldavite-50: #f0f7f1;
-  --moldavite-100: #d9edd9;
-  --moldavite-200: #b5dbb8;
-  --moldavite-300: #85c28d;
-  --moldavite-400: #57a561;
-  --moldavite-500: #3d8b47;
-  --moldavite-600: #2d6e35;
-  --moldavite-700: #25582d;
-  --moldavite-800: #1f4726;
-  --moldavite-900: #1a3b21;
-  --moldavite-950: #0d2013;
+  /* Neutrály */
+  --background: #EBE7DD;
+  --bg-2:       #E4DFD3;
+  --card:       #FBFAF7;
+  --popover:    #FBFAF7;
+  --secondary:  #F2EEE5;
+  --muted:      #F2EEE5;
+  --accent:     #F2EEE5;
 
-  /* Dark green backgrounds */
-  --bg-primary: #0f1f13;
-  --bg-secondary: #162419;
-  --bg-card: #1a2e1f;
-  --bg-card-hover: #213826;
+  --foreground:        #181712;
+  --text-2:            #54514A;
+  --text-3:            #7C7A72;  /* muted-foreground */
+  --placeholder:       #9A988F;
 
-  /* Text colors */
-  --text-primary: #eaf2eb;
-  --text-secondary: #cdddd0;
-  --text-muted: #a8c4ad;
+  --border: #D8D3C6;
+  --input:  #D8D3C6;
+  --ring:   #FF5C2E;
 
-  /* Accent - gold */
-  --accent-gold: #c9a84c;
-  --accent-gold-light: #dfc477;
+  /* Signal & stavy */
+  --primary:              #FF5C2E;  /* coral — značka MediaFace */
+  --primary-foreground:   #FFFFFF;
+  --success:              #1FAE84;
+  --info:                 #2D9C9C;
+  --warning:              #C99A3F;
+  --destructive:          #E0492C;
+  --destructive-foreground:#FFFFFF;
+  --violet:               #6E5BD6;
 
-  /* Borders */
-  --border-color: #3a5540;
-  --border-hover: #4d6d53;
+  /* Sidebar (vždy tmavý — i v light kůži) */
+  --sidebar:                    #14130F;
+  --sidebar-foreground:         #C9C5BC;
+  --sidebar-muted:              #807D74;
+  --sidebar-accent:             #20201A;
+  --sidebar-accent-foreground:  #F4EFE6;
+  --sidebar-primary:            #FF5C2E;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-border:             rgba(244, 239, 230, 0.12);
 
-  --background: var(--bg-primary);
-  --foreground: var(--text-primary);
+  /* Radius */
+  --radius: 0.75rem;
+
+  /* ── LEGACY ALIASY ── zachovávají platnost starých Moldavite tříd */
+  --bg-primary:        var(--background);
+  --bg-secondary:      var(--muted);
+  --bg-card:           var(--card);
+  --bg-card-hover:     var(--accent);
+  --text-primary:      var(--foreground);
+  --text-secondary:    var(--text-2);
+  --text-muted:        var(--text-3);
+  --border-color:      var(--border);
+  --border-hover:      var(--text-3);
+  --accent-gold:       var(--primary);
+  --accent-gold-light: #FF7C57;
+
+  /* Moldavite scale → coral (signal scale) */
+  --moldavite-50:  color-mix(in srgb, var(--primary) 8%,  white);
+  --moldavite-100: color-mix(in srgb, var(--primary) 16%, white);
+  --moldavite-200: color-mix(in srgb, var(--primary) 32%, white);
+  --moldavite-300: color-mix(in srgb, var(--primary) 50%, white);
+  --moldavite-400: color-mix(in srgb, var(--primary) 70%, white);
+  --moldavite-500: var(--primary);
+  --moldavite-600: color-mix(in srgb, var(--primary) 88%, black);
+  --moldavite-700: color-mix(in srgb, var(--primary) 75%, black);
+  --moldavite-800: color-mix(in srgb, var(--primary) 60%, black);
+  --moldavite-900: color-mix(in srgb, var(--primary) 45%, black);
+  --moldavite-950: color-mix(in srgb, var(--primary) 30%, black);
 }
 
+/* ── DARK (v2 · AA tuned) ──────────────────────────────── */
+html.dark {
+  --background: #0C0C0E;
+  --bg-2:       #121216;
+  --card:       #1A1A1F;
+  --popover:    #1A1A1F;
+  --secondary:  #24242B;
+  --muted:      #24242B;
+  --accent:     #24242B;
+
+  --foreground:  #F5F1E9;
+  --text-2:      #C3C0B7;
+  --text-3:      #96938B;
+  --placeholder: #7D7A72;
+
+  --border: #34343C;
+  --input:  #34343C;
+
+  --success:     #3CC288;
+  --info:        #45BDB8;
+  --warning:     #E0B569;
+  --destructive: #F4745A;
+  --violet:      #9C8CF2;
+
+  --sidebar:                   #08080A;
+  --sidebar-foreground:        #C3C0B7;
+  --sidebar-muted:             #86837A;
+  --sidebar-accent:            #18181C;
+  --sidebar-accent-foreground: #FFFFFF;
+}
+
+/* ── Tailwind v4: registrace tokenů jako utility classes ── */
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--text-3);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--foreground);
+
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-success: var(--success);
+  --color-info: var(--info);
+  --color-warning: var(--warning);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-violet: var(--violet);
+
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-muted: var(--sidebar-muted);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+
+  /* Legacy aliases — komponenty s `bg-bg-card`, `text-text-muted`, … fungují dál */
+  --color-bg-primary: var(--background);
+  --color-bg-secondary: var(--muted);
+  --color-bg-card: var(--card);
+  --color-bg-card-hover: var(--accent);
+  --color-text-primary: var(--foreground);
+  --color-text-secondary: var(--text-2);
+  --color-text-muted: var(--text-3);
+  --color-border-color: var(--border);
+  --color-border-hover: var(--text-3);
+  --color-accent-gold: var(--primary);
+  --color-accent-gold-light: var(--accent-gold-light);
+
   --color-moldavite-50: var(--moldavite-50);
   --color-moldavite-100: var(--moldavite-100);
   --color-moldavite-200: var(--moldavite-200);
@@ -51,41 +174,23 @@
   --color-moldavite-800: var(--moldavite-800);
   --color-moldavite-900: var(--moldavite-900);
   --color-moldavite-950: var(--moldavite-950);
-  --color-bg-primary: var(--bg-primary);
-  --color-bg-secondary: var(--bg-secondary);
-  --color-bg-card: var(--bg-card);
-  --color-bg-card-hover: var(--bg-card-hover);
-  --color-text-primary: var(--text-primary);
-  --color-text-secondary: var(--text-secondary);
-  --color-text-muted: var(--text-muted);
-  --color-accent-gold: var(--accent-gold);
-  --color-accent-gold-light: var(--accent-gold-light);
-  --color-border-color: var(--border-color);
-  --color-border-hover: var(--border-hover);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+
+  --font-sans: 'Space Grotesk', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', 'SF Mono', Menlo, Consolas, monospace;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
+  font-family: var(--font-sans);
 }
 
-/* Scrollbar styling */
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+.font-mono, code, kbd, pre, samp {
+  font-family: var(--font-mono);
 }
 
-::-webkit-scrollbar-track {
-  background: var(--bg-secondary);
-}
-
-::-webkit-scrollbar-thumb {
-  background: var(--moldavite-700);
-  border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: var(--moldavite-600);
-}
+/* Scrollbar */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: var(--bg-2); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-3); }

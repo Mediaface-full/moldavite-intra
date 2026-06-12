@@ -37,49 +37,51 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-bg-primary flex items-center justify-center p-4">
+    <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <div className="w-full max-w-sm">
         <div className="flex justify-center mb-8">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo.svg" alt="Bohemian Moldavite" className="h-20 w-auto" />
+          <img src="/logo-light.svg" alt="Bohemian Moldavite" className="h-20 w-auto dark:hidden" />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo.svg" alt="Bohemian Moldavite" className="h-20 w-auto hidden dark:block" />
         </div>
 
-        <div className="bg-bg-card border border-border-color rounded-xl p-6">
+        <div className="bg-card border border-border rounded-xl p-6 shadow-sm">
           <h2 className="text-lg font-semibold mb-6 text-center">Přihlášení</h2>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-xs text-text-muted mb-1.5 uppercase tracking-wider">Email</label>
+              <label className="block text-xs text-muted-foreground mb-1.5 uppercase tracking-wider font-mono">Email</label>
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 autoFocus
-                className="w-full bg-bg-secondary border border-border-color rounded-lg px-3 py-2.5 text-sm text-text-primary focus:outline-none focus:border-moldavite-500"
+                className="w-full bg-muted border border-input rounded-lg px-3 py-2.5 text-sm text-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/20 transition-shadow"
               />
             </div>
             <div>
-              <label className="block text-xs text-text-muted mb-1.5 uppercase tracking-wider">Heslo</label>
+              <label className="block text-xs text-muted-foreground mb-1.5 uppercase tracking-wider font-mono">Heslo</label>
               <input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                className="w-full bg-bg-secondary border border-border-color rounded-lg px-3 py-2.5 text-sm text-text-primary focus:outline-none focus:border-moldavite-500"
+                className="w-full bg-muted border border-input rounded-lg px-3 py-2.5 text-sm text-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/20 transition-shadow"
               />
             </div>
 
             {error && (
-              <p className="text-red-400 text-sm bg-red-900/20 border border-red-800 rounded-lg px-3 py-2">{error}</p>
+              <p className="text-destructive text-sm bg-destructive/10 border border-destructive/30 rounded-lg px-3 py-2">{error}</p>
             )}
 
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-moldavite-600 hover:bg-moldavite-500 disabled:opacity-50 text-white py-2.5 rounded-lg text-sm font-medium transition-colors"
+              className="w-full bg-primary hover:bg-primary/90 disabled:opacity-50 text-primary-foreground py-2.5 rounded-lg text-sm font-medium transition-colors"
             >
-              {loading ? 'Přihlašuji...' : 'Přihlásit se'}
+              {loading ? 'Přihlašuji…' : 'Přihlásit se'}
             </button>
           </form>
         </div>
