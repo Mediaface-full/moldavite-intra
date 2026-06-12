@@ -11,22 +11,30 @@ export const size = { width: 1200, height: 630 };
 export const contentType = 'image/png';
 export const alt = 'Bohemian Moldavite — Verified Authentic';
 
+// Hash format guard. Pokud nemá tvar legitimního certHash (hex 8–64 znaků),
+// vůbec nehmatáme DB. Zabrání to brute-force DoS na ImageResponse generátor
+// (ten je drahý) + nevalidním vstupům.
+const HASH_RE = /^[a-f0-9]{8,64}$/i;
+
 export default async function Image({ params }: { params: Promise<{ hash: string }> }) {
   const { hash } = await params;
 
   let catalogNumber = '';
   let weight = '';
-  try {
-    const item = await prisma.item.findFirst({
-      where: { certHash: hash },
-      include: { box: true },
-    });
-    if (item) {
-      catalogNumber = `${item.box.code}-${item.evidNumber}`;
-      weight = `${Number(item.weight).toFixed(2)} g`;
+
+  if (HASH_RE.test(hash)) {
+    try {
+      const item = await prisma.item.findFirst({
+        where: { certHash: hash },
+        include: { box: true },
+      });
+      if (item) {
+        catalogNumber = `${item.box.code}-${item.evidNumber}`;
+        weight = `${Number(item.weight).toFixed(2)} g`;
+      }
+    } catch {
+      /* swallow — fall back to generic card */
     }
-  } catch {
-    /* swallow — fall back to generic card */
   }
 
   // Embed the logo PNG as a Data URI so it works with both the static

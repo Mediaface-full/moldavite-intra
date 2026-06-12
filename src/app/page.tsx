@@ -132,9 +132,12 @@ export default async function DashboardPage() {
       {/* Header */}
       <div className="flex items-start justify-between mb-8 gap-4 flex-wrap">
         <div>
+          <p className="text-[10px] text-muted-foreground uppercase tracking-[0.25em] font-mono mb-1">
+            Bohemian Moldavite · Intra
+          </p>
           <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
           <div className="flex items-center gap-4 mt-1">
-            <p className="text-muted-foreground">Bohemian Moldavite — evidence drahých kamenů</p>
+            <p className="text-muted-foreground">Interní systém evidence drahých kamenů</p>
             {isAdmin && <BackupButton />}
           </div>
         </div>

@@ -22,8 +22,13 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Moldavite Intra | Bohemian Moldavite",
-  description: "Interní systém evidence moldavitů",
+  title: {
+    default: "Moldavite Intra · Bohemian Moldavite",
+    template: "%s · Moldavite Intra",
+  },
+  description: "Interní systém evidence moldavitů — správa katalogu, exporty na e-shopy, certifikáty pravosti.",
+  applicationName: "Moldavite Intra",
+  authors: [{ name: "Bohemian Moldavite" }],
 };
 
 const icons: Record<string, string> = {
@@ -61,9 +66,10 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
         {session ? (
           <>
             <aside className="w-64 bg-sidebar text-sidebar-foreground border-r border-sidebar-border flex flex-col min-h-screen">
-              <div className="p-6 border-b border-sidebar-border flex items-center justify-center">
+              <div className="p-6 border-b border-sidebar-border flex flex-col items-center gap-2">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src="/logo-white.svg" alt="Bohemian Moldavite" className="h-12 w-auto" />
+                <p className="text-[10px] text-sidebar-muted uppercase tracking-[0.2em] font-mono">Intra · Evidence</p>
               </div>
 
               <nav className="flex-1 p-4 space-y-1">
