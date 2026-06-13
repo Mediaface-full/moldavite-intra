@@ -128,14 +128,14 @@ export default function ThumbnailsManager() {
     <div className="max-w-4xl mx-auto p-6 space-y-8">
       <div>
         <h1 className="text-2xl font-bold mb-2">Správa obrázků</h1>
-        <p className="text-sm text-text-muted">
+        <p className="text-sm text-muted-foreground">
           Tato stránka řídí dvě vrstvy optimalizace fotek: malé náhledy pro seznam a
           zmenšené webové varianty originálů pro e-shop a rychlejší prohlížení.
         </p>
       </div>
 
       {error && (
-        <div className="p-3 rounded-lg bg-red-900/30 border border-red-800 text-red-300 text-sm">
+        <div className="p-3 rounded-lg bg-[color-mix(in_srgb,var(--destructive)_15%,transparent)] border border-[color-mix(in_srgb,var(--destructive)_30%,transparent)] text-destructive text-sm">
           Chyba: {error}
         </div>
       )}
@@ -143,7 +143,7 @@ export default function ThumbnailsManager() {
       {/* ------------------- WEB VARIANTS ------------------- */}
       <section>
         <h2 className="text-xl font-semibold mb-3">Webové verze fotek (místo originálů)</h2>
-        <p className="text-sm text-text-muted mb-4">
+        <p className="text-sm text-muted-foreground mb-4">
           Vytvoří zmenšené JPEG kopie všech fotek v samostatné složce{' '}
           <code>FOTO_MOLDAVITE_web/</code>. Po ověření, že vše funguje, můžeš smazat
           originály v <code>FOTO_MOLDAVITE/</code> a ušetřit 80–90 % místa.
@@ -159,22 +159,22 @@ export default function ThumbnailsManager() {
               <StatCard label="Web varianty (MB)" value={`${web.webSizeMB} MB`} />
             </div>
             {web.savedMB > 0 && (
-              <div className="p-3 mb-4 rounded-lg bg-green-900/20 border border-green-800 text-green-300 text-sm">
+              <div className="p-3 mb-4 rounded-lg bg-[color-mix(in_srgb,var(--success)_12%,transparent)] border border-[color-mix(in_srgb,var(--success)_30%,transparent)] text-success text-sm">
                 Ušetřeno: <strong>{web.savedMB} MB</strong> ({Math.round((web.savedMB / Math.max(web.originalsSizeMB, 1)) * 100)} %).
                 Teď můžeš smazat složku <code>kameny/FOTO_MOLDAVITE/</code> — appka jede z web variant.
               </div>
             )}
             {!web.sharpAvailable && (
-              <div className="p-3 mb-4 rounded-lg bg-yellow-900/20 border border-yellow-800 text-yellow-300 text-sm">
+              <div className="p-3 mb-4 rounded-lg bg-[color-mix(in_srgb,var(--warning)_12%,transparent)] border border-[color-mix(in_srgb,var(--warning)_30%,transparent)] text-warning text-sm">
                 ⚠️ Sharp modul není dostupný — zmenšování nepůjde.
               </div>
             )}
-            <div className="text-xs text-text-muted mb-4">
+            <div className="text-xs text-muted-foreground mb-4">
               Parametry: max {web.maxWidth} px, JPEG quality {web.quality}. Cesta: <code>{web.webPath}</code>
             </div>
             {busy?.startsWith('web-resize') && web.totalOriginals && (
               <div className="mb-4">
-                <div className="flex justify-between text-xs text-text-muted mb-1">
+                <div className="flex justify-between text-xs text-muted-foreground mb-1">
                   <span>
                     {web.created || 0} / {web.totalOriginals} hotovo
                     {web.remaining !== undefined && web.remaining > 0 ? ` (${web.remaining} zbývá)` : ''}
@@ -183,9 +183,9 @@ export default function ThumbnailsManager() {
                     {Math.round((((web.created || 0) + (web.skipped || 0)) / Math.max(web.totalOriginals, 1)) * 100)} %
                   </span>
                 </div>
-                <div className="h-2 bg-bg-secondary rounded overflow-hidden">
+                <div className="h-2 bg-muted rounded overflow-hidden">
                   <div
-                    className="h-full bg-moldavite-500 transition-all"
+                    className="h-full bg-primary transition-all"
                     style={{
                       width: `${Math.round((((web.created || 0) + (web.skipped || 0)) / Math.max(web.totalOriginals, 1)) * 100)}%`,
                     }}
@@ -198,37 +198,37 @@ export default function ThumbnailsManager() {
               <button
                 onClick={() => webResizeLoop(false)}
                 disabled={busy !== null || !web.sharpAvailable}
-                className="bg-moldavite-600 hover:bg-moldavite-500 disabled:opacity-40 text-white px-4 py-2.5 rounded-lg text-sm font-medium"
+                className="bg-primary hover:bg-primary/90 disabled:opacity-40 text-white px-4 py-2.5 rounded-lg text-sm font-medium"
               >
                 {busy === 'web-resize' ? 'Zpracovávám…' : 'Vytvořit / aktualizovat webové verze'}
               </button>
               <button
                 onClick={() => webResizeLoop(true)}
                 disabled={busy !== null || !web.sharpAvailable}
-                className="border border-border-color text-text-secondary hover:border-border-hover disabled:opacity-40 px-4 py-2.5 rounded-lg text-sm font-medium"
+                className="border border-border text-muted-foreground hover:border-foreground/40 disabled:opacity-40 px-4 py-2.5 rounded-lg text-sm font-medium"
               >
                 {busy === 'web-resize-force' ? 'Zpracovávám…' : 'Přegenerovat vše (force)'}
               </button>
               <button
                 onClick={loadAll}
                 disabled={busy !== null}
-                className="border border-border-color text-text-secondary hover:border-border-hover disabled:opacity-40 px-4 py-2.5 rounded-lg text-sm font-medium"
+                className="border border-border text-muted-foreground hover:border-foreground/40 disabled:opacity-40 px-4 py-2.5 rounded-lg text-sm font-medium"
               >
                 Aktualizovat statistiky
               </button>
             </div>
             {(web.created !== undefined || web.skipped !== undefined) && (
-              <div className="mt-4 p-4 rounded-lg bg-bg-secondary border border-border-color text-sm">
+              <div className="mt-4 p-4 rounded-lg bg-muted border border-border text-sm">
                 <h3 className="font-semibold mb-2">Poslední operace</h3>
-                <ul className="space-y-1 text-text-secondary">
+                <ul className="space-y-1 text-muted-foreground">
                   {web.created !== undefined && <li>Vytvořeno: {web.created}</li>}
                   {web.skipped !== undefined && <li>Přeskočeno (aktuální): {web.skipped}</li>}
                   {web.failed !== undefined && <li>Selhalo: {web.failed}</li>}
                 </ul>
                 {web.errors && web.errors.length > 0 && (
                   <details className="mt-2">
-                    <summary className="cursor-pointer text-red-400">Chyby: {web.errors.length}</summary>
-                    <ul className="mt-2 text-xs text-red-400/80 font-mono space-y-1">
+                    <summary className="cursor-pointer text-destructive">Chyby: {web.errors.length}</summary>
+                    <ul className="mt-2 text-xs text-destructive/80 font-mono space-y-1">
                       {web.errors.map((e, i) => (
                         <li key={i}>{e}</li>
                       ))}
@@ -239,14 +239,14 @@ export default function ThumbnailsManager() {
             )}
           </>
         ) : (
-          <p className="text-text-muted text-sm">Načítám…</p>
+          <p className="text-muted-foreground text-sm">Načítám…</p>
         )}
       </section>
 
       {/* ------------------- THUMBNAILS ------------------- */}
-      <section className="border-t border-border-color pt-8">
+      <section className="border-t border-border pt-8">
         <h2 className="text-xl font-semibold mb-3">Náhledy (pro seznam kamenů)</h2>
-        <p className="text-sm text-text-muted mb-4">
+        <p className="text-sm text-muted-foreground mb-4">
           Malé WebP thumbnaily (192 + 384 px) pro rychlé načítání seznamu kamenů.
           Generují se on-demand při prvním zobrazení, tlačítko je pregeneruje dopředu.
         </p>
@@ -260,7 +260,7 @@ export default function ThumbnailsManager() {
               <StatCard label="Velikost" value={`${thumbs.cacheSizeMB} MB`} />
             </div>
             {!thumbs.sharpAvailable && (
-              <div className="p-3 mb-4 rounded-lg bg-yellow-900/20 border border-yellow-800 text-yellow-300 text-sm">
+              <div className="p-3 mb-4 rounded-lg bg-[color-mix(in_srgb,var(--warning)_12%,transparent)] border border-[color-mix(in_srgb,var(--warning)_30%,transparent)] text-warning text-sm">
                 ⚠️ Sharp modul není dostupný — thumbnaily nepůjdou.
               </div>
             )}
@@ -268,21 +268,21 @@ export default function ThumbnailsManager() {
               <button
                 onClick={() => action('/api/admin/thumbnails', 'POST', undefined, 'thumbs-warm')}
                 disabled={busy !== null || !thumbs.sharpAvailable}
-                className="bg-moldavite-600 hover:bg-moldavite-500 disabled:opacity-40 text-white px-4 py-2.5 rounded-lg text-sm font-medium"
+                className="bg-primary hover:bg-primary/90 disabled:opacity-40 text-white px-4 py-2.5 rounded-lg text-sm font-medium"
               >
                 {busy === 'thumbs-warm' ? 'Generuji…' : 'Vygenerovat náhledy'}
               </button>
               <button
                 onClick={() => action('/api/admin/thumbnails', 'DELETE', undefined, 'thumbs-clear')}
                 disabled={busy !== null || thumbs.cacheCount === 0}
-                className="border border-red-800 text-red-400 hover:bg-red-900/30 disabled:opacity-40 px-4 py-2.5 rounded-lg text-sm font-medium"
+                className="border border-[color-mix(in_srgb,var(--destructive)_30%,transparent)] text-destructive hover:bg-[color-mix(in_srgb,var(--destructive)_15%,transparent)] disabled:opacity-40 px-4 py-2.5 rounded-lg text-sm font-medium"
               >
                 {busy === 'thumbs-clear' ? 'Mažu…' : 'Smazat cache'}
               </button>
             </div>
           </>
         ) : (
-          <p className="text-text-muted text-sm">Načítám…</p>
+          <p className="text-muted-foreground text-sm">Načítám…</p>
         )}
       </section>
     </div>
@@ -291,8 +291,8 @@ export default function ThumbnailsManager() {
 
 function StatCard({ label, value }: { label: string; value: number | string }) {
   return (
-    <div className="p-4 rounded-lg bg-bg-secondary border border-border-color">
-      <div className="text-xs text-text-muted uppercase tracking-wider mb-1">{label}</div>
+    <div className="p-4 rounded-lg bg-muted border border-border">
+      <div className="text-xs text-muted-foreground uppercase tracking-wider mb-1">{label}</div>
       <div className="text-2xl font-semibold">{value}</div>
     </div>
   );

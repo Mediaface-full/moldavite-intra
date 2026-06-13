@@ -92,23 +92,24 @@ export default function ItemDetailForm({ item }: { item: ItemData }) {
   const catalogNumber = `${item.box.code}-${item.evidNumber}`;
 
   return (
-    <div className="bg-bg-card border border-border-color rounded-xl p-6">
+    <div className="bg-card border border-border rounded-xl p-6 shadow-sm">
       <div className="flex items-center justify-between mb-5">
         <h2 className="text-lg font-semibold">Detail kamene</h2>
         {/* CZ/EN switcher */}
-        <div className="flex items-center bg-bg-secondary border border-border-color rounded-lg p-0.5">
+        <div className="flex items-center bg-muted border border-border rounded-lg p-0.5">
           <button
             onClick={() => setLang('cz')}
-            className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
-              lang === 'cz' ? 'bg-moldavite-700 text-white' : 'text-text-muted hover:text-text-primary'
+            className={`px-3 py-1 rounded text-xs font-mono uppercase tracking-wider transition-colors ${
+              lang === 'cz' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'
             }`}
           >
             CZ
           </button>
           <button
             onClick={() => setLang('en')}
-            className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
-              lang === 'en' ? 'bg-blue-700 text-white' : 'text-text-muted hover:text-text-primary'
+            style={lang === 'en' ? { background: 'var(--info)', color: '#fff' } : undefined}
+            className={`px-3 py-1 rounded text-xs font-mono uppercase tracking-wider transition-colors ${
+              lang === 'en' ? '' : 'text-muted-foreground hover:text-foreground'
             }`}
           >
             EN
@@ -119,50 +120,50 @@ export default function ItemDetailForm({ item }: { item: ItemData }) {
       <div className="space-y-4">
         {/* Read-only */}
         <div>
-          <label className="block text-xs text-text-muted mb-1 uppercase tracking-wider">Katalogové číslo</label>
-          <p className="text-text-primary font-mono">{catalogNumber}</p>
+          <label className="block text-xs text-muted-foreground mb-1 uppercase tracking-wider">Katalogové číslo</label>
+          <p className="text-foreground font-mono">{catalogNumber}</p>
         </div>
 
         {/* Name */}
         <div>
-          <label className="block text-xs text-text-muted mb-1 uppercase tracking-wider">
-            Název produktu {lang === 'en' && <span className="text-blue-400">(EN)</span>}
+          <label className="block text-xs text-muted-foreground mb-1 uppercase tracking-wider">
+            Název produktu {lang === 'en' && <span style={{ color: 'var(--info)' }} className="font-mono">(EN)</span>}
           </label>
           {lang === 'cz' ? (
             <input
               type="text" value={formData.name}
               onChange={(e) => setFormData((f) => ({ ...f, name: e.target.value }))}
               placeholder={`Moldavit ${catalogNumber}`}
-              className="w-full bg-bg-secondary border border-border-color rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-moldavite-500 placeholder-text-muted"
+              className="w-full bg-card border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/20 placeholder:text-muted-foreground transition-shadow"
             />
           ) : (
             <input
               type="text" value={formData.nameEn}
               onChange={(e) => setFormData((f) => ({ ...f, nameEn: e.target.value }))}
               placeholder={`Moldavite ${catalogNumber}`}
-              className="w-full bg-bg-secondary border border-blue-900 rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-blue-500 placeholder-text-muted"
+              className="w-full bg-card border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 placeholder:text-muted-foreground transition-shadow border-[color-mix(in_srgb,var(--info)_30%,transparent)] focus:border-[var(--info)] focus:ring-[color-mix(in_srgb,var(--info)_20%,transparent)]"
             />
           )}
         </div>
 
         {/* Short description */}
         <div>
-          <label className="block text-xs text-text-muted mb-1 uppercase tracking-wider">
-            Krátký popis {lang === 'en' && <span className="text-blue-400">(EN)</span>}
+          <label className="block text-xs text-muted-foreground mb-1 uppercase tracking-wider">
+            Krátký popis {lang === 'en' && <span style={{ color: 'var(--info)' }} className="font-mono">(EN)</span>}
           </label>
           {lang === 'cz' ? (
             <textarea
               value={formData.description}
               onChange={(e) => setFormData((f) => ({ ...f, description: e.target.value }))}
               rows={2} placeholder="Krátký popis kamene..."
-              className="w-full bg-bg-secondary border border-border-color rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-moldavite-500 resize-none placeholder-text-muted"
+              className="w-full bg-card border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/20 resize-none placeholder:text-muted-foreground transition-shadow"
             />
           ) : (
             <textarea
               value={formData.descriptionEn}
               onChange={(e) => setFormData((f) => ({ ...f, descriptionEn: e.target.value }))}
               rows={2} placeholder="Short description..."
-              className="w-full bg-bg-secondary border border-blue-900 rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-blue-500 resize-none placeholder-text-muted"
+              className="w-full bg-card border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 resize-none placeholder:text-muted-foreground transition-shadow border-[color-mix(in_srgb,var(--info)_30%,transparent)] focus:border-[var(--info)] focus:ring-[color-mix(in_srgb,var(--info)_20%,transparent)]"
             />
           )}
         </div>
@@ -170,11 +171,11 @@ export default function ItemDetailForm({ item }: { item: ItemData }) {
         {/* Long description (rich text) */}
         <div>
           <div className="flex items-center justify-between mb-1">
-            <label className="block text-xs text-text-muted uppercase tracking-wider">
-              Delší popis {lang === 'en' ? <span className="text-blue-400">(EN)</span> : '(HTML)'}
+            <label className="block text-xs text-muted-foreground uppercase tracking-wider">
+              Delší popis {lang === 'en' ? <span style={{ color: 'var(--info)' }} className="font-mono">(EN)</span> : '(HTML)'}
             </label>
             {(lang === 'cz' ? formData.longDescription : formData.longDescriptionEn).length > 0 && (
-              <span className="text-[10px] text-text-muted">
+              <span className="text-[10px] text-muted-foreground">
                 {(lang === 'cz' ? formData.longDescription : formData.longDescriptionEn).length} znaků
               </span>
             )}
@@ -197,34 +198,34 @@ export default function ItemDetailForm({ item }: { item: ItemData }) {
         {/* Location + Storage */}
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-xs text-text-muted mb-1 uppercase tracking-wider">Místo nálezu</label>
+            <label className="block text-xs text-muted-foreground mb-1 uppercase tracking-wider">Místo nálezu</label>
             <AutocompleteInput
               value={formData.location}
               onChange={(v) => setFormData((f) => ({ ...f, location: v }))}
               field="location"
               placeholder="Místo nálezu..."
-              className="w-full bg-bg-secondary border border-border-color rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-moldavite-500 placeholder-text-muted"
+              className="w-full bg-card border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/20 placeholder:text-muted-foreground transition-shadow"
             />
           </div>
           <div>
-            <label className="block text-xs text-text-muted mb-1 uppercase tracking-wider">Umístění</label>
+            <label className="block text-xs text-muted-foreground mb-1 uppercase tracking-wider">Umístění</label>
             <AutocompleteInput
               value={formData.storage}
               onChange={(v) => setFormData((f) => ({ ...f, storage: v }))}
               field="storage"
               placeholder="Kde je kámen uložen..."
-              className="w-full bg-bg-secondary border border-border-color rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-moldavite-500 placeholder-text-muted"
+              className="w-full bg-card border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/20 placeholder:text-muted-foreground transition-shadow"
             />
           </div>
         </div>
 
         {/* Primary Aerodynamic Shape */}
         <div>
-          <label className="block text-xs text-text-muted mb-1 uppercase tracking-wider">
+          <label className="block text-xs text-muted-foreground mb-1 uppercase tracking-wider">
             Primární aerodynamický tvar (PAS)
-            <span className="ml-2 text-[10px] text-text-muted normal-case">
+            <span className="ml-2 text-[10px] text-muted-foreground normal-case">
               {lang === 'en' ? 'shown to English buyers:' : 'anglický název pro export:'}
-              <strong className="ml-1 text-text-secondary">
+              <strong className="ml-1 text-muted-foreground">
                 {getPasShape(formData.pasShape)?.[lang === 'en' ? 'en' : 'cz'] || (lang === 'en' ? 'not set' : 'nenastaveno')}
               </strong>
             </span>
@@ -232,7 +233,7 @@ export default function ItemDetailForm({ item }: { item: ItemData }) {
           <select
             value={formData.pasShape}
             onChange={(e) => setFormData((f) => ({ ...f, pasShape: e.target.value }))}
-            className="w-full bg-bg-secondary border border-border-color rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-moldavite-500"
+            className="w-full bg-card border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/20 transition-shadow"
           >
             <option value="">— nezvoleno —</option>
             {PAS_SHAPES.map((s) => (
@@ -242,7 +243,7 @@ export default function ItemDetailForm({ item }: { item: ItemData }) {
             ))}
           </select>
           {formData.pasShape && (
-            <p className="mt-1.5 text-xs text-text-muted italic">
+            <p className="mt-1.5 text-xs text-muted-foreground italic">
               {lang === 'en' ? getPasShape(formData.pasShape)?.descEn : getPasShape(formData.pasShape)?.descCz}
             </p>
           )}
@@ -251,30 +252,30 @@ export default function ItemDetailForm({ item }: { item: ItemData }) {
         {/* Weight + Prices */}
         <div className="grid grid-cols-4 gap-4">
           <div>
-            <label className="block text-xs text-text-muted mb-1 uppercase tracking-wider">Hmotnost (g)</label>
+            <label className="block text-xs text-muted-foreground mb-1 uppercase tracking-wider">Hmotnost (g)</label>
             <input type="number" step="0.01" value={formData.weight}
               onChange={(e) => setFormData((f) => ({ ...f, weight: e.target.value }))}
-              className="w-full bg-bg-secondary border border-border-color rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-moldavite-500"
+              className="w-full bg-card border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/20 transition-shadow"
             />
           </div>
           <div>
-            <label className="block text-xs text-text-muted mb-1 uppercase tracking-wider">Hmotnost (ct)</label>
-            <div className="w-full bg-bg-secondary border border-border-color rounded-lg px-3 py-2 text-sm text-text-secondary">
+            <label className="block text-xs text-muted-foreground mb-1 uppercase tracking-wider">Hmotnost (ct)</label>
+            <div className="w-full bg-muted border border-border rounded-lg px-3 py-2 text-sm text-muted-foreground">
               {(parseFloat(formData.weight) * 5 || 0).toFixed(2)}
             </div>
           </div>
           <div>
-            <label className="block text-xs text-text-muted mb-1 uppercase tracking-wider">Nákupní cena</label>
+            <label className="block text-xs text-muted-foreground mb-1 uppercase tracking-wider">Nákupní cena</label>
             <input type="number" value={formData.purchasePrice}
               onChange={(e) => setFormData((f) => ({ ...f, purchasePrice: e.target.value }))}
-              className="w-full bg-bg-secondary border border-border-color rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-moldavite-500"
+              className="w-full bg-card border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/20 transition-shadow"
             />
           </div>
           <div>
-            <label className="block text-xs text-text-muted mb-1 uppercase tracking-wider">Prodejní cena</label>
+            <label className="block text-xs text-muted-foreground mb-1 uppercase tracking-wider">Prodejní cena</label>
             <input type="number" value={formData.salePrice}
               onChange={(e) => setFormData((f) => ({ ...f, salePrice: e.target.value }))}
-              className="w-full bg-bg-secondary border border-border-color rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-moldavite-500"
+              className="w-full bg-card border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/20 transition-shadow"
             />
           </div>
         </div>
@@ -282,18 +283,18 @@ export default function ItemDetailForm({ item }: { item: ItemData }) {
         {/* Converted prices */}
         {(Number(item.priceEUR) > 0 || Number(item.priceUSD) > 0) ? (
           <div>
-            <label className="block text-xs text-text-muted mb-1.5 uppercase tracking-wider">Přepočtené ceny</label>
+            <label className="block text-xs text-muted-foreground mb-1.5 uppercase tracking-wider">Přepočtené ceny</label>
             <div className="flex gap-3 text-sm">
             {item.priceEUR !== undefined && item.priceEUR > 0 && (
-              <div className="bg-bg-secondary border border-border-color rounded-lg px-3 py-2 flex items-center gap-2">
-                <span className="text-blue-400 font-bold text-xs">EUR</span>
-                <span className="text-text-primary font-medium">{Math.round(item.priceEUR)}</span>
+              <div className="bg-muted border border-border rounded-lg px-3 py-2 flex items-center gap-2">
+                <span style={{ color: 'var(--info)' }} className="font-mono font-semibold text-[10px] uppercase tracking-wider">EUR</span>
+                <span className="text-foreground font-mono font-semibold">{Math.round(item.priceEUR)}</span>
               </div>
             )}
             {item.priceUSD !== undefined && item.priceUSD > 0 && (
-              <div className="bg-bg-secondary border border-border-color rounded-lg px-3 py-2 flex items-center gap-2">
-                <span className="text-green-400 font-bold text-xs">USD</span>
-                <span className="text-text-primary font-medium">{Math.round(item.priceUSD)}</span>
+              <div className="bg-muted border border-border rounded-lg px-3 py-2 flex items-center gap-2">
+                <span style={{ color: 'var(--success)' }} className="font-mono font-semibold text-[10px] uppercase tracking-wider">USD</span>
+                <span className="text-foreground font-mono font-semibold">{Math.round(item.priceUSD)}</span>
               </div>
             )}
             </div>

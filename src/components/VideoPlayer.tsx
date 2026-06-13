@@ -11,7 +11,7 @@ export default function VideoPlayer({ photoPath, evidNumber }: VideoPlayerProps)
   const videoUrl = getVideoUrl(photoPath);
 
   return (
-    <div className="rounded-xl overflow-hidden bg-bg-secondary">
+    <div className="rounded-xl overflow-hidden bg-muted">
       <div className="relative" style={{ maxHeight: '400px' }}>
         <video
           controls
@@ -22,7 +22,7 @@ export default function VideoPlayer({ photoPath, evidNumber }: VideoPlayerProps)
           Váš prohlížeč nepodporuje přehrávání videa.
         </video>
       </div>
-      <div className="px-4 py-2 text-sm text-text-muted">
+      <div className="px-4 py-2 text-sm text-muted-foreground">
         Video - {evidNumber}
       </div>
     </div>

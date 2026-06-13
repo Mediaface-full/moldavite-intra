@@ -197,12 +197,12 @@ export default function ItemsTable({ items: initialItems, boxCode, isAdmin = tru
           <div className="relative flex-1 max-w-sm">
             <input
               type="text"
-              placeholder="Hledat kameny..."
+              placeholder="Hledat kameny…"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-bg-secondary border border-border-color rounded-lg px-4 py-2 pl-10 text-sm text-text-primary placeholder-text-muted focus:outline-none focus:border-moldavite-500"
+              className="w-full bg-card border border-border rounded-lg px-4 py-2 pl-10 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/20 transition-shadow"
             />
-            <svg className="absolute left-3 top-2.5 w-4 h-4 text-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+            <svg className="absolute left-3 top-2.5 w-4 h-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
             </svg>
           </div>
@@ -210,7 +210,7 @@ export default function ItemsTable({ items: initialItems, boxCode, isAdmin = tru
             value={pasFilter}
             onChange={(e) => setPasFilter(e.target.value)}
             title="Filtrovat podle primárního tvaru"
-            className="bg-bg-secondary border border-border-color rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-moldavite-500"
+            className="bg-card border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/20 transition-shadow"
           >
             <option value="">Všechny tvary</option>
             <option value="NONE">— bez tvaru —</option>
@@ -223,60 +223,62 @@ export default function ItemsTable({ items: initialItems, boxCode, isAdmin = tru
         <div className="flex items-center gap-2 flex-wrap">
           <button
             onClick={() => setShowBulkModal(true)}
-            className="bg-bg-secondary border border-border-color hover:border-border-hover text-text-primary px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+            className="bg-card border border-border hover:border-foreground/40 text-foreground px-3 py-1.5 rounded-md text-xs font-mono uppercase tracking-wider transition-colors inline-flex items-center gap-2"
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.75}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125" />
             </svg>
             Propsat údaje
           </button>
 
           <button
             onClick={() => setAllField('onShop', true)}
-            className="bg-moldavite-700 hover:bg-moldavite-600 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors"
+            style={{ color: 'var(--success)', borderColor: 'color-mix(in srgb, var(--success) 30%, transparent)' }}
+            className="bg-transparent border hover:bg-[color-mix(in_srgb,var(--success)_10%,transparent)] px-3 py-1.5 rounded-md text-xs font-mono uppercase tracking-wider transition-colors"
           >
-            Vystavit vše na eshop
+            Eshop vše ON
           </button>
           <button
             onClick={() => setAllField('onShop', false)}
-            className="bg-bg-secondary border border-border-color hover:border-border-hover text-text-secondary px-3 py-2 rounded-lg text-sm font-medium transition-colors"
+            className="bg-card border border-border hover:border-foreground/40 text-muted-foreground hover:text-foreground px-3 py-1.5 rounded-md text-xs font-mono uppercase tracking-wider transition-colors"
           >
-            Vypnout z eshopu
+            Eshop vše OFF
           </button>
 
           <button
             onClick={() => setAllField('onEtsy', true)}
-            className="bg-orange-700 hover:bg-orange-600 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors"
+            style={{ color: 'var(--warning)', borderColor: 'color-mix(in srgb, var(--warning) 30%, transparent)' }}
+            className="bg-transparent border hover:bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] px-3 py-1.5 rounded-md text-xs font-mono uppercase tracking-wider transition-colors"
           >
-            Vystavit vše na Etsy
+            Etsy vše ON
           </button>
           <button
             onClick={() => setAllField('onEtsy', false)}
-            className="bg-bg-secondary border border-border-color hover:border-border-hover text-text-secondary px-3 py-2 rounded-lg text-sm font-medium transition-colors"
+            className="bg-card border border-border hover:border-foreground/40 text-muted-foreground hover:text-foreground px-3 py-1.5 rounded-md text-xs font-mono uppercase tracking-wider transition-colors"
           >
-            Vypnout z Etsy
+            Etsy vše OFF
           </button>
         </div>
       </div>
 
       {/* Table */}
-      <div className="overflow-x-auto rounded-xl border border-border-color">
+      <div className="overflow-x-auto rounded-xl border border-border bg-card shadow-sm">
         <table className="w-full text-sm">
           <thead>
-            <tr className="bg-bg-secondary border-b border-border-color">
-              <th className="text-left px-3 py-3 text-text-secondary font-medium w-14">Foto</th>
-              <th className="text-left px-3 py-3 text-text-secondary font-medium">Kat. č.</th>
-              <th className="text-left px-3 py-3 text-text-secondary font-medium">Místo nálezu</th>
-              <th className="text-left px-3 py-3 text-text-secondary font-medium w-36">Tvar (PAS)</th>
-              <th className="text-right px-3 py-3 text-text-secondary font-medium">Hmotnost (g)</th>
+            <tr className="bg-muted/40 border-b border-border">
+              <th className="text-left px-3 py-3 text-muted-foreground font-mono text-[10px] uppercase tracking-wider w-14">Foto</th>
+              <th className="text-left px-3 py-3 text-muted-foreground font-mono text-[10px] uppercase tracking-wider">Kat. č.</th>
+              <th className="text-left px-3 py-3 text-muted-foreground font-mono text-[10px] uppercase tracking-wider">Místo nálezu</th>
+              <th className="text-left px-3 py-3 text-muted-foreground font-mono text-[10px] uppercase tracking-wider w-36">Tvar (PAS)</th>
+              <th className="text-right px-3 py-3 text-muted-foreground font-mono text-[10px] uppercase tracking-wider">Hmotnost (g)</th>
               {isAdmin && (
-                <th className="text-right px-3 py-3 text-text-secondary font-medium">Nákupka</th>
+                <th className="text-right px-3 py-3 text-muted-foreground font-mono text-[10px] uppercase tracking-wider">Nákupka</th>
               )}
-              <th className="text-right px-3 py-3 text-text-secondary font-medium">Prodejka</th>
-              <th className="text-center px-3 py-3 text-text-secondary font-medium">Eshop</th>
-              <th className="text-center px-3 py-3 text-text-secondary font-medium">Etsy</th>
-              <th className="text-center px-3 py-3 text-text-secondary font-medium w-20"></th>
-              {isAdmin && <th className="px-2 py-3 text-text-secondary font-medium w-12"></th>}
+              <th className="text-right px-3 py-3 text-muted-foreground font-mono text-[10px] uppercase tracking-wider">Prodejka</th>
+              <th className="text-center px-3 py-3 text-muted-foreground font-mono text-[10px] uppercase tracking-wider">Eshop</th>
+              <th className="text-center px-3 py-3 text-muted-foreground font-mono text-[10px] uppercase tracking-wider">Etsy</th>
+              <th className="text-center px-3 py-3 text-muted-foreground font-mono text-[10px] uppercase tracking-wider w-20"></th>
+              {isAdmin && <th className="px-2 py-3 text-muted-foreground font-mono text-[10px] uppercase tracking-wider w-12"></th>}
             </tr>
           </thead>
           <tbody>
@@ -284,16 +286,16 @@ export default function ItemsTable({ items: initialItems, boxCode, isAdmin = tru
               <tr
                 key={item.id}
                 onClick={() => router.push(`/items/${item.id}`)}
-                className={`border-b border-border-color hover:bg-bg-card-hover transition-colors cursor-pointer ${item.sold ? 'opacity-50' : ''}`}
+                className={`border-b border-border hover:bg-muted/40 transition-colors cursor-pointer ${item.sold ? 'opacity-50' : ''}`}
               >
                 {/* Thumbnail */}
                 <td className="px-3 py-2">
-                  <div className="w-11 h-11 rounded-lg overflow-hidden bg-white border border-border-color">
+                  <div className="w-11 h-11 rounded-lg overflow-hidden bg-white border border-border">
                     {item.photoPath ? (
                       /* eslint-disable-next-line @next/next/no-img-element */
                       <img src={getThumbnailUrl(item.photoPath, item.mainPhoto)} alt={item.evidNumber} className="object-cover w-full h-full" />
                     ) : (
-                      <div className="w-full h-full flex items-center justify-center text-text-muted text-xs">N/A</div>
+                      <div className="w-full h-full flex items-center justify-center text-muted-foreground text-xs">N/A</div>
                     )}
                   </div>
                 </td>
@@ -306,7 +308,7 @@ export default function ItemsTable({ items: initialItems, boxCode, isAdmin = tru
                 </td>
 
                 {/* Location */}
-                <td className="px-3 py-2 text-text-secondary">{item.location || '-'}</td>
+                <td className="px-3 py-2 text-muted-foreground">{item.location || '-'}</td>
 
                 {/* PAS shape — inline select */}
                 <td className="px-3 py-2" onClick={stopRowClick}>
@@ -317,7 +319,7 @@ export default function ItemsTable({ items: initialItems, boxCode, isAdmin = tru
                       setLocalItems(prev => prev.map(i => i.id === item.id ? { ...i, pasShape: v } : i));
                       autoSave(item.id, 'pasShape', v);
                     }}
-                    className="w-full bg-bg-secondary border border-border-color rounded px-2 py-1 text-xs text-text-primary focus:outline-none focus:border-moldavite-500"
+                    className="w-full bg-muted border border-border rounded px-2 py-1 text-xs text-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
                   >
                     <option value="">—</option>
                     {PAS_SHAPES.map((s) => (
@@ -434,7 +436,7 @@ export default function ItemsTable({ items: initialItems, boxCode, isAdmin = tru
         </table>
       </div>
 
-      <div className="mt-3 text-sm text-text-muted">
+      <div className="mt-3 text-sm text-muted-foreground">
         Zobrazeno {filteredItems.length} z {localItems.length} kamenů
       </div>
 
@@ -465,45 +467,45 @@ function BulkEditModal({
 
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
-      <div className="bg-bg-card border border-border-color rounded-xl p-6 w-full max-w-md shadow-2xl">
+      <div className="bg-card border border-border rounded-xl p-6 w-full max-w-md shadow-2xl">
         <div className="flex items-center justify-between mb-6">
           <h3 className="text-lg font-semibold">Propsat údaje ke všem kamenům</h3>
-          <button onClick={onClose} className="text-text-muted hover:text-text-primary">
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         </div>
-        <p className="text-sm text-text-secondary mb-4">
+        <p className="text-sm text-muted-foreground mb-4">
           Vyplněné hodnoty se propíšou do všech <strong>{itemCount}</strong> kamenů. Prázdná pole se přeskočí.
         </p>
         <div className="space-y-4">
           <div>
-            <label className="block text-xs text-text-muted mb-1 uppercase tracking-wider">Popis</label>
+            <label className="block text-xs text-muted-foreground mb-1 uppercase tracking-wider">Popis</label>
             <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} placeholder="Propsat popis ke všem..."
-              className="w-full bg-bg-secondary border border-border-color rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-moldavite-500 resize-none placeholder-text-muted" />
+              className="w-full bg-muted border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/20 resize-none placeholder:text-muted-foreground" />
           </div>
           <div>
-            <label className="block text-xs text-text-muted mb-1 uppercase tracking-wider">Místo nálezu</label>
+            <label className="block text-xs text-muted-foreground mb-1 uppercase tracking-wider">Místo nálezu</label>
             <input type="text" value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Propsat místo ke všem..."
-              className="w-full bg-bg-secondary border border-border-color rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-moldavite-500 placeholder-text-muted" />
+              className="w-full bg-muted border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/20 placeholder:text-muted-foreground" />
           </div>
           <div>
-            <label className="block text-xs text-text-muted mb-1 uppercase tracking-wider">Umístění</label>
+            <label className="block text-xs text-muted-foreground mb-1 uppercase tracking-wider">Umístění</label>
             <input type="text" value={storage} onChange={(e) => setStorage(e.target.value)} placeholder="Propsat umístění ke všem..."
-              className="w-full bg-bg-secondary border border-border-color rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-moldavite-500 placeholder-text-muted" />
+              className="w-full bg-muted border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/20 placeholder:text-muted-foreground" />
           </div>
           <div>
-            <label className="block text-xs text-text-muted mb-1 uppercase tracking-wider">Primární tvar (PAS)</label>
+            <label className="block text-xs text-muted-foreground mb-1 uppercase tracking-wider">Primární tvar (PAS)</label>
             <select value={pasShape} onChange={(e) => setPasShape(e.target.value)}
-              className="w-full bg-bg-secondary border border-border-color rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-moldavite-500">
+              className="w-full bg-muted border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/20">
               <option value="__unchanged__">— neměnit —</option>
               <option value="">— smazat / nenastaveno —</option>
               {PAS_SHAPES.map((s) => (
                 <option key={s.key} value={s.key}>{s.cz} ({s.en})</option>
               ))}
             </select>
-            <p className="text-xs text-text-muted mt-1">
+            <p className="text-xs text-muted-foreground mt-1">
               Propíše se pouze do kamenů zobrazených v aktuálním filtru ({itemCount}).
             </p>
           </div>
@@ -517,10 +519,10 @@ function BulkEditModal({
               ...(pasShape !== '__unchanged__' ? { pasShape } : {}),
             })}
             disabled={saving || (!description && !location && !storage && pasShape === '__unchanged__')}
-            className="flex-1 bg-moldavite-600 hover:bg-moldavite-500 disabled:opacity-50 text-white px-4 py-2.5 rounded-lg text-sm font-medium transition-colors">
+            className="flex-1 bg-primary hover:bg-primary/90 disabled:opacity-50 text-primary-foreground px-4 py-2.5 rounded-lg text-sm font-medium transition-colors">
             {saving ? 'Ukládám...' : 'Propsat ke všem kamenům'}
           </button>
-          <button onClick={onClose} className="px-4 py-2.5 rounded-lg text-sm text-text-secondary hover:text-text-primary border border-border-color hover:border-border-hover transition-colors">
+          <button onClick={onClose} className="px-4 py-2.5 rounded-lg text-sm text-muted-foreground hover:text-foreground border border-border hover:border-foreground/40 transition-colors">
             Zrušit
           </button>
         </div>
@@ -551,7 +553,7 @@ function ZeroInput({ initial, onSave, step, width }: {
         setDisplay(num === 0 ? '' : String(num));
         onSave(num);
       }}
-      className={`${width || 'w-24'} bg-bg-secondary border border-border-color rounded px-2 py-1 text-right text-sm text-text-primary focus:outline-none focus:border-moldavite-500 placeholder-text-muted`}
+      className={`${width || 'w-24'} bg-muted border border-border rounded px-2 py-1 text-right text-sm text-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/20 placeholder:text-muted-foreground`}
     />
   );
 }

@@ -33,12 +33,12 @@ export default async function BoxDetailPage({
   return (
     <div>
       {/* Breadcrumb */}
-      <div className="flex items-center gap-2 text-sm text-text-muted mb-6">
-        <Link href="/boxes" className="hover:text-text-primary transition-colors">
+      <div className="flex items-center gap-2 text-sm text-muted-foreground mb-6">
+        <Link href="/boxes" className="hover:text-foreground transition-colors">
           Krabice
         </Link>
         <span>/</span>
-        <span className="text-text-primary">{box.code}</span>
+        <span className="text-foreground">{box.code}</span>
       </div>
 
       {/* Header */}
@@ -46,12 +46,12 @@ export default async function BoxDetailPage({
         <div>
           <h1 className="text-3xl font-bold">{box.code}</h1>
           {box.name && (
-            <p className="text-text-secondary mt-1">{box.name}</p>
+            <p className="text-muted-foreground mt-1">{box.name}</p>
           )}
-          <div className="flex items-center gap-4 mt-2 text-sm text-text-secondary">
+          <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
             <span>{box.items.length} kamenů</span>
-            <span className="text-moldavite-400">{shopCount} na eshopu</span>
-            <span className="text-orange-400">{etsyCount} na Etsy</span>
+            <span className="text-primary">{shopCount} na eshopu</span>
+            <span className="text-warning">{etsyCount} na Etsy</span>
           </div>
         </div>
         <div className="flex items-center gap-3">

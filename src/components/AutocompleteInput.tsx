@@ -79,12 +79,12 @@ export default function AutocompleteInput({
       />
 
       {showDropdown && (filtered.length > 0 || (suggestions.length > 0 && !value)) && (
-        <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-bg-card border border-border-color rounded-lg shadow-xl max-h-48 overflow-y-auto">
+        <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-card border border-border rounded-lg shadow-xl max-h-48 overflow-y-auto">
           {(value ? filtered : suggestions).slice(0, 10).map((s, i) => (
             <button
               key={i}
               type="button"
-              className="w-full text-left px-3 py-2 text-sm text-text-secondary hover:bg-bg-card-hover hover:text-text-primary transition-colors"
+              className="w-full text-left px-3 py-2 text-sm text-muted-foreground hover:bg-muted/40 hover:text-foreground transition-colors"
               onMouseDown={(e) => {
                 e.preventDefault();
                 onChange(s);

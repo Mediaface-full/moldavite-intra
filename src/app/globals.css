@@ -23,10 +23,10 @@
   --muted:      #F2EEE5;
   --accent:     #F2EEE5;
 
-  --foreground:        #181712;
-  --text-2:            #54514A;
-  --text-3:            #7C7A72;  /* muted-foreground */
-  --placeholder:       #9A988F;
+  --foreground:        #181712;        /* nadpisy, hodnoty            ~13:1 */
+  --text-2:            #46433C;        /* jména, hlavní řádek karty   ~8:1  */
+  --text-3:            #5C594F;        /* kódy, adresy, meta — AA      ~5.7:1 — pozn. dříve #7C7A72 (~3.4:1) padalo */
+  --placeholder:       #6E6B61;        /* placeholder / nejméně důl.   ~4.3:1 */
 
   --border: #D8D3C6;
   --input:  #D8D3C6;

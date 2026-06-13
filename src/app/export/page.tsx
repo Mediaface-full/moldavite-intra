@@ -21,7 +21,7 @@ export default async function ExportPage() {
     <div>
       <div className="mb-8">
         <h1 className="text-3xl font-bold">Exporty</h1>
-        <p className="text-text-secondary mt-1">Export dat pro e-shopy s přepočtem měn</p>
+        <p className="text-muted-foreground mt-1">Export dat pro e-shopy s přepočtem měn</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
@@ -62,7 +62,7 @@ export default async function ExportPage() {
         />
       </div>
 
-      <div className="bg-bg-card border border-border-color rounded-xl p-6">
+      <div className="bg-card border border-border rounded-xl p-6">
         <h3 className="text-lg font-semibold mb-2">Správa dat</h3>
         <ExportActions type="scan" />
       </div>

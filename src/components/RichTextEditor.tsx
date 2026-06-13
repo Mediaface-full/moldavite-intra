@@ -25,7 +25,7 @@ export default function RichTextEditor({ content, onChange }: RichTextEditorProp
     },
     editorProps: {
       attributes: {
-        class: 'prose prose-sm prose-invert max-w-none min-h-[120px] px-3 py-2 focus:outline-none text-sm text-text-primary',
+        class: 'prose prose-sm prose-invert max-w-none min-h-[120px] px-3 py-2 focus:outline-none text-sm text-foreground',
       },
     },
   });
@@ -33,9 +33,9 @@ export default function RichTextEditor({ content, onChange }: RichTextEditorProp
   if (!editor) return null;
 
   return (
-    <div className="border border-border-color rounded-lg overflow-hidden bg-bg-secondary">
+    <div className="border border-border rounded-lg overflow-hidden bg-muted">
       {/* Toolbar */}
-      <div className="flex items-center gap-0.5 px-2 py-1.5 border-b border-border-color bg-bg-primary/50 flex-wrap">
+      <div className="flex items-center gap-0.5 px-2 py-1.5 border-b border-border bg-background/50 flex-wrap">
         <ToolbarButton
           active={editor.isActive('bold')}
           onClick={() => editor.chain().focus().toggleBold().run()}
@@ -113,8 +113,8 @@ function ToolbarButton({
       title={title}
       className={`w-7 h-7 flex items-center justify-center rounded text-xs transition-colors ${
         active
-          ? 'bg-moldavite-700 text-white'
-          : 'text-text-muted hover:text-text-primary hover:bg-bg-card'
+          ? 'bg-primary text-white'
+          : 'text-muted-foreground hover:text-foreground hover:bg-card'
       }`}
     >
       {children}

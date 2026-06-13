@@ -11,7 +11,7 @@ export default async function ItemsPage() {
     <div>
       <div className="mb-8">
         <h1 className="text-3xl font-bold">Všechny kameny</h1>
-        <p className="text-text-secondary mt-1">
+        <p className="text-muted-foreground mt-1">
           Celkem {items.length} moldavitů v evidenci
         </p>
       </div>

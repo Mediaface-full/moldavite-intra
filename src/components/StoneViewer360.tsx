@@ -142,7 +142,7 @@ export default function StoneViewer360({ photoPath, evidNumber, itemId, mainPhot
           </div>
 
           {isCurrentMain && (
-            <div className="bg-accent-gold/80 text-black text-xs px-3 py-1.5 rounded-full font-medium">
+            <div className="bg-warning/80 text-black text-xs px-3 py-1.5 rounded-full font-medium">
               Hlavni foto
             </div>
           )}
@@ -158,17 +158,17 @@ export default function StoneViewer360({ photoPath, evidNumber, itemId, mainPhot
               onClick={() => setCurrentIndex(index)}
               className={`flex-shrink-0 w-10 h-10 rounded border-2 overflow-hidden transition-colors relative ${
                 index === currentIndex
-                  ? 'border-accent-gold'
+                  ? 'border-warning'
                   : index + 1 === currentMainPhoto
-                  ? 'border-accent-gold/50'
-                  : 'border-border-color hover:border-border-hover'
+                  ? 'border-warning/50'
+                  : 'border-border hover:border-foreground/40'
               }`}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={src} alt={`${index + 1}`} className="object-cover w-full h-full" loading="lazy" />
               {index + 1 === currentMainPhoto && (
                 <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="w-2 h-2 bg-accent-gold rounded-full" />
+                  <div className="w-2 h-2 bg-warning rounded-full" />
                 </div>
               )}
             </button>
@@ -182,8 +182,8 @@ export default function StoneViewer360({ photoPath, evidNumber, itemId, mainPhot
             disabled={saving || isCurrentMain}
             className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5 ${
               isCurrentMain
-                ? 'bg-accent-gold/20 text-accent-gold cursor-default'
-                : 'bg-bg-secondary border border-border-color hover:border-accent-gold text-text-secondary hover:text-accent-gold'
+                ? 'bg-[color-mix(in_srgb,var(--warning)_18%,transparent)] text-primary cursor-default'
+                : 'bg-muted border border-border hover:border-warning text-muted-foreground hover:text-primary'
             }`}
           >
           <svg className="w-3.5 h-3.5" fill={isCurrentMain ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>

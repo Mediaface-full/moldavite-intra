@@ -49,8 +49,8 @@ export default function StatsPage() {
 
   useEffect(() => { loadStats(); }, [loadStats]);
 
-  if (loading) return <div className="text-text-muted">Načítám statistiky...</div>;
-  if (!stats) return <div className="text-red-400">Chyba načítání</div>;
+  if (loading) return <div className="text-muted-foreground">Načítám statistiky...</div>;
+  if (!stats) return <div className="text-destructive">Chyba načítání</div>;
 
   const { overview: o, financial: f, inventory: inv } = stats;
   const maxWeight = Math.max(...inv.weightDistribution.map(w => w.count), 1);
@@ -60,21 +60,21 @@ export default function StatsPage() {
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-3xl font-bold">Statistiky</h1>
-          <p className="text-text-secondary mt-1">Přehled skladu a prodejů</p>
+          <p className="text-muted-foreground mt-1">Přehled skladu a prodejů</p>
         </div>
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2">
-            <label className="text-xs text-text-muted">Od</label>
+            <label className="text-xs text-muted-foreground">Od</label>
             <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
-              className="bg-bg-secondary border border-border-color rounded-lg px-3 py-1.5 text-sm text-text-primary focus:outline-none focus:border-moldavite-500" />
+              className="bg-muted border border-border rounded-lg px-3 py-1.5 text-sm text-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/20" />
           </div>
           <div className="flex items-center gap-2">
-            <label className="text-xs text-text-muted">Do</label>
+            <label className="text-xs text-muted-foreground">Do</label>
             <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
-              className="bg-bg-secondary border border-border-color rounded-lg px-3 py-1.5 text-sm text-text-primary focus:outline-none focus:border-moldavite-500" />
+              className="bg-muted border border-border rounded-lg px-3 py-1.5 text-sm text-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/20" />
           </div>
           <button onClick={loadStats}
-            className="bg-moldavite-600 hover:bg-moldavite-500 text-white px-4 py-1.5 rounded-lg text-sm font-medium transition-colors">
+            className="bg-primary hover:bg-primary/90 text-white px-4 py-1.5 rounded-lg text-sm font-medium transition-colors">
             Filtrovat
           </button>
         </div>
@@ -83,48 +83,48 @@ export default function StatsPage() {
       {/* Overview cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4 mb-8">
         <StatCard label="Kameny celkem" value={fmt(o.totalItems)} />
-        <StatCard label="Na skladě" value={fmt(o.inStock)} color="text-text-primary" />
-        <StatCard label="Prodáno" value={fmt(o.sold)} color="text-red-400" />
-        <StatCard label="Na eshopu" value={fmt(o.onShop)} color="text-moldavite-400" />
-        <StatCard label="Na Etsy" value={fmt(o.onEtsy)} color="text-orange-400" />
+        <StatCard label="Na skladě" value={fmt(o.inStock)} color="text-foreground" />
+        <StatCard label="Prodáno" value={fmt(o.sold)} color="text-destructive" />
+        <StatCard label="Na eshopu" value={fmt(o.onShop)} color="text-primary" />
+        <StatCard label="Na Etsy" value={fmt(o.onEtsy)} color="text-warning" />
       </div>
 
       {/* Financial */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        <div className="bg-bg-card border border-border-color rounded-xl p-6">
+        <div className="bg-card border border-border rounded-xl p-6">
           <h3 className="text-lg font-semibold mb-4">Sklad - hodnota</h3>
           <div className="space-y-3">
             <FinRow label="Nákupní hodnota skladu" value={fmtCZK(f.totalPurchaseValue)} />
-            <FinRow label="Prodejní hodnota skladu" value={fmtCZK(f.totalSaleValue)} color="text-accent-gold" />
-            <FinRow label="Potenciální zisk" value={fmtCZK(f.potentialProfit)} color="text-moldavite-400" />
-            <div className="border-t border-border-color pt-3">
+            <FinRow label="Prodejní hodnota skladu" value={fmtCZK(f.totalSaleValue)} color="text-primary" />
+            <FinRow label="Potenciální zisk" value={fmtCZK(f.potentialProfit)} color="text-primary" />
+            <div className="border-t border-border pt-3">
               <FinRow label="Celková hmotnost na skladě" value={`${inv.totalWeight} g`} />
               <FinRow label="Průměrná cena za gram" value={fmtCZK(f.avgPricePerGram)} />
             </div>
           </div>
         </div>
 
-        <div className="bg-bg-card border border-border-color rounded-xl p-6">
+        <div className="bg-card border border-border rounded-xl p-6">
           <h3 className="text-lg font-semibold mb-4">Prodeje {dateFrom || dateTo ? '(filtrováno)' : ''}</h3>
           <div className="space-y-3">
             <FinRow label="Počet prodaných" value={fmt(o.sold)} />
-            <FinRow label="Tržby" value={fmtCZK(f.soldRevenue)} color="text-accent-gold" />
+            <FinRow label="Tržby" value={fmtCZK(f.soldRevenue)} color="text-primary" />
             <FinRow label="Náklady" value={fmtCZK(f.soldCost)} />
-            <div className="border-t border-border-color pt-3">
+            <div className="border-t border-border pt-3">
               <FinRow label="Zisk z prodejů" value={fmtCZK(f.soldProfit)}
-                color={f.soldProfit >= 0 ? 'text-moldavite-400' : 'text-red-400'} />
+                color={f.soldProfit >= 0 ? 'text-primary' : 'text-destructive'} />
             </div>
           </div>
         </div>
       </div>
 
       {/* Monthly sales chart */}
-      <div className="bg-bg-card border border-border-color rounded-xl p-6 mb-8">
+      <div className="bg-card border border-border rounded-xl p-6 mb-8">
         <h3 className="text-lg font-semibold mb-2">Vývoj prodejů (12 měsíců)</h3>
-        <div className="flex items-center gap-4 mb-4 text-xs text-text-muted">
-          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-moldavite-500" /> Počet prodaných</span>
-          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-accent-gold" /> Tržby</span>
-          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-blue-500" /> Zisk</span>
+        <div className="flex items-center gap-4 mb-4 text-xs text-muted-foreground">
+          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-primary" /> Počet prodaných</span>
+          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-warning" /> Tržby</span>
+          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-info" /> Zisk</span>
         </div>
         {(() => {
           const md = stats.monthlyData;
@@ -139,10 +139,10 @@ export default function StatsPage() {
                 {md.map((m, i) => (
                   <div key={i} className="flex-1 flex flex-col items-center gap-0.5 h-full justify-end">
                     {m.count > 0 && (
-                      <span className="text-[10px] text-moldavite-300 font-medium">{m.count}</span>
+                      <span className="text-[10px] text-primary font-medium">{m.count}</span>
                     )}
                     <div className="w-full flex gap-px justify-center" style={{ height: `${Math.max((m.count / maxCount) * 80, m.count > 0 ? 8 : 0)}%` }}>
-                      <div className="flex-1 bg-moldavite-600 rounded-t" />
+                      <div className="flex-1 bg-primary rounded-t" />
                     </div>
                   </div>
                 ))}
@@ -150,15 +150,15 @@ export default function StatsPage() {
 
               {/* Revenue line */}
               {hasData && (
-                <div className="flex items-end gap-1 h-20 mb-1 border-t border-border-color pt-2">
+                <div className="flex items-end gap-1 h-20 mb-1 border-t border-border pt-2">
                   {md.map((m, i) => (
                     <div key={i} className="flex-1 flex flex-col items-center gap-0.5 h-full justify-end">
                       {m.revenue > 0 && (
-                        <span className="text-[9px] text-accent-gold">{Math.round(m.revenue / 1000)}k</span>
+                        <span className="text-[9px] text-primary">{Math.round(m.revenue / 1000)}k</span>
                       )}
                       <div className="w-full flex gap-px justify-center">
-                        <div className="flex-1 bg-accent-gold/60 rounded-t" style={{ height: `${Math.max((m.revenue / maxRevenue) * 80, m.revenue > 0 ? 8 : 0)}%` }} />
-                        <div className="flex-1 bg-blue-500/60 rounded-t" style={{ height: `${Math.max((m.profit / maxRevenue) * 80, m.profit > 0 ? 8 : 0)}%` }} />
+                        <div className="flex-1 bg-warning/60 rounded-t" style={{ height: `${Math.max((m.revenue / maxRevenue) * 80, m.revenue > 0 ? 8 : 0)}%` }} />
+                        <div className="flex-1 bg-info/60 rounded-t" style={{ height: `${Math.max((m.profit / maxRevenue) * 80, m.profit > 0 ? 8 : 0)}%` }} />
                       </div>
                     </div>
                   ))}
@@ -169,13 +169,13 @@ export default function StatsPage() {
               <div className="flex gap-1">
                 {md.map((m, i) => (
                   <div key={i} className="flex-1 text-center">
-                    <span className="text-[9px] text-text-muted">{m.month.split('/')[0]}</span>
+                    <span className="text-[9px] text-muted-foreground">{m.month.split('/')[0]}</span>
                   </div>
                 ))}
               </div>
 
               {!hasData && (
-                <p className="text-center text-text-muted text-sm mt-4">Zatím žádné prodeje</p>
+                <p className="text-center text-muted-foreground text-sm mt-4">Zatím žádné prodeje</p>
               )}
             </div>
           );
@@ -183,15 +183,15 @@ export default function StatsPage() {
       </div>
 
       {/* Weight distribution */}
-      <div className="bg-bg-card border border-border-color rounded-xl p-6 mb-8">
+      <div className="bg-card border border-border rounded-xl p-6 mb-8">
         <h3 className="text-lg font-semibold mb-4">Rozložení hmotnosti (na skladě)</h3>
         <div className="flex items-end gap-3 h-32">
           {inv.weightDistribution.map(w => (
             <div key={w.label} className="flex-1 flex flex-col items-center gap-1">
-              <span className="text-xs text-text-primary font-medium">{w.count}</span>
-              <div className="w-full bg-moldavite-700 rounded-t"
+              <span className="text-xs text-foreground font-medium">{w.count}</span>
+              <div className="w-full bg-primary rounded-t"
                 style={{ height: `${Math.max((w.count / maxWeight) * 100, 4)}%` }} />
-              <span className="text-[10px] text-text-muted">{w.label}</span>
+              <span className="text-[10px] text-muted-foreground">{w.label}</span>
             </div>
           ))}
         </div>
@@ -199,49 +199,49 @@ export default function StatsPage() {
 
       {/* Completeness */}
       <div className="grid grid-cols-3 gap-4 mb-8">
-        <div className="bg-bg-card border border-border-color rounded-xl p-5">
-          <p className="text-2xl font-bold text-red-400">{o.noPrice}</p>
-          <p className="text-xs text-text-secondary mt-1">Bez prodejní ceny</p>
+        <div className="bg-card border border-border rounded-xl p-5">
+          <p className="text-2xl font-bold text-destructive">{o.noPrice}</p>
+          <p className="text-xs text-muted-foreground mt-1">Bez prodejní ceny</p>
         </div>
-        <div className="bg-bg-card border border-border-color rounded-xl p-5">
-          <p className="text-2xl font-bold text-red-400">{o.noWeight}</p>
-          <p className="text-xs text-text-secondary mt-1">Bez hmotnosti</p>
+        <div className="bg-card border border-border rounded-xl p-5">
+          <p className="text-2xl font-bold text-destructive">{o.noWeight}</p>
+          <p className="text-xs text-muted-foreground mt-1">Bez hmotnosti</p>
         </div>
-        <div className="bg-bg-card border border-border-color rounded-xl p-5">
-          <p className="text-2xl font-bold text-orange-400">{o.noDescription}</p>
-          <p className="text-xs text-text-secondary mt-1">Bez popisu</p>
+        <div className="bg-card border border-border rounded-xl p-5">
+          <p className="text-2xl font-bold text-warning">{o.noDescription}</p>
+          <p className="text-xs text-muted-foreground mt-1">Bez popisu</p>
         </div>
       </div>
 
       {/* Box breakdown */}
-      <div className="bg-bg-card border border-border-color rounded-xl overflow-hidden mb-8">
-        <div className="px-6 py-4 border-b border-border-color">
+      <div className="bg-card border border-border rounded-xl overflow-hidden mb-8">
+        <div className="px-6 py-4 border-b border-border">
           <h3 className="text-lg font-semibold">Krabice - přehled</h3>
         </div>
         <table className="w-full text-sm">
           <thead>
-            <tr className="bg-bg-secondary border-b border-border-color">
-              <th className="text-left px-4 py-3 text-text-secondary font-medium">Krabice</th>
-              <th className="text-right px-4 py-3 text-text-secondary font-medium">Celkem</th>
-              <th className="text-right px-4 py-3 text-text-secondary font-medium">Na skladě</th>
-              <th className="text-right px-4 py-3 text-text-secondary font-medium">Prodáno</th>
-              <th className="text-right px-4 py-3 text-text-secondary font-medium">Eshop</th>
-              <th className="text-right px-4 py-3 text-text-secondary font-medium">Etsy</th>
-              <th className="text-right px-4 py-3 text-text-secondary font-medium">Hmotnost</th>
-              <th className="text-right px-4 py-3 text-text-secondary font-medium">Hodnota</th>
+            <tr className="bg-muted border-b border-border">
+              <th className="text-left px-4 py-3 text-muted-foreground font-medium">Krabice</th>
+              <th className="text-right px-4 py-3 text-muted-foreground font-medium">Celkem</th>
+              <th className="text-right px-4 py-3 text-muted-foreground font-medium">Na skladě</th>
+              <th className="text-right px-4 py-3 text-muted-foreground font-medium">Prodáno</th>
+              <th className="text-right px-4 py-3 text-muted-foreground font-medium">Eshop</th>
+              <th className="text-right px-4 py-3 text-muted-foreground font-medium">Etsy</th>
+              <th className="text-right px-4 py-3 text-muted-foreground font-medium">Hmotnost</th>
+              <th className="text-right px-4 py-3 text-muted-foreground font-medium">Hodnota</th>
             </tr>
           </thead>
           <tbody>
             {stats.boxBreakdown.map(box => (
-              <tr key={box.code} className="border-b border-border-color hover:bg-bg-card-hover">
-                <td className="px-4 py-3 font-mono font-medium text-accent-gold">{box.code}</td>
+              <tr key={box.code} className="border-b border-border hover:bg-muted/40">
+                <td className="px-4 py-3 font-mono font-medium text-primary">{box.code}</td>
                 <td className="px-4 py-3 text-right">{box.total}</td>
-                <td className="px-4 py-3 text-right text-text-primary font-medium">{box.inStock}</td>
-                <td className="px-4 py-3 text-right text-red-400">{box.sold || '-'}</td>
-                <td className="px-4 py-3 text-right text-moldavite-400">{box.onShop || '-'}</td>
-                <td className="px-4 py-3 text-right text-orange-400">{box.onEtsy || '-'}</td>
-                <td className="px-4 py-3 text-right text-text-secondary">{box.totalWeight > 0 ? `${box.totalWeight.toFixed(1)}g` : '-'}</td>
-                <td className="px-4 py-3 text-right text-text-primary">{box.totalValue > 0 ? fmtCZK(box.totalValue) : '-'}</td>
+                <td className="px-4 py-3 text-right text-foreground font-medium">{box.inStock}</td>
+                <td className="px-4 py-3 text-right text-destructive">{box.sold || '-'}</td>
+                <td className="px-4 py-3 text-right text-primary">{box.onShop || '-'}</td>
+                <td className="px-4 py-3 text-right text-warning">{box.onEtsy || '-'}</td>
+                <td className="px-4 py-3 text-right text-muted-foreground">{box.totalWeight > 0 ? `${box.totalWeight.toFixed(1)}g` : '-'}</td>
+                <td className="px-4 py-3 text-right text-foreground">{box.totalValue > 0 ? fmtCZK(box.totalValue) : '-'}</td>
               </tr>
             ))}
           </tbody>
@@ -250,50 +250,50 @@ export default function StatsPage() {
 
       {/* Sold items list */}
       {stats.soldList.length > 0 && (
-        <div className="bg-bg-card border border-border-color rounded-xl overflow-hidden">
-          <div className="px-6 py-4 border-b border-border-color">
+        <div className="bg-card border border-border rounded-xl overflow-hidden">
+          <div className="px-6 py-4 border-b border-border">
             <h3 className="text-lg font-semibold">Prodané kameny {dateFrom || dateTo ? '(filtrováno)' : ''}</h3>
           </div>
           <table className="w-full text-sm">
             <thead>
-              <tr className="bg-bg-secondary border-b border-border-color">
-                <th className="text-left px-4 py-3 text-text-secondary font-medium">Kat. číslo</th>
-                <th className="text-right px-4 py-3 text-text-secondary font-medium">Hmotnost</th>
-                <th className="text-right px-4 py-3 text-text-secondary font-medium">Nákupní</th>
-                <th className="text-right px-4 py-3 text-text-secondary font-medium">Prodejní</th>
-                <th className="text-right px-4 py-3 text-text-secondary font-medium">Zisk</th>
-                <th className="text-right px-4 py-3 text-text-secondary font-medium">Datum</th>
+              <tr className="bg-muted border-b border-border">
+                <th className="text-left px-4 py-3 text-muted-foreground font-medium">Kat. číslo</th>
+                <th className="text-right px-4 py-3 text-muted-foreground font-medium">Hmotnost</th>
+                <th className="text-right px-4 py-3 text-muted-foreground font-medium">Nákupní</th>
+                <th className="text-right px-4 py-3 text-muted-foreground font-medium">Prodejní</th>
+                <th className="text-right px-4 py-3 text-muted-foreground font-medium">Zisk</th>
+                <th className="text-right px-4 py-3 text-muted-foreground font-medium">Datum</th>
               </tr>
             </thead>
             <tbody>
               {stats.soldList.map(item => (
-                <tr key={item.id} className="border-b border-border-color hover:bg-bg-card-hover">
-                  <td className="px-4 py-3 font-mono text-xs text-moldavite-300">{item.catalogNumber}</td>
-                  <td className="px-4 py-3 text-right text-text-secondary">{item.weight > 0 ? `${item.weight}g` : '-'}</td>
-                  <td className="px-4 py-3 text-right text-text-secondary">{item.purchasePrice > 0 ? fmtCZK(item.purchasePrice) : '-'}</td>
-                  <td className="px-4 py-3 text-right text-text-primary">{fmtCZK(item.salePrice)}</td>
-                  <td className={`px-4 py-3 text-right font-medium ${item.profit >= 0 ? 'text-moldavite-400' : 'text-red-400'}`}>
+                <tr key={item.id} className="border-b border-border hover:bg-muted/40">
+                  <td className="px-4 py-3 font-mono text-xs text-primary">{item.catalogNumber}</td>
+                  <td className="px-4 py-3 text-right text-muted-foreground">{item.weight > 0 ? `${item.weight}g` : '-'}</td>
+                  <td className="px-4 py-3 text-right text-muted-foreground">{item.purchasePrice > 0 ? fmtCZK(item.purchasePrice) : '-'}</td>
+                  <td className="px-4 py-3 text-right text-foreground">{fmtCZK(item.salePrice)}</td>
+                  <td className={`px-4 py-3 text-right font-medium ${item.profit >= 0 ? 'text-primary' : 'text-destructive'}`}>
                     {fmtCZK(item.profit)}
                   </td>
-                  <td className="px-4 py-3 text-right text-text-muted text-xs">
+                  <td className="px-4 py-3 text-right text-muted-foreground text-xs">
                     {new Date(item.soldAt).toLocaleDateString('cs-CZ')}
                   </td>
                 </tr>
               ))}
             </tbody>
             <tfoot>
-              <tr className="bg-bg-secondary border-t border-border-color font-medium">
-                <td className="px-4 py-3 text-text-secondary">Celkem ({stats.soldList.length})</td>
-                <td className="px-4 py-3 text-right text-text-secondary">
+              <tr className="bg-muted border-t border-border font-medium">
+                <td className="px-4 py-3 text-muted-foreground">Celkem ({stats.soldList.length})</td>
+                <td className="px-4 py-3 text-right text-muted-foreground">
                   {stats.soldList.reduce((s, i) => s + i.weight, 0).toFixed(1)}g
                 </td>
-                <td className="px-4 py-3 text-right text-text-secondary">
+                <td className="px-4 py-3 text-right text-muted-foreground">
                   {fmtCZK(stats.soldList.reduce((s, i) => s + i.purchasePrice, 0))}
                 </td>
-                <td className="px-4 py-3 text-right text-text-primary">
+                <td className="px-4 py-3 text-right text-foreground">
                   {fmtCZK(stats.soldList.reduce((s, i) => s + i.salePrice, 0))}
                 </td>
-                <td className={`px-4 py-3 text-right ${f.soldProfit >= 0 ? 'text-moldavite-400' : 'text-red-400'}`}>
+                <td className={`px-4 py-3 text-right ${f.soldProfit >= 0 ? 'text-primary' : 'text-destructive'}`}>
                   {fmtCZK(f.soldProfit)}
                 </td>
                 <td />
@@ -308,9 +308,9 @@ export default function StatsPage() {
 
 function StatCard({ label, value, color }: { label: string; value: string; color?: string }) {
   return (
-    <div className="bg-bg-card border border-border-color rounded-xl p-5">
-      <p className={`text-2xl font-bold ${color || 'text-accent-gold'}`}>{value}</p>
-      <p className="text-xs text-text-secondary mt-1">{label}</p>
+    <div className="bg-card border border-border rounded-xl p-5">
+      <p className={`text-2xl font-bold ${color || 'text-primary'}`}>{value}</p>
+      <p className="text-xs text-muted-foreground mt-1">{label}</p>
     </div>
   );
 }
@@ -318,8 +318,8 @@ function StatCard({ label, value, color }: { label: string; value: string; color
 function FinRow({ label, value, color }: { label: string; value: string; color?: string }) {
   return (
     <div className="flex items-center justify-between">
-      <span className="text-sm text-text-secondary">{label}</span>
-      <span className={`text-sm font-semibold ${color || 'text-text-primary'}`}>{value}</span>
+      <span className="text-sm text-muted-foreground">{label}</span>
+      <span className={`text-sm font-semibold ${color || 'text-foreground'}`}>{value}</span>
     </div>
   );
 }

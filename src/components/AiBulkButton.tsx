@@ -76,7 +76,7 @@ export default function AiBulkButton({ boxCode, items }: AiBulkButtonProps) {
                 />
               </div>
             </div>
-            <button onClick={handleClose} className="text-xs text-text-muted hover:text-text-primary">
+            <button onClick={handleClose} className="text-xs text-muted-foreground hover:text-foreground">
               {completed > 0 ? `Ukončit (${completed} hotovo)` : 'Zrušit'}
             </button>
           </div>

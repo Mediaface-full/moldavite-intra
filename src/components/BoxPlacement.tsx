@@ -39,17 +39,17 @@ export default function BoxPlacement({ boxId, placement: initial }: BoxPlacement
 
   return (
     <div className="flex items-center gap-2">
-      <label className="text-xs text-text-muted uppercase tracking-wider whitespace-nowrap">Umístění</label>
+      <label className="text-xs text-muted-foreground uppercase tracking-wider whitespace-nowrap">Umístění</label>
       <AutocompleteInput
         value={value}
         onChange={setValue}
         onBlur={handleSave}
         field="placement"
         placeholder="Kde je krabice..."
-        className="bg-bg-secondary border border-border-color rounded-lg px-3 py-1.5 text-sm text-text-primary focus:outline-none focus:border-moldavite-500 placeholder-text-muted w-48"
+        className="bg-muted border border-border rounded-lg px-3 py-1.5 text-sm text-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/20 placeholder:text-muted-foreground w-48"
       />
-      {saving && <span className="text-xs text-text-muted">...</span>}
-      {saved && <span className="text-xs text-moldavite-400">Uloženo</span>}
+      {saving && <span className="text-xs text-muted-foreground">...</span>}
+      {saved && <span className="text-xs text-primary">Uloženo</span>}
     </div>
   );
 }

@@ -24,7 +24,7 @@ export default function RefreshRatesButton() {
     <button
       onClick={handleRefresh}
       disabled={loading}
-      className="text-text-muted hover:text-moldavite-400 transition-colors disabled:opacity-50"
+      className="text-muted-foreground hover:text-primary transition-colors disabled:opacity-50"
       title="Načíst aktuální kurzy z ČNB"
     >
       <svg className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
