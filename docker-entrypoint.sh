@@ -29,6 +29,20 @@ if [ "$(id -u)" = "0" ]; then
     chmod -R u+rwX,g+rwX "$PHOTOS_DIR" 2>/dev/null || true
   fi
 
+  # Backup adresáře — /api/admin/backup zapisuje gzip dumpy. Volume jsou
+  # vytvořené Dockerem jako root, takže pg_dump běžící pod nextjs uid 1001
+  # by jinak hodil EACCES. Defaultní cesty viz src/app/api/admin/backup/route.ts.
+  for BACKUP_DIR in \
+    "${BACKUP_PATH:-/data/backups/daily}" \
+    "${BACKUP_SCHEDULED_PATH:-/data/backups/scheduled}" \
+    "$(dirname "${BACKUP_PATH:-/data/backups/daily}")"; do
+    if [ -n "$BACKUP_DIR" ]; then
+      mkdir -p "$BACKUP_DIR" 2>/dev/null || true
+      chown -R 1001:1001 "$BACKUP_DIR" 2>/dev/null || echo "[entrypoint] warning: chown on $BACKUP_DIR failed"
+      chmod -R u+rwX,g+rwX "$BACKUP_DIR" 2>/dev/null || true
+    fi
+  done
+
   exec su-exec nextjs:nodejs "$0" "$@"
 fi
 
