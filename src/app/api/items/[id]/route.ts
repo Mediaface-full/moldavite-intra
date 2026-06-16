@@ -8,6 +8,10 @@ const ALLOWED_FIELDS = [
   'location', 'storage', 'purchasePrice', 'salePrice',
   'weight', 'onShop', 'onEtsy', 'sold', 'mainPhoto', 'upgatesId', 'etsyId',
   'pasShape',
+  // Etapa 2/3 — cenotvorba per-item:
+  'orderId', 'purchasePricePerGramCzk', 'purchasePricePerGramSource',
+  'manualPriceInclVatCzk',
+  'attrDamage', 'attrColor', 'attrCollectible',
 ];
 
 export async function GET(
@@ -70,6 +74,25 @@ export async function PATCH(
   }
 
   const itemId = parseInt(id);
+
+  // Etapa 2: manualPriceInclVatCzk → pokud spadla pod recommended, označ NEEDS_REVIEW
+  // (ale neblokuj — uživatel může vědomě jít pod minimum, jen mu to flagujeme).
+  if (data.manualPriceInclVatCzk !== undefined) {
+    const existing = await prisma.item.findUnique({ where: { id: itemId }, select: { recommendedPriceInclVatCzk: true } });
+    const manual = data.manualPriceInclVatCzk === null ? null : Number(data.manualPriceInclVatCzk);
+    const recommended = existing?.recommendedPriceInclVatCzk ? Number(existing.recommendedPriceInclVatCzk) : null;
+    if (manual !== null && recommended !== null && manual < recommended) {
+      data.pricingStatus = 'NEEDS_REVIEW';
+      data.finalInternalPriceInclVatCzk = recommended; // safe fallback
+    } else if (manual !== null && recommended !== null && manual >= recommended) {
+      data.pricingStatus = 'OK';
+      data.finalInternalPriceInclVatCzk = manual;
+    } else if (manual === null && recommended !== null) {
+      data.pricingStatus = 'OK';
+      data.finalInternalPriceInclVatCzk = recommended;
+    }
+  }
+
   await prisma.item.update({
     where: { id: itemId },
     data,
