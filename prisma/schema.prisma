@@ -13,6 +13,33 @@ enum Role {
   USER
 }
 
+// ─── Cenotvorba / Zakázky (Etapa 1) ──────────────────────────────
+// Nové entity zavádějí "Order" jako batch nákupu. Etapa 1 přidává
+// SCHEMA a výpočtový modul (lib/pricing/*). Žádné API ani UI ještě
+// neexistuje — nová pole na Item a Box jsou NULLABLE aby existující
+// produkční chování nebylo dotčeno.
+
+enum AllocationMethod {
+  BY_WEIGHT          // default — alokace nákladů zakázky podle gramáže
+  BY_PURCHASE_PRICE  // dražší kameny dostanou větší část společných nákladů
+  EQUAL_PER_PIECE    // rovnoměrně na kus
+}
+
+enum OrderStatus {
+  DRAFT      // rozpracovaná, ceny ještě nespočítané
+  PRICED     // ceny spočtené, kameny lze publikovat
+  PUBLISHED  // kameny propsané na shop/Etsy
+  CANCELLED  // stornovaná — ceny zůstávají jako snapshot, ale neaktualizují se
+  ARCHIVED
+}
+
+enum PricingStatus {
+  NEEDS_INPUT   // chybí váha / PPG / atribut s missingPolicy=error
+  NEEDS_REVIEW  // manualPrice spadla pod nový recommendedPrice po přepočtu
+  OK            // spočtené a platné
+  STALE         // konfigurace nebo náklady zakázky se změnily od posledního výpočtu
+}
+
 model User {
   id           Int           @id @default(autoincrement())
   email        String        @unique
@@ -48,6 +75,14 @@ model Box {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   items     Item[]
+
+  // Zakázka (Etapa 1, nullable do migrace dat):
+  // - orderId NULL → "skladová krabice" (fyzická lokace, kameny mohou patřit různým Order)
+  // - orderId set  → "objednávková krabice" (všechny Items v ní MUSÍ mít stejné orderId)
+  orderId Int?
+  order   Order? @relation(fields: [orderId], references: [id])
+
+  @@index([orderId])
 }
 
 model Item {
@@ -83,11 +118,167 @@ model Item {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
+  // ─── Zakázka (Etapa 1, nullable do backfill v Etapě 2) ───
+  // RESTRICT: smazání Order s kameny je blokované — defense in depth
+  // proti chybě v API. Soft-delete přes Order.status = CANCELLED.
+  orderId Int?
+  order   Order? @relation(fields: [orderId], references: [id], onDelete: Restrict)
+
+  // ─── Vstupy do výpočtu ─────────────────────────────────────
+  /// Cena za gram v Order.sourceCurrency — override Order.defaultPurchasePricePerGramSource
+  purchasePricePerGramSource Decimal? @db.Decimal(10, 2)
+  purchasePricePerGramCzk    Decimal? @db.Decimal(10, 2) // přepočet pro výpočet (v1 = source pokud CZK)
+
+  /// Atributy pro maržová pravidla (řízeno přes PricingConfig.rules)
+  attrDamage      String   @default("")     // 'none'|'minor'|'major' (snapshot, neenum, řízeno softly)
+  attrColor       String[] @default([])     // multi; UI nabízí jen hodnoty z aktivní PricingConfig
+  attrCollectible Boolean  @default(false)
+
+  // ─── Výstupy výpočtu (snapshot z posledního přepočtu) ─────
+  allocatedOrderCostCzk        Decimal?      @db.Decimal(10, 2)
+  computedMarginRate           Decimal?      @db.Decimal(6, 4)  // decimální multiplikátor (1.5 = 150%)
+  computedMinPriceExVatCzk     Decimal?      @db.Decimal(10, 2)
+  computedMinPriceInclVatCzk   Decimal?      @db.Decimal(10, 2)
+  recommendedPriceInclVatCzk   Decimal?      @db.Decimal(10, 2) // po roundingStep, vč. DPH
+  /// Cena včetně DPH v měně CZK; uživatel ji může navýšit ≥ recommendedPriceInclVatCzk
+  manualPriceInclVatCzk        Decimal?      @db.Decimal(10, 2)
+  /// = MAX(recommended, manual ?? recommended). Vstup pro shop/Etsy modifikátor (Etapa 4).
+  finalInternalPriceInclVatCzk Decimal?      @db.Decimal(10, 2)
+  pricingStatus                PricingStatus @default(NEEDS_INPUT)
+  lastCalculatedAt             DateTime?
+
   @@unique([boxId, evidNumber])
   @@index([boxId])
+  @@index([orderId])
   @@index([onShop])
   @@index([onEtsy])
   @@index([pasShape])
+  @@index([pricingStatus])
+}
+
+// ─── Order / Zakázka ─────────────────────────────────────────────
+// Batch nákupu. Drží metadata + variabilní list nákladů (OrderCostItem).
+// Náklady se alokují do kamenů podle allocationMethod (default per Order,
+// override per OrderCostItem). Výpočet ceny v lib/pricing/calculate.ts.
+model Order {
+  id            Int     @id @default(autoincrement())
+  code          String  @unique  // "Z2026-001" / "MIG-K0042" / "LEGACY-IMPORT"
+  title         String  @default("")
+  sellerName    String  @default("")
+  sellerContact String  @default("")
+  purchaseDate  DateTime?
+  declaredPieces Int    @default(0)
+  declaredWeight Decimal? @db.Decimal(10, 2)
+  originLocality String  @default("")
+  notes         String  @default("")
+
+  // ─── Currency-ready od v1 (UI v1 jen CZK, ale schema připraveno) ───
+  /// Měna nákupu. V1 vždy "CZK", schema je pro v2 (EUR/USD nákupy).
+  sourceCurrency            String   @default("CZK")
+  totalPurchaseAmountSource Decimal  @db.Decimal(12, 2) @default(0)
+  totalPurchaseAmountCzk    Decimal  @db.Decimal(12, 2) @default(0)
+  exchangeRate              Decimal? @db.Decimal(12, 6)
+  exchangeRateDate          DateTime?
+
+  // ─── Cenotvorba ───────────────────────────────────────────────────
+  /// Default cena za gram v sourceCurrency (pro stones bez vlastní PPG)
+  defaultPurchasePricePerGramSource Decimal? @db.Decimal(10, 2)
+  defaultPurchasePricePerGramCzk    Decimal? @db.Decimal(10, 2)
+  allocationMethod                  AllocationMethod @default(BY_WEIGHT)
+  vatRatePct                        Decimal  @db.Decimal(5, 2) @default(21.00) // 21.00 = 21%
+  roundingStep                      Int      @default(10) // 10 / 50 / 100 Kč
+
+  // ─── PricingConfig — ID pro UI ("jaká config se použila?")
+  //     + SNAPSHOT pro reproducibility i po smazání nebo úpravě konfigurace
+  pricingConfigId       Int?
+  pricingConfig         PricingConfig? @relation(fields: [pricingConfigId], references: [id])
+  pricingConfigSnapshot Json?           // celé .rules + missingValuePolicy v okamžiku přepočtu
+  pricingConfigVersion  Int?            // verze schématu pravidel (forward-compat)
+
+  // ─── Stav ─────────────────────────────────────────────────────────
+  status           OrderStatus @default(DRAFT)
+  lastCalculatedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  items Item[]
+  boxes Box[]
+  costs OrderCostItem[]
+
+  @@index([status])
+  @@index([purchaseDate])
+}
+
+// ─── OrderCostItem / Nákladová položka zakázky ──────────────────────
+// Variabilní typ (typeKey + label) místo enumu — přidání nového typu
+// nevyžaduje migraci.
+model OrderCostItem {
+  id      Int   @id @default(autoincrement())
+  orderId Int
+  order   Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  /// Normalizovaný klíč pro sumarizaci: 'transport'|'photo'|'packing'|'storage'|'fees'|'customs'|'work'|'other'
+  typeKey String
+  /// Čitelný popisek (pro typeKey='other' povinný)
+  label   String
+
+  /// Per-cost override Order.allocationMethod (NULL = použij Order default)
+  allocationMethodOverride AllocationMethod?
+
+  // Currency-ready (v1: vždy CZK, source == czk)
+  amountSource     Decimal  @db.Decimal(10, 2)
+  amountCzk        Decimal  @db.Decimal(10, 2)
+  currency         String   @default("CZK")
+  exchangeRate     Decimal? @db.Decimal(12, 6)
+  exchangeRateDate DateTime?
+
+  note      String   @default("")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([orderId])
+  @@index([typeKey])
+}
+
+// ─── PricingConfig ──────────────────────────────────────────────────
+// Globálně aktivní konfigurace marží. Order si při přepočtu uloží
+// snapshot do Order.pricingConfigSnapshot — tj. PricingConfig lze
+// později upravit nebo smazat, staré Order zůstanou reprodukovatelné.
+//
+// Struktura .rules (JSON):
+// {
+//   version: 1,
+//   missingValuePolicy: 'zero' | 'warn' | 'error',
+//   rules: [
+//     { key: 'weightBracket', label: 'Velikost (g)', type: 'bracket',
+//       missingPolicy: 'error',  // override globálního
+//       brackets: [
+//         { min: 0, max: 3, marginRate: 1.0 },     // 100% přirážka nad nákupkou
+//         { min: 3, max: 10, marginRate: 1.5 },
+//         { min: 10, max: null, marginRate: 2.0 }
+//       ]
+//     },
+//     { key: 'pasShape', type: 'category',
+//       items: [ { value: 'kapka', marginRate: 0.7 }, ... ] },
+//     { key: 'attrColor', type: 'multi-category',
+//       combine: 'max',  // 'sum' | 'max' | 'priority-first'
+//       items: [ { value: 'namodralá', marginRate: 0.25 }, ... ] },
+//     { key: 'attrCollectible', type: 'boolean', marginRate: 0.3 }
+//   ]
+// }
+model PricingConfig {
+  id        Int       @id @default(autoincrement())
+  name      String                          // "Standardní 2026", "Migrace baseline"
+  active    Boolean   @default(false)
+  validFrom DateTime?
+  validTo   DateTime?
+  rules     Json
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  orders    Order[]
+
+  @@index([active])
 }
 
 model ExchangeRate {
@@ -107,7 +298,8 @@ model ExportConfig {
   currencies     String[] @default(["CZK"]) // ["CZK", "EUR", "USD"]
   primaryCurrency String  @default("CZK")
   commission     Decimal  @default(0) @db.Decimal(5, 2) // provize v %
-  roundPrices    Boolean  @default(true)
+  roundPrices    Boolean  @default(true)                  // LEGACY — bude dropnuto v Etapě 4
+  roundingStep   Int      @default(10)                    // 10 / 50 / 100 Kč, použije se v Etapě 4 v applyShopModifier
   languages      String[] @default(["cz"]) // ["cz", "en"]
   primaryLanguage String  @default("cz")
   updatedAt      DateTime @updatedAt
