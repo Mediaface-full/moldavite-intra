@@ -16,13 +16,16 @@ export default function BackupButton() {
       if (res.ok) {
         setResult(`Záloha vytvořena: ${data.filename} (${data.size})`);
       } else {
-        setResult(`Chyba: ${data.error}`);
+        const detail = data.detail ? ` — ${data.detail}` : '';
+        const hint = data.hint ? `  ▸ ${data.hint}` : '';
+        setResult(`Chyba: ${data.error}${detail}${hint}`);
       }
-    } catch {
-      setResult('Chyba připojení');
+    } catch (err) {
+      setResult(`Chyba připojení: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setBacking(false);
-      setTimeout(() => setResult(null), 5000);
+      // Chyby si necháme dlouho (uživatel potřebuje detail přečíst), úspěch zmizí brzy
+      setTimeout(() => setResult((r) => (r && r.startsWith('Chyba') ? r : null)), 5000);
     }
   };
 
@@ -39,7 +42,7 @@ export default function BackupButton() {
         {backing ? 'Zálohuji...' : 'Zálohovat systém'}
       </button>
       {result && (
-        <span className={`text-xs ${result.startsWith('Chyba') ? 'text-destructive' : 'text-primary'}`}>
+        <span className={`text-xs ${result.startsWith('Chyba') ? 'text-destructive' : 'text-primary'} max-w-2xl break-words`}>
           {result}
         </span>
       )}

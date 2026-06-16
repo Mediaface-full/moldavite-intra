@@ -129,8 +129,51 @@ export async function POST(request: Request) {
         console.error('[admin/backup] failure email failed:', mailErr);
       }
     }
-    return NextResponse.json({ error: 'Záloha selhala' }, { status: 500 });
+    // Detail chyby vracíme jen authentizovanému adminovi (ne cronu) — UI ho
+    // zobrazí, aby uživatel věděl, co řešit (chybějící pg_dump, perms, …).
+    const detail = err instanceof Error ? err.message : String(err);
+    const hint = diagnosticHint(detail);
+    return NextResponse.json(
+      {
+        error: 'Záloha selhala',
+        detail: auth.tag.startsWith('admin:') ? detail : undefined,
+        hint: auth.tag.startsWith('admin:') ? hint : undefined,
+      },
+      { status: 500 }
+    );
   }
+}
+
+/**
+ * Mapuje typické chybové stavy na user-friendly hint co dělat.
+ * Vrací krátký český text s konkrétním návodem; null pokud chybu neznáme.
+ */
+function diagnosticHint(detail: string): string | null {
+  if (/spawn pg_dump ENOENT|pg_dump.*not found/i.test(detail)) {
+    return 'Binárka pg_dump není v PATH. V Dockeru: chybí postgresql-client v Dockerfile. Lokálně na Macu: `brew install postgresql@16`.';
+  }
+  if (/spawn gzip ENOENT/i.test(detail)) {
+    return 'Binárka gzip není v PATH. V alpine Dockeru: `apk add --no-cache gzip`.';
+  }
+  if (/EACCES|permission denied/i.test(detail)) {
+    return 'Backup složka není zapisovatelná. Zkontroluj práva na BACKUP_PATH (nebo /backups/ v kontejneru). Owner musí být nextjs uid 1001.';
+  }
+  if (/ENOENT.*backups/i.test(detail) || /ENOSPC/i.test(detail)) {
+    return 'Backup složka neexistuje nebo je disk plný. Zkontroluj BACKUP_PATH a `df -h`.';
+  }
+  if (/password authentication failed|authentication failed/i.test(detail)) {
+    return 'DATABASE_URL má špatné heslo nebo username — pg_dump se nedokázal autentizovat.';
+  }
+  if (/connection refused|could not connect/i.test(detail)) {
+    return 'Databáze není dostupná. Zkontroluj host/port v DATABASE_URL a že kontejner moldavite_db běží.';
+  }
+  if (/server version mismatch|server version: .* pg_dump version/i.test(detail)) {
+    return 'Verze pg_dump je starší než Postgres server. V Dockerfile použij postgresql-client verze ≥ DB verze.';
+  }
+  if (/timeout/i.test(detail)) {
+    return 'Backup trval déle než 60 s. Databáze je velká nebo pomalá — zvedni timeout v runBackup().';
+  }
+  return null;
 }
 
 function countBackups(dir: string): number {
