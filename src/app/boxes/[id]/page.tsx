@@ -5,6 +5,7 @@ import ItemsTable from '@/components/ItemsTable';
 import BoxPhotoUpload from '@/components/BoxPhotoUpload';
 import BoxPlacement from '@/components/BoxPlacement';
 import AiBulkButton from '@/components/AiBulkButton';
+import BoxDeleteButton from '@/components/BoxDeleteButton';
 import { getSession } from '@/lib/auth';
 
 export default async function BoxDetailPage({
@@ -62,6 +63,13 @@ export default async function BoxDetailPage({
             />
           )}
           <BoxPlacement boxId={box.id} placement={box.placement} />
+          {isAdmin && (
+            <BoxDeleteButton
+              boxId={box.id}
+              boxCode={box.code}
+              itemCount={box.items.length}
+            />
+          )}
         </div>
       </div>
 

@@ -8,6 +8,7 @@ import OrderCostsTab from './OrderCostsTab';
 import OrderItemsTab from './OrderItemsTab';
 import OrderPricingTab from './OrderPricingTab';
 import OrderOverviewTab from './OrderOverviewTab';
+import DoubleConfirmDelete from '../DoubleConfirmDelete';
 
 type Tab = 'overview' | 'costs' | 'items' | 'pricing';
 
@@ -167,6 +168,28 @@ export default function OrderDetailClient({
             >
               Storno
             </button>
+          )}
+          {isAdmin && (
+            <DoubleConfirmDelete
+              confirmPhrase={order.code}
+              label="Smazat"
+              what={`zakázku ${order.code}`}
+              consequence={
+                order.items.length > 0
+                  ? `Zakázka obsahuje ${order.items.length} kamenů. Smazání není povolené — nejdřív kameny přesuň jinam, nebo použij Storno (status=CANCELLED), které zachová snapshot cen.`
+                  : 'Zakázka je prázdná (žádné kameny). Smazání je definitivní — odstraní i všechny nákladové položky a logy.'
+              }
+              disabledReason={order.items.length > 0 ? `Zakázka má ${order.items.length} kamenů — nejdřív je přesuň nebo použij Storno.` : null}
+              onConfirm={async () => {
+                const res = await apiFetch(`/api/orders/${order.id}?confirm=DOUBLE_CHECK`, { method: 'DELETE' });
+                if (!res.ok) {
+                  const data = await res.json().catch(() => ({}));
+                  throw new Error(data.error ?? `HTTP ${res.status}`);
+                }
+                router.push('/orders');
+                router.refresh();
+              }}
+            />
           )}
         </div>
       </div>

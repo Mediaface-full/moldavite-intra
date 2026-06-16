@@ -35,3 +35,49 @@ export async function PATCH(
 
   return NextResponse.json(box);
 }
+
+/**
+ * DELETE krabici. Smazání povoleno jen pokud:
+ *  - uživatel je ADMIN
+ *  - krabice nemá žádné kameny (jinak 409)
+ *  - krabice není navázaná na Order který má ještě jiné kameny (Box.orderId FK
+ *    je SET NULL, takže smazání Box samo o sobě Order nepoškodí)
+ *
+ * UI volá s ?confirm=DOUBLE_CHECK aby šlo o vědomou akci (frontend dělá
+ * 2× confirm() dialog před tímhle requestem).
+ */
+export async function DELETE(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const session = await getSession();
+  if (!session || session.role !== 'ADMIN') {
+    return NextResponse.json({ error: 'Forbidden — jen administrátor' }, { status: 403 });
+  }
+
+  const { id } = await params;
+  const boxId = parseInt(id, 10);
+  if (Number.isNaN(boxId)) return NextResponse.json({ error: 'Invalid id' }, { status: 400 });
+
+  const { searchParams } = new URL(request.url);
+  if (searchParams.get('confirm') !== 'DOUBLE_CHECK') {
+    return NextResponse.json({ error: 'Smazání vyžaduje ?confirm=DOUBLE_CHECK' }, { status: 400 });
+  }
+
+  const box = await prisma.box.findUnique({
+    where: { id: boxId },
+    include: { _count: { select: { items: true } } },
+  });
+  if (!box) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+
+  if (box._count.items > 0) {
+    return NextResponse.json(
+      { error: `Krabice obsahuje ${box._count.items} kamenů — nejdřív je přesuň nebo smaž.`, itemCount: box._count.items },
+      { status: 409 }
+    );
+  }
+
+  await prisma.box.delete({ where: { id: boxId } });
+  await logActivity(session.id, 'box.delete', box.code, JSON.stringify({ name: box.name }));
+  return NextResponse.json({ success: true });
+}

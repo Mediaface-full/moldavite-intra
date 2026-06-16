@@ -5,6 +5,7 @@ import { getSession } from "@/lib/auth";
 import { themeInitScript } from "@/lib/theme";
 import LogoutButton from "@/components/LogoutButton";
 import ThemeToggle from "@/components/ThemeToggle";
+import SidebarToggle from "@/components/SidebarToggle";
 import { BUILD_INFO } from "@/lib/buildInfo";
 import "./globals.css";
 
@@ -47,12 +48,17 @@ const icons: Record<string, string> = {
 };
 
 function NavLink({ href, icon, children }: { href: string; icon: string; children: React.ReactNode }) {
+  const label = typeof children === 'string' ? children : '';
   return (
-    <Link href={href} className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sidebar-foreground hover:text-sidebar-accent-foreground hover:bg-sidebar-accent transition-colors group">
-      <svg className="w-5 h-5 text-sidebar-muted group-hover:text-primary transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+    <Link
+      href={href}
+      title={label}
+      className="sidebar-nav-item flex items-center gap-3 px-3 py-2.5 rounded-lg text-sidebar-foreground hover:text-sidebar-accent-foreground hover:bg-sidebar-accent transition-colors group"
+    >
+      <svg className="w-5 h-5 text-sidebar-muted group-hover:text-primary transition-colors flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
         <path strokeLinecap="round" strokeLinejoin="round" d={icons[icon]} />
       </svg>
-      <span className="text-sm font-medium">{children}</span>
+      <span className="sidebar-text text-sm font-medium">{children}</span>
     </Link>
   );
 }
@@ -68,14 +74,14 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
       <body className="min-h-full flex bg-background text-foreground">
         {session ? (
           <>
-            <aside className="w-64 bg-sidebar text-sidebar-foreground border-r border-sidebar-border flex flex-col min-h-screen">
-              <div className="px-4 pt-6 pb-5 border-b border-sidebar-border flex flex-col items-center gap-2.5">
+            <aside className="sidebar-aside w-64 bg-sidebar text-sidebar-foreground border-r border-sidebar-border flex flex-col min-h-screen overflow-hidden">
+              <div className="sidebar-brand-block px-4 pt-6 pb-5 border-b border-sidebar-border flex flex-col items-center gap-2.5">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/logo-white.svg" alt="Bohemian Moldavite" className="w-full max-w-[200px] h-auto" />
-                <p className="text-[10px] text-sidebar-muted uppercase tracking-[0.25em] font-mono">Intra · Evidence</p>
+                <img src="/logo-white.svg" alt="Bohemian Moldavite" className="sidebar-brand-img w-full max-w-[200px] h-auto" />
+                <p className="sidebar-brand-tagline text-[10px] text-sidebar-muted uppercase tracking-[0.25em] font-mono">Intra · Evidence</p>
               </div>
 
-              <nav className="flex-1 p-4 space-y-1">
+              <nav className="sidebar-nav flex-1 p-4 space-y-1">
                 <NavLink href="/" icon="dashboard">Dashboard</NavLink>
                 <NavLink href="/orders" icon="orders">Zakázky</NavLink>
                 <NavLink href="/boxes" icon="boxes">Krabice</NavLink>
@@ -85,7 +91,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
 
                 {session.role === 'ADMIN' && (
                   <>
-                    <div className="pt-6 pb-2">
+                    <div className="sidebar-section-header pt-6 pb-2">
                       <p className="text-xs text-sidebar-muted uppercase tracking-wider px-3 font-mono">Správa</p>
                     </div>
                     <NavLink href="/export" icon="export">Exporty</NavLink>
@@ -97,19 +103,20 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
                 )}
               </nav>
 
-              <div className="p-4 border-t border-sidebar-border">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="min-w-0 flex-1">
+              <div className="sidebar-footer p-4 border-t border-sidebar-border">
+                <div className="sidebar-footer-row flex items-center justify-between mb-3">
+                  <div className="sidebar-user-info min-w-0 flex-1">
                     <p className="text-sm font-medium text-sidebar-accent-foreground truncate">{session.name || session.email}</p>
                     <p className="text-xs text-sidebar-muted">{session.role === 'ADMIN' ? 'Administrátor' : 'Uživatel'}</p>
                   </div>
-                  <div className="flex items-center gap-1 flex-shrink-0">
+                  <div className="sidebar-toggle-row flex items-center gap-1 flex-shrink-0">
+                    <SidebarToggle />
                     <ThemeToggle />
                     <LogoutButton />
                   </div>
                 </div>
                 <p
-                  className="text-xs text-sidebar-muted font-mono"
+                  className="sidebar-build-info text-xs text-sidebar-muted font-mono"
                   title={BUILD_INFO.commit ? `Commit ${BUILD_INFO.commit}` : 'Lokální build (dev)'}
                 >
                   Moldavite Intra <span className="opacity-70">{BUILD_INFO.label}</span>

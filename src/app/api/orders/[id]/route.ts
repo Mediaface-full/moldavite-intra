@@ -149,8 +149,12 @@ export async function PATCH(
   }
 }
 
+/**
+ * DELETE Order. ADMIN-only, vyžaduje ?confirm=DOUBLE_CHECK (frontend dělá
+ * 2× confirm() dialog před tímhle requestem). 409 pokud má items.
+ */
 export async function DELETE(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await getSession();
@@ -161,6 +165,11 @@ export async function DELETE(
   const { id } = await params;
   const orderId = parseInt(id, 10);
   if (Number.isNaN(orderId)) return NextResponse.json({ error: 'Invalid id' }, { status: 400 });
+
+  const { searchParams } = new URL(request.url);
+  if (searchParams.get('confirm') !== 'DOUBLE_CHECK') {
+    return NextResponse.json({ error: 'Smazání vyžaduje ?confirm=DOUBLE_CHECK' }, { status: 400 });
+  }
 
   const order = await prisma.order.findUnique({
     where: { id: orderId },
