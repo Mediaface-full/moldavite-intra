@@ -1,7 +1,7 @@
 import { prisma } from '@/lib/prisma';
 import { NextResponse } from 'next/server';
 import { getSession, logActivity } from '@/lib/auth';
-import { recalcItemPrices } from '@/lib/pricing';
+import { recalcItemPrices } from '@/lib/exchangeRates';
 
 const ALLOWED_FIELDS = [
   'name', 'nameEn', 'description', 'descriptionEn', 'longDescription', 'longDescriptionEn',

@@ -146,7 +146,7 @@ function computeEligibleStones(stones: StoneInput[], ctx: AllocationContext): Se
   for (const s of stones) {
     const w = toDecimalOrNull(s.weightGrams);
     const ppg = ctx.resolvedPpgByStoneId.get(s.id) ?? null;
-    if (w !== null && w.isPositive() && ppg !== null && ppg.isPositive()) {
+    if (w !== null && w.gt(0) && ppg !== null && ppg.gt(0)) {
       set.add(s.id);
     }
   }

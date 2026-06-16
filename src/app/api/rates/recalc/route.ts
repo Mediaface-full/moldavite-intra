@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSession, logActivity } from '@/lib/auth';
-import { recalcAllPrices } from '@/lib/pricing';
+import { recalcAllPrices } from '@/lib/exchangeRates';
 
 export async function POST() {
   const session = await getSession();

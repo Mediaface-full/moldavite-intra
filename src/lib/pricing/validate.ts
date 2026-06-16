@@ -27,7 +27,7 @@ export function validateOrderForPricing(input: OrderPricingInput): PricingIssue[
 
   for (const stone of input.stones) {
     const w = toDecimalOrNull(stone.weightGrams);
-    if (w === null || !w.isPositive()) {
+    if (w === null || !w.gt(0)) {
       issues.push({
         severity: 'warn',
         code: 'MISSING_WEIGHT',
@@ -35,7 +35,7 @@ export function validateOrderForPricing(input: OrderPricingInput): PricingIssue[
       });
     }
     const ppg = resolvePpg(stone, input.order);
-    if (ppg === null || !ppg.isPositive()) {
+    if (ppg === null || !ppg.gt(0)) {
       issues.push({
         severity: 'warn',
         code: 'MISSING_PPG',

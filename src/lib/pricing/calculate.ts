@@ -138,14 +138,14 @@ function computeStone(
   const manual = toDecimalOrNull(stone.manualPriceInclVatCzk);
 
   // NEEDS_INPUT — chybí váha nebo PPG
-  if (weight === null || !weight.isPositive()) {
+  if (weight === null || !weight.gt(0)) {
     issues.push({
       severity: 'error',
       code: 'MISSING_WEIGHT',
       message: 'Kámen nemá zadanou váhu — cenu nelze spočítat',
     });
   }
-  if (ppg === null || !ppg.isPositive()) {
+  if (ppg === null || !ppg.gt(0)) {
     issues.push({
       severity: 'error',
       code: 'MISSING_PPG',
@@ -153,7 +153,7 @@ function computeStone(
     });
   }
 
-  if (weight === null || !weight.isPositive() || ppg === null || !ppg.isPositive()) {
+  if (weight === null || !weight.gt(0) || ppg === null || !ppg.gt(0)) {
     return {
       stoneId: stone.id,
       steps: null,
