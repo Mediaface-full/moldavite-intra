@@ -78,8 +78,18 @@ export async function PATCH(
   // Etapa 2: manualPriceInclVatCzk → pokud spadla pod recommended, označ NEEDS_REVIEW
   // (ale neblokuj — uživatel může vědomě jít pod minimum, jen mu to flagujeme).
   if (data.manualPriceInclVatCzk !== undefined) {
+    let manual: number | null;
+    if (data.manualPriceInclVatCzk === null || data.manualPriceInclVatCzk === '') {
+      manual = null;
+    } else {
+      const n = Number(data.manualPriceInclVatCzk);
+      if (!Number.isFinite(n) || n < 0) {
+        return NextResponse.json({ error: 'manualPriceInclVatCzk musí být ≥ 0 a finite' }, { status: 422 });
+      }
+      manual = n;
+    }
+    data.manualPriceInclVatCzk = manual;
     const existing = await prisma.item.findUnique({ where: { id: itemId }, select: { recommendedPriceInclVatCzk: true } });
-    const manual = data.manualPriceInclVatCzk === null ? null : Number(data.manualPriceInclVatCzk);
     const recommended = existing?.recommendedPriceInclVatCzk ? Number(existing.recommendedPriceInclVatCzk) : null;
     if (manual !== null && recommended !== null && manual < recommended) {
       data.pricingStatus = 'NEEDS_REVIEW';

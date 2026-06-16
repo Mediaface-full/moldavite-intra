@@ -4,7 +4,6 @@ import { getSession, logActivity } from '@/lib/auth';
 import { serializeOrder, serializeCost, serializeItemForPricing } from '@/lib/orders/serialize';
 
 // Whitelist polí povolených pro PATCH (uživatelské metadata + cenotvorba).
-// status se mění separátní endpointem (přijde v Etapě 3 UI tlačítky).
 const ALLOWED_PATCH_FIELDS = [
   'title', 'sellerName', 'sellerContact', 'purchaseDate',
   'declaredPieces', 'declaredWeight', 'originLocality', 'notes',
@@ -15,6 +14,15 @@ const ALLOWED_PATCH_FIELDS = [
   'pricingConfigId',
   'status',
 ];
+
+const ALLOCATION_METHODS = ['BY_WEIGHT', 'BY_PURCHASE_PRICE', 'EQUAL_PER_PIECE'];
+const VALID_STATUSES = ['DRAFT', 'PRICED', 'PUBLISHED', 'CANCELLED', 'ARCHIVED'];
+
+/** Validuje že hodnota je finite number a v rozsahu. NaN/Infinity = false. */
+function isFiniteInRange(v: unknown, min: number, max: number): boolean {
+  const n = typeof v === 'string' ? Number(v) : (v as number);
+  return Number.isFinite(n) && n >= min && n <= max;
+}
 
 export async function GET(
   _request: Request,
@@ -59,11 +67,57 @@ export async function PATCH(
   const orderId = parseInt(id, 10);
   if (Number.isNaN(orderId)) return NextResponse.json({ error: 'Invalid id' }, { status: 400 });
 
-  const body = await request.json().catch(() => ({}));
+  let body: Record<string, unknown>;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
+  }
+
   const data: Record<string, unknown> = {};
   for (const k of ALLOWED_PATCH_FIELDS) {
     if (body[k] !== undefined) data[k] = body[k];
   }
+
+  // ── Enum validace
+  if (data.allocationMethod !== undefined && !ALLOCATION_METHODS.includes(data.allocationMethod as string)) {
+    return NextResponse.json({ error: `allocationMethod musí být ${ALLOCATION_METHODS.join('/')}` }, { status: 422 });
+  }
+  if (data.status !== undefined && !VALID_STATUSES.includes(data.status as string)) {
+    return NextResponse.json({ error: `status musí být ${VALID_STATUSES.join('/')}` }, { status: 422 });
+  }
+  // Destruktivní status změny (CANCELLED, ARCHIVED) jen pro ADMIN
+  if ((data.status === 'CANCELLED' || data.status === 'ARCHIVED') && session.role !== 'ADMIN') {
+    return NextResponse.json({ error: 'Storno a archivace jsou jen pro administrátora' }, { status: 403 });
+  }
+
+  // ── Numeric guards
+  if (data.vatRatePct !== undefined && !isFiniteInRange(data.vatRatePct, 0, 100)) {
+    return NextResponse.json({ error: 'vatRatePct musí být 0–100' }, { status: 422 });
+  }
+  if (data.roundingStep !== undefined) {
+    const n = typeof data.roundingStep === 'string' ? Number(data.roundingStep) : (data.roundingStep as number);
+    if (!Number.isFinite(n) || n <= 0 || !Number.isInteger(n)) {
+      return NextResponse.json({ error: 'roundingStep musí být kladné celé číslo' }, { status: 422 });
+    }
+    data.roundingStep = n;
+  }
+  if (data.declaredPieces !== undefined) {
+    const n = typeof data.declaredPieces === 'string' ? Number(data.declaredPieces) : (data.declaredPieces as number);
+    if (!Number.isFinite(n) || n < 0 || !Number.isInteger(n)) {
+      return NextResponse.json({ error: 'declaredPieces musí být nezáporné celé číslo' }, { status: 422 });
+    }
+    data.declaredPieces = n;
+  }
+  for (const f of ['totalPurchaseAmountSource', 'totalPurchaseAmountCzk', 'declaredWeight', 'defaultPurchasePricePerGramSource', 'defaultPurchasePricePerGramCzk'] as const) {
+    if (data[f] === undefined || data[f] === null) continue;
+    const n = typeof data[f] === 'string' ? Number(data[f]) : (data[f] as number);
+    if (!Number.isFinite(n) || n < 0) {
+      return NextResponse.json({ error: `${f} musí být ≥ 0 a finite` }, { status: 422 });
+    }
+    data[f] = n;
+  }
+
   if (data.purchaseDate) data.purchaseDate = new Date(data.purchaseDate as string);
   if (data.exchangeRateDate) data.exchangeRateDate = new Date(data.exchangeRateDate as string);
 

@@ -30,12 +30,17 @@ export async function PATCH(
 
   const { id } = await params;
   const cfgId = parseInt(id, 10);
-  const body = await request.json().catch(() => ({}));
+  let body: Record<string, unknown>;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
+  }
 
   const data: Record<string, unknown> = {};
   if (body.name !== undefined) data.name = body.name;
-  if (body.validFrom !== undefined) data.validFrom = body.validFrom ? new Date(body.validFrom) : null;
-  if (body.validTo !== undefined) data.validTo = body.validTo ? new Date(body.validTo) : null;
+  if (body.validFrom !== undefined) data.validFrom = body.validFrom ? new Date(body.validFrom as string) : null;
+  if (body.validTo !== undefined) data.validTo = body.validTo ? new Date(body.validTo as string) : null;
   if (body.rules !== undefined) {
     const issues = validatePricingRulesJson(body.rules);
     if (issues.length > 0) {

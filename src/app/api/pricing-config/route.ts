@@ -19,7 +19,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
-  const body = await request.json().catch(() => ({}));
+  let body: Record<string, unknown>;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
+  }
   if (typeof body.name !== 'string' || body.name.length === 0) {
     return NextResponse.json({ error: 'name je povinný' }, { status: 422 });
   }
@@ -33,11 +38,11 @@ export async function POST(request: Request) {
 
   const cfg = await prisma.pricingConfig.create({
     data: {
-      name: body.name,
+      name: body.name as string,
       active: false,
-      validFrom: body.validFrom ? new Date(body.validFrom) : null,
-      validTo: body.validTo ? new Date(body.validTo) : null,
-      rules: body.rules,
+      validFrom: body.validFrom ? new Date(body.validFrom as string) : null,
+      validTo: body.validTo ? new Date(body.validTo as string) : null,
+      rules: body.rules as never,
     },
   });
   await logActivity(session.id, 'pricing_config.create', String(cfg.id), JSON.stringify({ name: cfg.name }));

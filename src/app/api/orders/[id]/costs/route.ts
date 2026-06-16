@@ -38,9 +38,14 @@ export async function POST(
   const order = await prisma.order.findUnique({ where: { id: orderId }, select: { id: true, code: true } });
   if (!order) return NextResponse.json({ error: 'Order not found' }, { status: 404 });
 
-  const body = await request.json().catch(() => ({}));
+  let body: Record<string, unknown>;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
+  }
 
-  if (!ALLOWED_TYPE_KEYS.includes(body.typeKey)) {
+  if (typeof body.typeKey !== 'string' || !ALLOWED_TYPE_KEYS.includes(body.typeKey)) {
     return NextResponse.json({ error: `typeKey musí být ${ALLOWED_TYPE_KEYS.join('/')}` }, { status: 422 });
   }
   if (typeof body.label !== 'string' || body.label.length === 0) {
@@ -51,7 +56,7 @@ export async function POST(
     return NextResponse.json({ error: 'amount musí být kladné číslo' }, { status: 422 });
   }
   if (body.allocationMethodOverride !== undefined && body.allocationMethodOverride !== null) {
-    if (!ALLOWED_METHODS.includes(body.allocationMethodOverride)) {
+    if (typeof body.allocationMethodOverride !== 'string' || !ALLOWED_METHODS.includes(body.allocationMethodOverride)) {
       return NextResponse.json({ error: `allocationMethodOverride musí být ${ALLOWED_METHODS.join('/')}` }, { status: 422 });
     }
   }
@@ -60,15 +65,15 @@ export async function POST(
     const created = await tx.orderCostItem.create({
       data: {
         orderId,
-        typeKey: body.typeKey,
-        label: body.label,
-        allocationMethodOverride: body.allocationMethodOverride ?? null,
+        typeKey: body.typeKey as string,
+        label: body.label as string,
+        allocationMethodOverride: (body.allocationMethodOverride as 'BY_WEIGHT' | 'BY_PURCHASE_PRICE' | 'EQUAL_PER_PIECE' | null) ?? null,
         amountSource: amount,
         amountCzk: Number(body.amountCzk ?? amount),
-        currency: body.currency ?? 'CZK',
-        exchangeRate: body.exchangeRate ?? null,
-        exchangeRateDate: body.exchangeRateDate ? new Date(body.exchangeRateDate) : null,
-        note: body.note ?? '',
+        currency: typeof body.currency === 'string' ? body.currency : 'CZK',
+        exchangeRate: (body.exchangeRate as number | string | null) ?? null,
+        exchangeRateDate: body.exchangeRateDate ? new Date(body.exchangeRateDate as string) : null,
+        note: typeof body.note === 'string' ? body.note : '',
       },
     });
     // Změna nákladů → kameny jdou do STALE

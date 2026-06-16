@@ -7,7 +7,7 @@ const ADMIN_PATHS = ['/admin', '/api/admin', '/export', '/api/export'];
 
 // API endpoints where we enforce CSRF on state-changing methods. The cron
 // endpoint and /api/auth/login are out of scope (secret-auth or login).
-const CSRF_ENFORCED_PREFIXES = ['/api/admin/', '/api/items', '/api/boxes', '/api/ai/', '/api/scan', '/api/rates'];
+const CSRF_ENFORCED_PREFIXES = ['/api/admin/', '/api/items', '/api/boxes', '/api/ai/', '/api/scan', '/api/rates', '/api/orders', '/api/pricing-config'];
 const CSRF_METHODS = new Set(['POST', 'PATCH', 'PUT', 'DELETE']);
 
 function requiresCsrf(pathname: string, method: string): boolean {

@@ -26,7 +26,12 @@ export async function PATCH(
   const existing = await prisma.orderCostItem.findUnique({ where: { id: cId }, include: { order: { select: { code: true } } } });
   if (!existing || existing.orderId !== orderId) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-  const body = await request.json().catch(() => ({}));
+  let body: Record<string, unknown>;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
+  }
   const data: Record<string, unknown> = {};
   for (const k of ALLOWED_FIELDS) {
     if (body[k] !== undefined) data[k] = body[k];
