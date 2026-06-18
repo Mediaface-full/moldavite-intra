@@ -14,6 +14,15 @@ import Icon from './Icon';
 
 type Option = { id: number; value: string; sortOrder: number; active: boolean };
 
+// Fallback hodnoty — pokud API selže nebo není naseedovaný AttrOption,
+// stejně chceme nabídnout 4 default typy ať uživatel není uvězněný.
+const FALLBACK_OPTIONS: Option[] = [
+  { id: -1, value: 'Kameny', sortOrder: 0, active: true },
+  { id: -2, value: 'Opracované kusy', sortOrder: 1, active: true },
+  { id: -3, value: 'K opracování', sortOrder: 2, active: true },
+  { id: -4, value: 'Prach', sortOrder: 3, active: true },
+];
+
 export default function CassetteTypePicker({
   boxId,
   current,
@@ -56,15 +65,18 @@ export default function CassetteTypePicker({
   // Pokud aktuální hodnota není v aktivním seznamu (legacy), přidej ji do selectu
   // bez "(mimo aktivní)" suffixu — uživatel chce vidět čistou hodnotu, info že
   // hodnota není aktivní v admin/attributes by ho jen zmátla v běžném používání.
-  const hasCurrent = options.some((o) => o.value === value);
+  // Pokud API selhalo / není naseedované, použij FALLBACK_OPTIONS ať uživatel
+  // není zablokovaný (chybí seed → permanent disabled select bylo bug).
+  const effectiveOptions = options.length > 0 ? options : FALLBACK_OPTIONS;
+  const hasCurrent = effectiveOptions.some((o) => o.value === value);
 
   return (
-    <div className="inline-flex items-stretch h-9 rounded-md overflow-hidden border" style={{
+    <div className="inline-flex items-stretch h-9 rounded-md overflow-hidden border w-full" style={{
       borderColor: `color-mix(in srgb, ${meta.color} 35%, transparent)`,
       opacity: saving ? 0.5 : 1,
     }}>
       <span
-        className="inline-flex items-center gap-1.5 px-2.5 text-[10px] font-mono uppercase tracking-wider"
+        className="inline-flex items-center gap-1.5 px-2.5 text-[10px] font-mono uppercase tracking-wider flex-shrink-0"
         style={{
           color: meta.color,
           background: `color-mix(in srgb, ${meta.color} 12%, transparent)`,
@@ -74,16 +86,16 @@ export default function CassetteTypePicker({
       </span>
       <select
         value={value}
-        disabled={saving || options.length === 0}
+        disabled={saving}
         onChange={(e) => change(e.target.value)}
-        className="bg-card text-sm pl-2 pr-7 border-0 outline-none cursor-pointer focus:bg-muted/40"
+        className="bg-card text-sm pl-2 pr-7 border-0 outline-none cursor-pointer focus:bg-muted/40 flex-1 min-w-0"
         style={{ color: meta.color }}
         title="Změnit typ kazety"
       >
         {!hasCurrent && value && (
           <option value={value}>{value}</option>
         )}
-        {options.map((o) => (
+        {effectiveOptions.map((o) => (
           <option key={o.id} value={o.value}>{o.value}</option>
         ))}
       </select>

@@ -12,6 +12,8 @@ import BoxDeleteButton from '@/components/BoxDeleteButton';
 import GenerateItemsButton from '@/components/GenerateItemsButton';
 import BoxSellerPicker from '@/components/BoxSellerPicker';
 import FtpUploadInfo from '@/components/FtpUploadInfo';
+import BoxFieldInput from '@/components/BoxFieldInput';
+import BoxNameInline from '@/components/BoxNameInline';
 import { getSession } from '@/lib/auth';
 
 export default async function BoxDetailPage({
@@ -52,9 +54,10 @@ export default async function BoxDetailPage({
       <div className="flex items-start justify-between gap-4 mb-5 flex-wrap">
         <div className="min-w-0">
           <h1 className="text-3xl font-bold tracking-tight font-mono">{box.code}</h1>
-          {box.name && !isDefaultBoxName(box.name, box.code) && (
-            <p className="text-muted-foreground mt-1 text-sm">{box.name}</p>
-          )}
+          <BoxNameInline
+            boxId={box.id}
+            initial={isDefaultBoxName(box.name ?? '', box.code) ? '' : (box.name ?? '')}
+          />
           <div className="flex items-center gap-x-5 gap-y-1 mt-2.5 text-sm font-mono flex-wrap">
             <span><span className="text-foreground font-semibold">{box.items.length}</span> <span className="text-muted-foreground">kamenů</span></span>
             <span><span className="text-primary font-semibold">{shopCount}</span> <span className="text-muted-foreground">na eshopu</span></span>
@@ -83,7 +86,7 @@ export default async function BoxDetailPage({
         </div>
       </div>
 
-      {/* Properties — Dodavatel · Typ kazety · Umístění */}
+      {/* Properties — 2 řádky × 3 sloupce */}
       <div className="bg-card border border-border rounded-xl shadow-sm mb-6 overflow-hidden">
         <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-border">
           <PropRow label="Dodavatel">
@@ -94,6 +97,45 @@ export default async function BoxDetailPage({
           </PropRow>
           <PropRow label="Umístění">
             <BoxPlacement boxId={box.id} placement={box.placement} bare />
+          </PropRow>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-border border-t border-border">
+          <PropRow label="Počet kamenů">
+            <BoxFieldInput
+              boxId={box.id}
+              field="declaredPieces"
+              initial={box.declaredPieces}
+              type="number"
+              step="1"
+              min={0}
+              max={9999}
+              suffix="ks"
+              placeholder="—"
+            />
+          </PropRow>
+          <PropRow label="Nákupní cena">
+            <BoxFieldInput
+              boxId={box.id}
+              field="purchaseAmountCzk"
+              initial={box.purchaseAmountCzk?.toString() ?? null}
+              type="number"
+              step="0.01"
+              min={0}
+              suffix="Kč"
+              placeholder="—"
+            />
+          </PropRow>
+          <PropRow label="Váha celkem">
+            <BoxFieldInput
+              boxId={box.id}
+              field="declaredWeight"
+              initial={box.declaredWeight?.toString() ?? null}
+              type="number"
+              step="0.01"
+              min={0}
+              suffix="g"
+              placeholder="—"
+            />
           </PropRow>
         </div>
       </div>

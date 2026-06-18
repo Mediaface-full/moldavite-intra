@@ -123,15 +123,6 @@ export default function FtpUploadInfo({
               </p>
             </div>
           )}
-
-          <div className="text-[10px] text-muted-foreground font-mono leading-relaxed border-t border-border pt-3">
-            <p className="mb-1">
-              <strong className="text-foreground">FTP / SFTP připojení</strong> — host a port nastavíš v DSM (Control Panel → File Services → FTP nebo SFTP), uživatel je tvůj DSM účet s právy do photos shared folderu.
-            </p>
-            <p>
-              Pro rychlou opravu jednotlivé fotky bez FTP klienta použij tlačítko „Fotky" v detailu kamene (drag & drop).
-            </p>
-          </div>
         </div>
       )}
     </div>
