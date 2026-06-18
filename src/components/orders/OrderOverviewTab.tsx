@@ -7,6 +7,7 @@ import { apiFetch } from '@/lib/apiFetch';
 import type { SerializedOrder } from './OrderDetailClient';
 import Icon from '../Icon';
 import SellerPicker from '../SellerPicker';
+import NewBoxButton from '../NewBoxButton';
 
 function fmtMoney(n: unknown): string {
   const v = Number(n ?? 0);
@@ -74,8 +75,12 @@ export default function OrderOverviewTab({ order }: { order: SerializedOrder }) 
         </div>
       </div>
 
-      {/* Boxes assigned — detailed cards s aggregací */}
-      {order.boxes.length > 0 && <BoxesSummaryCard order={order} />}
+      {/* Boxes assigned — detailed cards s aggregací; empty state když 0 */}
+      {order.boxes.length > 0 ? (
+        <BoxesSummaryCard order={order} />
+      ) : (
+        <BoxesEmptyState order={order} />
+      )}
 
       {/* Validace součtů jako warning */}
       <SumValidationWarnings order={order} />
@@ -165,6 +170,26 @@ function MetaForm({ order, onSaved }: { order: SerializedOrder; onSaved: () => v
 }
 
 /**
+ * Empty state pro zakázku bez kazet — invitující CTA na založení.
+ * Zakázky bez kazet jsou ve workflow normální (nově vytvořená zakázka má 0
+ * kazet, dokud uživatel nezaloží první), takže není to error/warning, jen hint.
+ */
+function BoxesEmptyState({ order }: { order: SerializedOrder }) {
+  return (
+    <div className="bg-card border border-dashed border-border rounded-xl p-8 text-center">
+      <Icon name="box" className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
+      <h3 className="text-base font-semibold mb-1">Žádná kazeta v zakázce</h3>
+      <p className="text-sm text-muted-foreground mb-4 max-w-md mx-auto">
+        Zakázka zatím neobsahuje žádné kazety. Založ první kazetu — dodavatel z této zakázky se předvyplní.
+      </p>
+      <div className="inline-block">
+        <NewBoxButton orderId={order.id} defaultSellerId={order.sellerId} variant="primary" />
+      </div>
+    </div>
+  );
+}
+
+/**
  * Karta s přehledem kazet zakázky — pro každou kazetu: typ, dodavatel,
  * počet items vs. declaredPieces, Σ doporučené ceny + Σ váha.
  * MIX badge když dodavatel kazety ≠ dodavatel zakázky.
@@ -180,14 +205,17 @@ function BoxesSummaryCard({ order }: { order: SerializedOrder }) {
 
   return (
     <div className="bg-card border border-border rounded-xl shadow-sm">
-      <div className="px-5 py-3 border-b border-border flex items-center justify-between">
+      <div className="px-5 py-3 border-b border-border flex items-center justify-between gap-3">
         <h3 className="text-sm font-semibold inline-flex items-center gap-2">
           <Icon name="box" className="w-4 h-4" />
           Přiřazené kazety ({order.boxes.length})
         </h3>
-        <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">
-          součty: doporučená cena + váha za kazetu
-        </span>
+        <div className="flex items-center gap-3">
+          <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground hidden md:inline">
+            součty: doporučená cena + váha
+          </span>
+          <NewBoxButton orderId={order.id} defaultSellerId={order.sellerId} variant="button" />
+        </div>
       </div>
       <div className="divide-y divide-border">
         {order.boxes.map((b) => {

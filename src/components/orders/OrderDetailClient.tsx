@@ -10,6 +10,7 @@ import OrderPricingTab from './OrderPricingTab';
 import OrderOverviewTab from './OrderOverviewTab';
 import DoubleConfirmDelete from '../DoubleConfirmDelete';
 import Icon from '../Icon';
+import NewBoxButton from '../NewBoxButton';
 
 type Tab = 'overview' | 'costs' | 'items' | 'pricing';
 
@@ -163,6 +164,7 @@ export default function OrderDetailClient({
               {needsReviewCount > 0 && `${needsReviewCount} k revizi`}
             </span>
           )}
+          <NewBoxButton orderId={order.id} defaultSellerId={order.sellerId} variant="button" />
           <button
             onClick={handleRecalculate}
             disabled={order.status === 'CANCELLED'}
