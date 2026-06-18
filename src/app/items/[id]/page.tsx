@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import StoneViewer360 from '@/components/StoneViewer360';
 import ItemDetailForm from '@/components/ItemDetailForm';
+import ItemPhotoUploadModal from '@/components/ItemPhotoUploadModal';
 import MediaToggle from '@/components/MediaToggle';
 import AiButton from '@/components/AiButton';
 import { getSession } from '@/lib/auth';
@@ -68,6 +69,7 @@ export default async function ItemDetailPage({
           {isAdmin && (
             <AiButton itemId={item.id} catalogNumber={catalogNumber} />
           )}
+          <ItemPhotoUploadModal itemId={item.id} catalogNumber={catalogNumber} label="Fotky" />
         </div>
       </div>
 

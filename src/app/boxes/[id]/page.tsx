@@ -1,6 +1,8 @@
 import { prisma } from '@/lib/prisma';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
+import * as fs from 'fs';
+import * as path from 'path';
 import ItemsTable from '@/components/ItemsTable';
 import BoxPhotoUpload from '@/components/BoxPhotoUpload';
 import BoxPlacement from '@/components/BoxPlacement';
@@ -9,6 +11,7 @@ import AiBulkButton from '@/components/AiBulkButton';
 import BoxDeleteButton from '@/components/BoxDeleteButton';
 import GenerateItemsButton from '@/components/GenerateItemsButton';
 import BoxSellerPicker from '@/components/BoxSellerPicker';
+import FtpUploadInfo from '@/components/FtpUploadInfo';
 import { getSession } from '@/lib/auth';
 
 export default async function BoxDetailPage({
@@ -88,6 +91,26 @@ export default async function BoxDetailPage({
         boxId={box.id}
         boxCode={box.code}
         existingPhotos={box.photos}
+      />
+
+      {/* FTP upload info card */}
+      <FtpUploadInfo
+        boxCode={box.code}
+        photosBasePath={process.env.PHOTOS_PATH || '/data/photos'}
+        items={box.items.map((it) => {
+          const photoDir = path.join(
+            process.env.PHOTOS_PATH || '/data/photos',
+            box.code,
+            it.evidNumber
+          );
+          let hasPhotos = false;
+          try {
+            if (fs.existsSync(photoDir)) {
+              hasPhotos = fs.readdirSync(photoDir).some((f) => /\.(jpe?g|png|webp)$/i.test(f));
+            }
+          } catch { /* ignore stat errors */ }
+          return { evidNumber: it.evidNumber, hasPhotos };
+        })}
       />
 
       {/* Items Table */}

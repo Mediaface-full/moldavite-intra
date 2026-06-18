@@ -71,6 +71,9 @@ export async function POST(
           evidNumber,
           orderId: box.orderId,
           pricingStatus: 'NEEDS_INPUT',
+          // Photo path = <boxCode>/<evidNumber>/ — UI bude hledat fotky tady,
+          // FTP klient nahrává do stejné cesty (viz folders sekce níže).
+          photoPath: `${box.code}/${evidNumber}`,
         },
       });
     }
