@@ -80,7 +80,7 @@ export default function SellerPicker({
 
   return (
     <div className={className}>
-      <div className="flex gap-2">
+      <div className="flex gap-1.5">
         <select
           value={value ?? ''}
           disabled={loading}
@@ -88,7 +88,7 @@ export default function SellerPicker({
             const v = e.target.value === '' ? null : parseInt(e.target.value, 10);
             onChange(v);
           }}
-          className="flex-1 bg-muted border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
+          className="flex-1 min-w-0 bg-card border border-border rounded-md px-3 h-9 text-sm text-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
         >
           {allowEmpty && <option value="">— bez dodavatele —</option>}
           {sellers.map((s) => (
@@ -98,7 +98,7 @@ export default function SellerPicker({
         <button
           type="button"
           onClick={() => setCreating(!creating)}
-          className="bg-card border border-border hover:border-foreground/40 px-2 py-2 rounded-lg inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+          className="bg-card border border-border hover:border-foreground/40 px-2 h-9 rounded-md inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
           title="Přidat nového dodavatele"
         >
           <Icon name={creating ? 'x' : 'plus'} className="w-4 h-4" />

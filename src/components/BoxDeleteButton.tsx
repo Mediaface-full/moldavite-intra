@@ -16,18 +16,18 @@ export default function BoxDeleteButton({
   const router = useRouter();
 
   const disabledReason = itemCount > 0
-    ? `Krabice obsahuje ${itemCount} kamenů — nejdřív je přesuň nebo smaž.`
+    ? `Kazeta obsahuje ${itemCount} kamenů — nejdřív je přesuň nebo smaž.`
     : null;
 
   return (
     <DoubleConfirmDelete
       confirmPhrase={boxCode}
-      label="Smazat krabici"
-      what={`krabici ${boxCode}`}
+      label="Smazat kazetu"
+      what={`kazetu ${boxCode}`}
       consequence={
         itemCount > 0
-          ? `Krabice obsahuje ${itemCount} kamenů. Smazání není povolené, dokud krabice není prázdná.`
-          : 'Krabice je prázdná. Smazání nevrátí žádné kameny — krabice je čistě skladová jednotka.'
+          ? `Kazeta obsahuje ${itemCount} kamenů. Smazání není povolené, dokud kazeta není prázdná.`
+          : 'Kazeta je prázdná. Smazání nevrátí žádné kameny — kazeta je čistě skladová jednotka.'
       }
       disabledReason={disabledReason}
       onConfirm={async () => {

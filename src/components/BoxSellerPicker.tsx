@@ -9,7 +9,7 @@ import { useRouter } from 'next/navigation';
 import { apiFetch } from '@/lib/apiFetch';
 import SellerPicker from './SellerPicker';
 
-export default function BoxSellerPicker({ boxId, initial }: { boxId: number; initial: number | null }) {
+export default function BoxSellerPicker({ boxId, initial, bare = false }: { boxId: number; initial: number | null; bare?: boolean }) {
   const router = useRouter();
   const [value, setValue] = useState<number | null>(initial);
   const [saving, setSaving] = useState(false);
@@ -30,13 +30,15 @@ export default function BoxSellerPicker({ boxId, initial }: { boxId: number; ini
   }
 
   return (
-    <div className="flex items-center gap-2">
-      <label className="text-xs text-muted-foreground uppercase tracking-wider whitespace-nowrap">Dodavatel</label>
-      <div className="w-56">
+    <div className="flex items-center gap-2 w-full">
+      {!bare && (
+        <label className="text-xs text-muted-foreground uppercase tracking-wider whitespace-nowrap">Dodavatel</label>
+      )}
+      <div className={bare ? 'flex-1 min-w-0' : 'w-56'}>
         <SellerPicker value={value} onChange={handleChange} />
       </div>
-      {saving && <span className="text-xs text-muted-foreground">...</span>}
-      {saved && <span className="text-xs text-primary">Uloženo</span>}
+      {saving && <span className="text-[10px] text-muted-foreground font-mono">…</span>}
+      {saved && <span className="text-[10px] text-success font-mono">✓</span>}
     </div>
   );
 }

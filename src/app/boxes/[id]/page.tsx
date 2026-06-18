@@ -48,21 +48,20 @@ export default async function BoxDetailPage({
         <span className="text-foreground">{box.code}</span>
       </div>
 
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-3xl font-bold">{box.code}</h1>
-          {box.name && (
-            <p className="text-muted-foreground mt-1">{box.name}</p>
+      {/* Header — title + stats vlevo, actions vpravo */}
+      <div className="flex items-start justify-between gap-4 mb-5 flex-wrap">
+        <div className="min-w-0">
+          <h1 className="text-3xl font-bold tracking-tight font-mono">{box.code}</h1>
+          {box.name && !isDefaultBoxName(box.name, box.code) && (
+            <p className="text-muted-foreground mt-1 text-sm">{box.name}</p>
           )}
-          <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
-            <span>{box.items.length} kamenů</span>
-            <span className="text-primary">{shopCount} na eshopu</span>
-            <span className="text-warning">{etsyCount} na Etsy</span>
+          <div className="flex items-center gap-x-5 gap-y-1 mt-2.5 text-sm font-mono flex-wrap">
+            <span><span className="text-foreground font-semibold">{box.items.length}</span> <span className="text-muted-foreground">kamenů</span></span>
+            <span><span className="text-primary font-semibold">{shopCount}</span> <span className="text-muted-foreground">na eshopu</span></span>
+            <span><span className="text-warning font-semibold">{etsyCount}</span> <span className="text-muted-foreground">na Etsy</span></span>
           </div>
         </div>
-        <div className="flex items-center gap-3">
-          <BoxSellerPicker boxId={box.id} initial={box.sellerId} />
+        <div className="flex items-center gap-2 flex-shrink-0 flex-wrap justify-end">
           <GenerateItemsButton
             boxId={box.id}
             currentCount={box.items.length}
@@ -74,8 +73,6 @@ export default async function BoxDetailPage({
               items={box.items.map(i => ({ id: i.id, evidNumber: i.evidNumber }))}
             />
           )}
-          <CassetteTypePicker boxId={box.id} current={box.cassetteType} />
-          <BoxPlacement boxId={box.id} placement={box.placement} />
           {isAdmin && (
             <BoxDeleteButton
               boxId={box.id}
@@ -83,6 +80,21 @@ export default async function BoxDetailPage({
               itemCount={box.items.length}
             />
           )}
+        </div>
+      </div>
+
+      {/* Properties — Dodavatel · Typ kazety · Umístění */}
+      <div className="bg-card border border-border rounded-xl shadow-sm mb-6 overflow-hidden">
+        <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-border">
+          <PropRow label="Dodavatel">
+            <BoxSellerPicker boxId={box.id} initial={box.sellerId} bare />
+          </PropRow>
+          <PropRow label="Typ kazety">
+            <CassetteTypePicker boxId={box.id} current={box.cassetteType} />
+          </PropRow>
+          <PropRow label="Umístění">
+            <BoxPlacement boxId={box.id} placement={box.placement} bare />
+          </PropRow>
         </div>
       </div>
 
@@ -133,6 +145,30 @@ export default async function BoxDetailPage({
           pasShape: item.pasShape,
         }))}
       />
+    </div>
+  );
+}
+
+/**
+ * Vrátí true pokud `box.name` je default vygenerovaný název ("Kazeta XXXX",
+ * "Krabice XXXX" — legacy) — v tom případě je redundantní k title `box.code`
+ * a v UI ho neukazujeme. User-set jméno se respektuje.
+ */
+function isDefaultBoxName(name: string, code: string): boolean {
+  const n = name.trim().toLowerCase();
+  const c = code.trim().toLowerCase();
+  return n === `kazeta ${c}` || n === `krabice ${c}`;
+}
+
+function PropRow({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="p-4 flex items-center gap-3">
+      <label className="text-[10px] text-muted-foreground uppercase tracking-[0.15em] font-mono whitespace-nowrap w-20 flex-shrink-0">
+        {label}
+      </label>
+      <div className="flex-1 min-w-0">
+        {children}
+      </div>
     </div>
   );
 }

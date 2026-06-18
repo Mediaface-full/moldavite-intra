@@ -53,35 +53,40 @@ export default function CassetteTypePicker({
     }
   }
 
-  // Pokud aktuální hodnota není v aktivním seznamu (legacy), zobraz ji v selectu
+  // Pokud aktuální hodnota není v aktivním seznamu (legacy), přidej ji do selectu
+  // bez "(mimo aktivní)" suffixu — uživatel chce vidět čistou hodnotu, info že
+  // hodnota není aktivní v admin/attributes by ho jen zmátla v běžném používání.
   const hasCurrent = options.some((o) => o.value === value);
 
   return (
-    <label
-      className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-mono uppercase tracking-wider border cursor-pointer transition-colors"
-      style={{
-        color: meta.color,
-        background: `color-mix(in srgb, ${meta.color} 12%, transparent)`,
-        borderColor: `color-mix(in srgb, ${meta.color} 30%, transparent)`,
-        opacity: saving ? 0.5 : 1,
-      }}
-      title="Změnit typ kazety"
-    >
-      <Icon name={meta.icon} className="w-3.5 h-3.5" />
+    <div className="inline-flex items-stretch h-9 rounded-md overflow-hidden border" style={{
+      borderColor: `color-mix(in srgb, ${meta.color} 35%, transparent)`,
+      opacity: saving ? 0.5 : 1,
+    }}>
+      <span
+        className="inline-flex items-center gap-1.5 px-2.5 text-[10px] font-mono uppercase tracking-wider"
+        style={{
+          color: meta.color,
+          background: `color-mix(in srgb, ${meta.color} 12%, transparent)`,
+        }}
+      >
+        <Icon name={meta.icon} className="w-3.5 h-3.5" />
+      </span>
       <select
         value={value}
         disabled={saving || options.length === 0}
         onChange={(e) => change(e.target.value)}
-        className="bg-transparent border-0 outline-none font-mono uppercase tracking-wider text-xs cursor-pointer"
+        className="bg-card text-sm pl-2 pr-7 border-0 outline-none cursor-pointer focus:bg-muted/40"
         style={{ color: meta.color }}
+        title="Změnit typ kazety"
       >
         {!hasCurrent && value && (
-          <option value={value}>{value} (mimo aktivní)</option>
+          <option value={value}>{value}</option>
         )}
         {options.map((o) => (
           <option key={o.id} value={o.value}>{o.value}</option>
         ))}
       </select>
-    </label>
+    </div>
   );
 }
