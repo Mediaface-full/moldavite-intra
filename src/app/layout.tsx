@@ -76,9 +76,9 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
         {session ? (
           <>
             <aside className="sidebar-aside w-64 bg-sidebar text-sidebar-foreground border-r border-sidebar-border flex flex-col min-h-screen overflow-hidden">
-              <div className="sidebar-brand-block px-4 pt-6 pb-5 border-b border-sidebar-border flex flex-col items-center gap-2.5">
+              <div className="sidebar-brand-block px-3 pt-7 pb-6 border-b border-sidebar-border flex flex-col items-center gap-3">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/logo-white.svg" alt="Bohemian Moldavite" className="sidebar-brand-img w-full max-w-[200px] h-auto" />
+                <img src="/logo-white.svg" alt="Bohemian Moldavite" className="sidebar-brand-img w-full h-auto" />
                 <p className="sidebar-brand-tagline text-[10px] text-sidebar-muted uppercase tracking-[0.25em] font-mono">Intra · Evidence</p>
               </div>
 

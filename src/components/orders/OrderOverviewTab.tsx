@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { apiFetch } from '@/lib/apiFetch';
 import type { SerializedOrder } from './OrderDetailClient';
+import Icon from '../Icon';
 
 function fmtMoney(n: unknown): string {
   const v = Number(n ?? 0);
@@ -38,8 +39,13 @@ export default function OrderOverviewTab({ order }: { order: SerializedOrder }) 
           <h3 className="text-sm font-semibold">Metadata</h3>
           <button
             onClick={() => setEditMeta(!editMeta)}
-            className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors"
+            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-mono uppercase tracking-wider border transition-colors ${
+              editMeta
+                ? 'bg-card border-border text-muted-foreground hover:text-foreground hover:border-foreground/40'
+                : 'bg-primary border-primary text-primary-foreground hover:bg-primary/90'
+            }`}
           >
+            <Icon name={editMeta ? 'x' : 'edit'} className="w-3.5 h-3.5" />
             {editMeta ? 'Zavřít' : 'Upravit'}
           </button>
         </div>

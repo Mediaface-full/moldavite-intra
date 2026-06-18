@@ -2,9 +2,13 @@
 
 import { useState } from 'react';
 import { formatPrice } from '@/lib/utils';
-import { PAS_SHAPES, getPasShape } from '@/lib/pasShapes';
+import { getPasShape } from '@/lib/pasShapes';
+import { computeSizeCategory, SIZE_CATEGORY_COLOR } from '@/lib/sizeCategory';
 import dynamic from 'next/dynamic';
 import AutocompleteInput from './AutocompleteInput';
+import AttrSelect from './AttrSelect';
+import AttrMultiSelect from './AttrMultiSelect';
+import Icon from './Icon';
 import { apiFetch } from '@/lib/apiFetch';
 
 const RichTextEditor = dynamic(() => import('./RichTextEditor'), { ssr: false });
@@ -27,6 +31,9 @@ interface ItemData {
   onShop: boolean;
   onEtsy: boolean;
   pasShape: string;
+  attrDamage?: string;
+  attrColor?: string[];
+  attrCollectible?: boolean;
   box: { code: string; id: number };
   priceEUR?: number;
   priceUSD?: number;
@@ -50,6 +57,9 @@ export default function ItemDetailForm({ item }: { item: ItemData }) {
     onShop: item.onShop,
     onEtsy: item.onEtsy,
     pasShape: item.pasShape || '',
+    attrDamage: item.attrDamage || '',
+    attrColor: item.attrColor || [],
+    attrCollectible: item.attrCollectible || false,
   });
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -76,6 +86,9 @@ export default function ItemDetailForm({ item }: { item: ItemData }) {
           onShop: formData.onShop,
           onEtsy: formData.onEtsy,
           pasShape: formData.pasShape,
+          attrDamage: formData.attrDamage,
+          attrColor: formData.attrColor,
+          attrCollectible: formData.attrCollectible,
         }),
       });
       if (res.ok) {
@@ -195,59 +208,119 @@ export default function ItemDetailForm({ item }: { item: ItemData }) {
           )}
         </div>
 
-        {/* Location + Storage */}
-        <div className="grid grid-cols-2 gap-4">
+        {/* Storage (lokalita nálezu je teď v sekci Atributy níže jako AttrSelect) */}
+        <div>
+          <label className="block text-xs text-muted-foreground mb-1 uppercase tracking-wider">Umístění (fyzické)</label>
+          <AutocompleteInput
+            value={formData.storage}
+            onChange={(v) => setFormData((f) => ({ ...f, storage: v }))}
+            field="storage"
+            placeholder="Kde je kámen fyzicky uložen..."
+            className="w-full bg-card border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/20 placeholder:text-muted-foreground transition-shadow"
+          />
+        </div>
+
+        {/* Atributy kamene — řízené hodnoty z AttrOption */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-xs text-muted-foreground mb-1 uppercase tracking-wider">Místo nálezu</label>
-            <AutocompleteInput
+            <label className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1.5 uppercase tracking-wider font-mono">
+              <Icon name="shape" className="w-3.5 h-3.5" />
+              Tvar (PAS)
+            </label>
+            <AttrSelect
+              attrKey="pasShape"
+              value={formData.pasShape}
+              onChange={(v) => setFormData((f) => ({ ...f, pasShape: v }))}
+            />
+            {formData.pasShape && getPasShape(formData.pasShape) && (
+              <p className="mt-1.5 text-xs text-muted-foreground italic">
+                {lang === 'en' ? getPasShape(formData.pasShape)?.descEn : getPasShape(formData.pasShape)?.descCz}
+              </p>
+            )}
+          </div>
+
+          <div>
+            <label className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1.5 uppercase tracking-wider font-mono">
+              <Icon name="damage" className="w-3.5 h-3.5" />
+              Poškození
+            </label>
+            <AttrSelect
+              attrKey="attrDamage"
+              value={formData.attrDamage}
+              onChange={(v) => setFormData((f) => ({ ...f, attrDamage: v }))}
+            />
+            <p className="mt-1.5 text-[10px] text-muted-foreground font-mono">
+              Ovlivňuje kategorii: ≥10g bez poškození → <strong>Sbírkové</strong>, jinak <strong>Velké</strong>.
+            </p>
+          </div>
+
+          <div>
+            <label className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1.5 uppercase tracking-wider font-mono">
+              <Icon name="location" className="w-3.5 h-3.5" />
+              Lokalita nálezu
+            </label>
+            <AttrSelect
+              attrKey="location"
               value={formData.location}
               onChange={(v) => setFormData((f) => ({ ...f, location: v }))}
-              field="location"
-              placeholder="Místo nálezu..."
-              className="w-full bg-card border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/20 placeholder:text-muted-foreground transition-shadow"
             />
           </div>
+
           <div>
-            <label className="block text-xs text-muted-foreground mb-1 uppercase tracking-wider">Umístění</label>
-            <AutocompleteInput
-              value={formData.storage}
-              onChange={(v) => setFormData((f) => ({ ...f, storage: v }))}
-              field="storage"
-              placeholder="Kde je kámen uložen..."
-              className="w-full bg-card border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/20 placeholder:text-muted-foreground transition-shadow"
+            <label className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1.5 uppercase tracking-wider font-mono">
+              <Icon name="star" className="w-3.5 h-3.5" />
+              Sbírkový
+            </label>
+            <label className="inline-flex items-center gap-2 cursor-pointer mt-2">
+              <input
+                type="checkbox"
+                checked={formData.attrCollectible}
+                onChange={(e) => setFormData((f) => ({ ...f, attrCollectible: e.target.checked }))}
+                className="w-4 h-4 rounded border-border text-primary focus:ring-ring/20"
+              />
+              <span className="text-sm text-foreground">Označit jako sbírkový kámen</span>
+            </label>
+          </div>
+
+          <div className="md:col-span-2">
+            <label className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1.5 uppercase tracking-wider font-mono">
+              <Icon name="palette" className="w-3.5 h-3.5" />
+              Barva (lze vybrat víc)
+            </label>
+            <AttrMultiSelect
+              attrKey="attrColor"
+              value={formData.attrColor}
+              onChange={(v) => setFormData((f) => ({ ...f, attrColor: v }))}
+              color="var(--primary)"
             />
           </div>
         </div>
 
-        {/* Primary Aerodynamic Shape */}
-        <div>
-          <label className="block text-xs text-muted-foreground mb-1 uppercase tracking-wider">
-            Primární aerodynamický tvar (PAS)
-            <span className="ml-2 text-[10px] text-muted-foreground normal-case">
-              {lang === 'en' ? 'shown to English buyers:' : 'anglický název pro export:'}
-              <strong className="ml-1 text-muted-foreground">
-                {getPasShape(formData.pasShape)?.[lang === 'en' ? 'en' : 'cz'] || (lang === 'en' ? 'not set' : 'nenastaveno')}
-              </strong>
-            </span>
-          </label>
-          <select
-            value={formData.pasShape}
-            onChange={(e) => setFormData((f) => ({ ...f, pasShape: e.target.value }))}
-            className="w-full bg-card border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/20 transition-shadow"
-          >
-            <option value="">— nezvoleno —</option>
-            {PAS_SHAPES.map((s) => (
-              <option key={s.key} value={s.key}>
-                {s.cz} ({s.en})
-              </option>
-            ))}
-          </select>
-          {formData.pasShape && (
-            <p className="mt-1.5 text-xs text-muted-foreground italic">
-              {lang === 'en' ? getPasShape(formData.pasShape)?.descEn : getPasShape(formData.pasShape)?.descCz}
-            </p>
-          )}
-        </div>
+        {/* Kategorie velikosti — automaticky podle weight + attrDamage */}
+        {(() => {
+          const cat = computeSizeCategory(formData.weight, formData.attrDamage);
+          if (!cat) return null;
+          const color = SIZE_CATEGORY_COLOR[cat];
+          return (
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground font-mono uppercase tracking-wider">Kategorie:</span>
+              <span
+                className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-mono uppercase tracking-wider border"
+                style={{
+                  color,
+                  background: `color-mix(in srgb, ${color} 12%, transparent)`,
+                  borderColor: `color-mix(in srgb, ${color} 30%, transparent)`,
+                }}
+              >
+                <Icon name="weight" className="w-3 h-3" />
+                {cat}
+              </span>
+              <span className="text-[10px] text-muted-foreground font-mono">
+                (automaticky z hmotnosti + poškození)
+              </span>
+            </div>
+          );
+        })()}
 
         {/* Weight + Prices */}
         <div className="grid grid-cols-4 gap-4">
