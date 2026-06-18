@@ -33,6 +33,7 @@ const SEED = {
     'Vrábče',
     'Malý Chlum',
     'Dobrkobská Lhotka',
+    'Marouškovo Pole',
     'Jiné',
   ],
   attrColor: [

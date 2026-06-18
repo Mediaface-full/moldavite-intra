@@ -29,7 +29,7 @@ const SECTIONS: Array<{ key: string; title: string; description: string; icon: I
   },
   {
     key: 'location',
-    title: 'Lokalita nálezu',
+    title: 'Místo nálezu',
     description: 'Místo, kde byl kámen vykopán. Volitelné pole v detailu kamene.',
     icon: 'location',
   },

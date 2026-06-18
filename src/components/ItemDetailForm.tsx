@@ -257,7 +257,7 @@ export default function ItemDetailForm({ item }: { item: ItemData }) {
           <div>
             <label className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1.5 uppercase tracking-wider font-mono">
               <Icon name="location" className="w-3.5 h-3.5" />
-              Lokalita nálezu
+              Místo nálezu
             </label>
             <AttrSelect
               attrKey="location"

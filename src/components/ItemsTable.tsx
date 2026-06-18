@@ -545,7 +545,7 @@ function BulkEditModal({
             <div className="md:col-span-2">
               <label className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1.5 uppercase tracking-wider font-mono">
                 <Icon name="location" className="w-3.5 h-3.5" />
-                Lokalita nálezu
+                Místo nálezu
               </label>
               <UnchangedAttrSelect attrKey="location" value={location} onChange={setLocation} />
             </div>
