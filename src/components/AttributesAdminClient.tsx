@@ -16,6 +16,12 @@ type AttrOption = {
 
 const SECTIONS: Array<{ key: string; title: string; description: string; icon: IconName }> = [
   {
+    key: 'cassetteType',
+    title: 'Typ kazety',
+    description: 'Kategorie kazety podle obsahu (Kameny, Opracované kusy, K opracování, Prach…). Používá se v dropdownu na detailu kazety a v Order overview.',
+    icon: 'cassette-stones',
+  },
+  {
     key: 'pasShape',
     title: 'Tvar (PAS)',
     description: 'Primary Aerodynamic Shape — tvar vltavínu. Používá se v cenotvorbě a v detailu kamene.',

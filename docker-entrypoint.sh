@@ -59,5 +59,11 @@ else
   echo "[entrypoint] ADMIN_PASSWORD not set — skipping admin bootstrap."
 fi
 
+# Idempotent — upsert podle (attrKey, value). Bezpečné spouštět při každém
+# startu: existující hodnoty zachová, jen vytvoří chybějící. Hodnoty
+# deaktivované adminem zůstanou deaktivované (skript respektuje active flag).
+echo "[entrypoint] Seeding AttrOption default values (cassetteType, pasShape, attrDamage, location, attrColor)..."
+node ./scripts/seed-attr-options.mjs || echo "[entrypoint] seed-attr-options failed; continuing (admin může spustit ručně přes /admin/attributes)."
+
 echo "[entrypoint] Starting Next.js server..."
 exec node server.js
