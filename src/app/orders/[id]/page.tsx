@@ -25,7 +25,7 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
           select: {
             id: true, code: true, name: true,
             sellerId: true, cassetteType: true,
-            declaredPieces: true, purchaseAmountCzk: true,
+            declaredPieces: true, declaredWeight: true, purchaseAmountCzk: true,
           },
           orderBy: { code: 'asc' },
         },
@@ -53,6 +53,7 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
         })),
         boxes: order.boxes.map((b) => ({
           ...b,
+          declaredWeight: b.declaredWeight ? b.declaredWeight.toString() : null,
           purchaseAmountCzk: b.purchaseAmountCzk ? b.purchaseAmountCzk.toString() : null,
         })),
         pricingConfig: order.pricingConfig,

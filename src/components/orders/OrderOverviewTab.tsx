@@ -222,7 +222,7 @@ function BoxesSummaryCard({ order }: { order: SerializedOrder }) {
           const items = itemsByBox.get(b.id) ?? [];
           const itemCount = items.length;
           const sumRecommended = items.reduce((s, i) => s + Number(i.finalInternalPriceInclVatCzk ?? 0), 0);
-          const sumWeight = items.reduce((s, i) => s + Number(i.weight ?? 0), 0);
+          const sumWeight = Number(b.declaredWeight ?? 0) || items.reduce((s, i) => s + Number(i.weight ?? 0), 0);
           const mix = order.sellerId != null && b.sellerId != null && b.sellerId !== order.sellerId;
           const declaredVsActual = b.declaredPieces != null && b.declaredPieces > 0 && b.declaredPieces !== itemCount;
 
@@ -272,6 +272,79 @@ function BoxesSummaryCard({ order }: { order: SerializedOrder }) {
           );
         })}
       </div>
+
+      {/* Footer s Σ + sync tlačítkem */}
+      <BoxesSummaryFooter order={order} />
+    </div>
+  );
+}
+
+/**
+ * Footer karty s celkovými součty (Σ kazet) a tlačítkem na sync do Order.
+ * Když uživatel klikne „Použít součty z kazet", do Order.totalPurchaseAmountCzk
+ * (a declaredPieces / declaredWeight) zapíše Σ z Boxů. Smart workflow pro
+ * bottom-up zadávání: zadám kazety s cenami → klikem mám sumarizovanou zakázku.
+ */
+function BoxesSummaryFooter({ order }: { order: SerializedOrder }) {
+  const router = useRouter();
+  const [syncing, setSyncing] = useState(false);
+
+  const sumPieces = order.boxes.reduce((s, b) => s + (b.declaredPieces ?? 0), 0);
+  const sumWeight = order.boxes.reduce((s, b) => s + Number(b.declaredWeight ?? 0), 0);
+  const sumPurchase = order.boxes.reduce((s, b) => s + Number(b.purchaseAmountCzk ?? 0), 0);
+
+  const orderPieces = order.declaredPieces || 0;
+  const orderWeight = Number(order.declaredWeight ?? 0);
+  const orderPurchase = Number(order.totalPurchaseAmountCzk ?? 0);
+
+  const diffPieces = sumPieces !== orderPieces;
+  const diffWeight = Math.abs(sumWeight - orderWeight) >= 0.01;
+  const diffPurchase = Math.abs(sumPurchase - orderPurchase) >= 1;
+  const hasDiff = diffPieces || diffWeight || diffPurchase;
+
+  async function syncToOrder() {
+    if (!confirm(`Zapsat součty z kazet do zakázky?\n\n- Počet: ${orderPieces} → ${sumPieces}\n- Váha: ${orderWeight} g → ${sumWeight.toFixed(2)} g\n- Nákup: ${orderPurchase} Kč → ${sumPurchase.toFixed(2)} Kč\n\nTato operace přepíše hodnoty v zakázce.`)) return;
+    setSyncing(true);
+    const res = await apiFetch(`/api/orders/${order.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        declaredPieces: sumPieces,
+        declaredWeight: sumWeight,
+        totalPurchaseAmountCzk: sumPurchase,
+        totalPurchaseAmountSource: sumPurchase,
+      }),
+    });
+    setSyncing(false);
+    if (res.ok) router.refresh();
+    else alert('Synchronizace selhala');
+  }
+
+  return (
+    <div className="border-t border-border bg-muted/20 px-5 py-3 flex items-center justify-between gap-3 flex-wrap">
+      <div className="flex items-center gap-x-5 gap-y-1 text-xs font-mono flex-wrap">
+        <span className="text-muted-foreground uppercase tracking-wider text-[10px]">Σ z kazet:</span>
+        <span className={diffPieces ? 'text-warning' : 'text-foreground'}>
+          {sumPieces} ks{diffPieces && ` (Order ${orderPieces})`}
+        </span>
+        <span className={diffWeight ? 'text-warning' : 'text-foreground'}>
+          {sumWeight.toFixed(2)} g{diffWeight && orderWeight > 0 && ` (Order ${orderWeight})`}
+        </span>
+        <span className={diffPurchase ? 'text-warning' : 'text-foreground'}>
+          {fmtMoney(sumPurchase)}{diffPurchase && orderPurchase > 0 && ` (Order ${fmtMoney(orderPurchase)})`}
+        </span>
+      </div>
+      {hasDiff && sumPieces + sumWeight + sumPurchase > 0 && (
+        <button
+          onClick={syncToOrder}
+          disabled={syncing}
+          className="bg-card border border-border hover:border-foreground/40 text-foreground px-3 py-1.5 rounded-md text-xs font-mono uppercase tracking-wider inline-flex items-center gap-1.5 transition-colors disabled:opacity-50"
+          title="Zapsat Σ z kazet do zakázky (počet, váha, nákupní cena)"
+        >
+          <Icon name="recalculate" className="w-3.5 h-3.5" />
+          {syncing ? 'Synchronizuji…' : 'Použít součty z kazet'}
+        </button>
+      )}
     </div>
   );
 }
@@ -279,13 +352,16 @@ function BoxesSummaryCard({ order }: { order: SerializedOrder }) {
 /**
  * Warning panel — zobrazí (nesimuluje, nepovolí pokračovat) když:
  *  - Σ Box.declaredPieces ≠ Order.declaredPieces
+ *  - Σ Box.declaredWeight ≠ Order.declaredWeight
  *  - Σ Box.purchaseAmountCzk ≠ Order.totalPurchaseAmountCzk
  *  - Σ Items count ≠ Order.declaredPieces (informativní)
  */
 function SumValidationWarnings({ order }: { order: SerializedOrder }) {
   const sumBoxDeclared = order.boxes.reduce((s, b) => s + (b.declaredPieces ?? 0), 0);
+  const sumBoxWeight = order.boxes.reduce((s, b) => s + Number(b.declaredWeight ?? 0), 0);
   const sumBoxPurchase = order.boxes.reduce((s, b) => s + Number(b.purchaseAmountCzk ?? 0), 0);
   const orderDeclared = order.declaredPieces || 0;
+  const orderWeight = Number(order.declaredWeight ?? 0);
   const orderPurchase = Number(order.totalPurchaseAmountCzk ?? 0);
   const actualItems = order.items.length;
 
@@ -296,6 +372,13 @@ function SumValidationWarnings({ order }: { order: SerializedOrder }) {
       key: 'declared',
       severity: 'warning',
       text: `Součet deklarovaných kusů v kazetách (${sumBoxDeclared}) se liší od deklarovaného počtu zakázky (${orderDeclared}). Rozdíl: ${sumBoxDeclared - orderDeclared}.`,
+    });
+  }
+  if (sumBoxWeight > 0 && orderWeight > 0 && Math.abs(sumBoxWeight - orderWeight) >= 0.01) {
+    issues.push({
+      key: 'weight',
+      severity: 'warning',
+      text: `Součet deklarované váhy kazet (${sumBoxWeight.toFixed(2)} g) se liší od celkové váhy zakázky (${orderWeight.toFixed(2)} g). Rozdíl: ${(sumBoxWeight - orderWeight).toFixed(2)} g.`,
     });
   }
   if (sumBoxPurchase > 0 && orderPurchase > 0 && Math.abs(sumBoxPurchase - orderPurchase) >= 1) {

@@ -46,6 +46,7 @@ export type SerializedOrder = {
     sellerId?: number | null;
     cassetteType?: string | null;
     declaredPieces?: number | null;
+    declaredWeight?: string | null;
     purchaseAmountCzk?: string | null;
   }>;
   pricingConfig: { id: number; name: string; active: boolean } | null;
