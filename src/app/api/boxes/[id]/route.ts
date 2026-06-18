@@ -17,6 +17,15 @@ export async function PATCH(
   if (body.name !== undefined) data.name = body.name;
   if (body.placement !== undefined) data.placement = body.placement;
 
+  // cassetteType — enum validace
+  if (body.cassetteType !== undefined) {
+    const allowed = ['STONES', 'PROCESSED', 'TO_PROCESS', 'DUST'];
+    if (!allowed.includes(body.cassetteType)) {
+      return NextResponse.json({ error: `cassetteType musí být ${allowed.join('/')}` }, { status: 422 });
+    }
+    data.cassetteType = body.cassetteType;
+  }
+
   const box = await prisma.box.update({
     where: { id: boxId },
     data,
@@ -37,10 +46,10 @@ export async function PATCH(
 }
 
 /**
- * DELETE krabici. Smazání povoleno jen pokud:
+ * DELETE kazetu. Smazání povoleno jen pokud:
  *  - uživatel je ADMIN
- *  - krabice nemá žádné kameny (jinak 409)
- *  - krabice není navázaná na Order který má ještě jiné kameny (Box.orderId FK
+ *  - kazety nemá žádné kameny (jinak 409)
+ *  - kazety není navázaná na Order který má ještě jiné kameny (Box.orderId FK
  *    je SET NULL, takže smazání Box samo o sobě Order nepoškodí)
  *
  * UI volá s ?confirm=DOUBLE_CHECK aby šlo o vědomou akci (frontend dělá
@@ -72,7 +81,7 @@ export async function DELETE(
 
   if (box._count.items > 0) {
     return NextResponse.json(
-      { error: `Krabice obsahuje ${box._count.items} kamenů — nejdřív je přesuň nebo smaž.`, itemCount: box._count.items },
+      { error: `Kazeta obsahuje ${box._count.items} kamenů — nejdřív je přesuň nebo smaž.`, itemCount: box._count.items },
       { status: 409 }
     );
   }

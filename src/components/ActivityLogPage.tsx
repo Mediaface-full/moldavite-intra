@@ -18,8 +18,8 @@ const ACTION_LABELS: Record<string, { label: string; color: string }> = {
   'item.bulk_update': { label: 'Hromadná úprava', color: 'text-primary' },
   'item.delete': { label: 'Smazání kamene', color: 'text-destructive' },
   'item.sold': { label: 'Prodej', color: 'text-success' },
-  'box.placement': { label: 'Umístění krabice', color: 'text-warning' },
-  'box.photos': { label: 'Fotky krabice', color: 'text-warning' },
+  'box.placement': { label: 'Umístění kazety', color: 'text-warning' },
+  'box.photos': { label: 'Fotky kazety', color: 'text-warning' },
   'admin.user.create': { label: 'Nový uživatel', color: 'text-success' },
   'admin.user.update': { label: 'Úprava uživatele', color: 'text-warning' },
   'admin.user.delete': { label: 'Smazání uživatele', color: 'text-destructive' },
@@ -47,7 +47,7 @@ const ACTION_FILTERS = [
   { value: 'ai', label: 'AI generování' },
   { value: 'certificate', label: 'Certifikáty' },
   { value: 'scan', label: 'Sken fotek' },
-  { value: 'box', label: 'Krabice' },
+  { value: 'box', label: 'Kazety' },
 ];
 
 export default function ActivityLogPage() {

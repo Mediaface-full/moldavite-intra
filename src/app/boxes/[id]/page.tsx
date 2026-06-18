@@ -4,6 +4,7 @@ import Link from 'next/link';
 import ItemsTable from '@/components/ItemsTable';
 import BoxPhotoUpload from '@/components/BoxPhotoUpload';
 import BoxPlacement from '@/components/BoxPlacement';
+import CassetteTypePicker from '@/components/CassetteTypePicker';
 import AiBulkButton from '@/components/AiBulkButton';
 import BoxDeleteButton from '@/components/BoxDeleteButton';
 import { getSession } from '@/lib/auth';
@@ -36,7 +37,7 @@ export default async function BoxDetailPage({
       {/* Breadcrumb */}
       <div className="flex items-center gap-2 text-sm text-muted-foreground mb-6">
         <Link href="/boxes" className="hover:text-foreground transition-colors">
-          Krabice
+          Kazety
         </Link>
         <span>/</span>
         <span className="text-foreground">{box.code}</span>
@@ -62,6 +63,7 @@ export default async function BoxDetailPage({
               items={box.items.map(i => ({ id: i.id, evidNumber: i.evidNumber }))}
             />
           )}
+          <CassetteTypePicker boxId={box.id} current={box.cassetteType} />
           <BoxPlacement boxId={box.id} placement={box.placement} />
           {isAdmin && (
             <BoxDeleteButton

@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma';
 import Link from 'next/link';
 import ScanNewBoxButton from '@/components/ScanNewBoxButton';
 import BoxPhotoPreview from '@/components/BoxPhotoPreview';
+import { CASSETTE_TYPE_META } from '@/lib/cassetteType';
 
 export default async function BoxesPage() {
   const boxes = await prisma.box.findMany({
@@ -22,8 +23,8 @@ export default async function BoxesPage() {
           <p className="text-[10px] text-muted-foreground uppercase tracking-[0.25em] font-mono mb-1">
             Bohemian Moldavite · Intra
           </p>
-          <h1 className="text-3xl font-bold tracking-tight">Krabice</h1>
-          <p className="text-sm text-muted-foreground mt-1">Správa krabic s moldavity</p>
+          <h1 className="text-3xl font-bold tracking-tight">Kazety</h1>
+          <p className="text-sm text-muted-foreground mt-1">Správa kazet s moldavity</p>
         </div>
         <ScanNewBoxButton />
       </div>
@@ -46,6 +47,22 @@ export default async function BoxesPage() {
                 {box._count.items} ks
               </span>
             </div>
+
+            {(() => {
+              const meta = CASSETTE_TYPE_META[box.cassetteType];
+              return (
+                <span
+                  className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-mono uppercase tracking-wider border self-start mb-2"
+                  style={{
+                    color: meta.color,
+                    background: `color-mix(in srgb, ${meta.color} 12%, transparent)`,
+                    borderColor: `color-mix(in srgb, ${meta.color} 30%, transparent)`,
+                  }}
+                >
+                  {meta.short}
+                </span>
+              );
+            })()}
 
             {box.name && (
               <p className="text-sm text-muted-foreground mb-3 line-clamp-1">{box.name}</p>

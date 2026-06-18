@@ -45,7 +45,7 @@ export default function BoxPlacement({ boxId, placement: initial }: BoxPlacement
         onChange={setValue}
         onBlur={handleSave}
         field="placement"
-        placeholder="Kde je krabice..."
+        placeholder="Kde je kazety..."
         className="bg-muted border border-border rounded-lg px-3 py-1.5 text-sm text-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/20 placeholder:text-muted-foreground w-48"
       />
       {saving && <span className="text-xs text-muted-foreground">...</span>}

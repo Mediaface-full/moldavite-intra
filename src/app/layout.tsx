@@ -45,6 +45,7 @@ const icons: Record<string, string> = {
   thumbnails: "M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z",
   orders: "M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z",
   pricing: "M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z",
+  attributes: "M9.568 3H5.25A2.25 2.25 0 003 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581c.699.699 1.78.872 2.607.33a18.095 18.095 0 005.223-5.223c.542-.827.369-1.908-.33-2.607L11.16 3.66A2.25 2.25 0 009.568 3z",
 };
 
 function NavLink({ href, icon, children }: { href: string; icon: string; children: React.ReactNode }) {
@@ -84,7 +85,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
               <nav className="sidebar-nav flex-1 p-4 space-y-1">
                 <NavLink href="/" icon="dashboard">Dashboard</NavLink>
                 <NavLink href="/orders" icon="orders">Zakázky</NavLink>
-                <NavLink href="/boxes" icon="boxes">Krabice</NavLink>
+                <NavLink href="/boxes" icon="boxes">Kazety</NavLink>
                 <NavLink href="/items" icon="items">Kameny</NavLink>
                 <NavLink href="/search" icon="search">Vyhledávání</NavLink>
                 <NavLink href="/stats" icon="stats">Statistiky</NavLink>
@@ -98,6 +99,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
                     <NavLink href="/admin/thumbnails" icon="thumbnails">Obrázky</NavLink>
                     <NavLink href="/admin/users" icon="users">Uživatelé</NavLink>
                     <NavLink href="/admin/pricing-config" icon="pricing">Cenotvorba</NavLink>
+                    <NavLink href="/admin/attributes" icon="attributes">Atributy</NavLink>
                     <NavLink href="/admin/logs" icon="logs">Activity Log</NavLink>
                   </>
                 )}

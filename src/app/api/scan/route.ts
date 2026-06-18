@@ -37,7 +37,7 @@ export async function POST() {
     const box = await prisma.box.upsert({
       where: { code: boxCode },
       update: {},
-      create: { code: boxCode, name: `Krabice ${boxCode}` },
+      create: { code: boxCode, name: `Kazeta ${boxCode}` },
     });
 
     const rangeDirs = fs.readdirSync(boxPath)

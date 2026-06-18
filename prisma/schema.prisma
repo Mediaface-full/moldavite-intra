@@ -40,6 +40,16 @@ enum PricingStatus {
   STALE         // konfigurace nebo náklady zakázky se změnily od posledního výpočtu
 }
 
+/// Typ kazety (Box) — co je v ní fyzicky uložené.
+/// V UI se Box prezentuje jako "Kazeta". Tato volba se promítne do badge
+/// na výpisu kazet a může ovlivnit filtraci v admin sekcích.
+enum CassetteType {
+  STONES       // Kameny — default; surové vltavíny
+  PROCESSED    // Opracované kusy — broušené / leštěné kameny
+  TO_PROCESS   // K opracování — kameny určené k dalšímu opracování
+  DUST         // Prach — drobný materiál
+}
+
 model User {
   id           Int           @id @default(autoincrement())
   email        String        @unique
@@ -66,23 +76,53 @@ model ActivityLog {
   @@index([createdAt])
 }
 
+/// Kazeta (DB model historicky "Box"). V UI se prezentuje jako "Kazeta".
+/// Drží kameny, je vázaná na zakázku (Order). Volba `cassetteType` ovlivňuje
+/// jak se kazeta zobrazí na výpisu (badge) a může v budoucnu filtrovat.
 model Box {
-  id        Int      @id @default(autoincrement())
-  code      String   @unique // e.g. "K0001"
+  id        Int           @id @default(autoincrement())
+  code      String        @unique // e.g. "K0001"
   name      String?
-  placement String   @default("") // kde je krabice umístěna
-  photos    String[] @default([]) // až 5 fotek krabice (cesty)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  placement String        @default("") // kde je kazeta umístěna
+  photos    String[]      @default([]) // až 5 fotek kazety (cesty)
+  cassetteType CassetteType @default(STONES) // Kameny / Opracované / K opracování / Prach
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
   items     Item[]
 
   // Zakázka (Etapa 1, nullable do migrace dat):
-  // - orderId NULL → "skladová krabice" (fyzická lokace, kameny mohou patřit různým Order)
-  // - orderId set  → "objednávková krabice" (všechny Items v ní MUSÍ mít stejné orderId)
+  // - orderId NULL → "skladová kazeta" (fyzická lokace, kameny mohou patřit různým Order)
+  // - orderId set  → "objednávková kazeta" (všechny Items v ní MUSÍ mít stejné orderId)
   orderId Int?
-  order   Order? @relation(fields: [orderId], references: [id])
+  order   Order? @relation(fields: [orderId], references: [id], onDelete: SetNull)
 
   @@index([orderId])
+  @@index([cassetteType])
+}
+
+/// Řízené hodnoty atributů (categorical dictionary).
+/// Místo hardcoded TS souborů jsou hodnoty editovatelné v admin UI
+/// (/admin/attributes). attrKey rozlišuje doménu:
+///   - 'pasShape'    — tvar (Běžný, Kapka, Tyčka, ...)
+///   - 'attrDamage'  — poškození (Bez poškození, Mikro odlesk, ...)
+///   - 'attrColor'   — barva (zelená, radioaktivní zelená, ...)
+///   - 'location'    — lokalita nálezu (Ježkovna, Vrábče, ...)
+///
+/// `order` ovlivňuje pořadí v dropdownech. `active=false` znamená že hodnota
+/// se v UI nezobrazuje pro nové výběry, ale stávající kameny ji mohou držet
+/// (kvůli migraci a auditní stopě).
+model AttrOption {
+  id        Int      @id @default(autoincrement())
+  attrKey   String   // 'pasShape' | 'attrDamage' | 'attrColor' | 'location'
+  value     String   // čitelná hodnota, ukládá se přímo do Item.{pasShape,attrDamage,attrColor[],location}
+  label     String?  // volitelný display label (pokud chybí, použije se `value`)
+  sortOrder Int      @default(0)
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([attrKey, value])
+  @@index([attrKey, active, sortOrder])
 }
 
 model Item {

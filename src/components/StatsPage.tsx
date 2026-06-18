@@ -216,12 +216,12 @@ export default function StatsPage() {
       {/* Box breakdown */}
       <div className="bg-card border border-border rounded-xl overflow-hidden mb-8">
         <div className="px-6 py-4 border-b border-border">
-          <h3 className="text-lg font-semibold">Krabice - přehled</h3>
+          <h3 className="text-lg font-semibold">Kazety - přehled</h3>
         </div>
         <table className="w-full text-sm">
           <thead>
             <tr className="bg-muted border-b border-border">
-              <th className="text-left px-4 py-3 text-muted-foreground font-medium">Krabice</th>
+              <th className="text-left px-4 py-3 text-muted-foreground font-medium">Kazety</th>
               <th className="text-right px-4 py-3 text-muted-foreground font-medium">Celkem</th>
               <th className="text-right px-4 py-3 text-muted-foreground font-medium">Na skladě</th>
               <th className="text-right px-4 py-3 text-muted-foreground font-medium">Prodáno</th>

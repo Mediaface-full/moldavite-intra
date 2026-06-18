@@ -274,9 +274,9 @@ export default async function DashboardPage() {
 
       {/* Box grid */}
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-semibold">Krabice</h2>
+        <h2 className="text-xl font-semibold">Kazety</h2>
         <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-mono">
-          {boxCount} krabic · {itemCount} kamenů
+          {boxCount} kazet · {itemCount} kamenů
         </span>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">

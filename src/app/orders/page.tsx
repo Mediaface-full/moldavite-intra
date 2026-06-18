@@ -48,7 +48,7 @@ export default async function OrdersPage() {
         <div className="bg-card border border-border rounded-xl p-12 text-center shadow-sm">
           <p className="text-muted-foreground mb-4">Zatím žádné zakázky.</p>
           <p className="text-xs text-muted-foreground font-mono">
-            Vytvoř první zakázku tlačítkem nahoře, nebo spusť migraci existujících krabic.
+            Vytvoř první zakázku tlačítkem nahoře, nebo spusť migraci existujících kazet.
           </p>
         </div>
       ) : (

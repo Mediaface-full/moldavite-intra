@@ -109,7 +109,7 @@ export default function SearchPage() {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Číslo kamene, popis, místo, krabice..."
+              placeholder="Číslo kamene, popis, místo, kazety..."
               className="w-full bg-muted border border-border rounded-lg px-4 py-2.5 pl-10 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
             />
             <svg className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
@@ -122,7 +122,7 @@ export default function SearchPage() {
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-5">
           {/* Box */}
           <div>
-            <label className="block text-xs text-muted-foreground mb-1.5 uppercase tracking-wider">Krabice</label>
+            <label className="block text-xs text-muted-foreground mb-1.5 uppercase tracking-wider">Kazety</label>
             <input
               type="text" value={boxCode} onChange={(e) => setBoxCode(e.target.value)}
               onKeyDown={handleKeyDown} placeholder="K0001"
@@ -230,7 +230,7 @@ export default function SearchPage() {
               <option value="weight">Hmotnost</option>
               <option value="salePrice">Prodejní cena</option>
               <option value="purchasePrice">Nákupní cena</option>
-              <option value="box">Krabice</option>
+              <option value="box">Kazety</option>
               <option value="createdAt">Datum přidání</option>
             </select>
             <button onClick={() => setSortDir(d => d === 'asc' ? 'desc' : 'asc')}
@@ -266,7 +266,7 @@ export default function SearchPage() {
             <div className="flex items-center gap-1 bg-muted border border-border rounded-lg p-0.5">
               <button onClick={() => setViewMode('grouped')}
                 className={`px-3 py-1.5 rounded text-xs font-medium transition-colors ${viewMode === 'grouped' ? 'bg-primary text-white' : 'text-muted-foreground hover:text-foreground'}`}>
-                Podle krabic
+                Podle kazet
               </button>
               <button onClick={() => setViewMode('flat')}
                 className={`px-3 py-1.5 rounded text-xs font-medium transition-colors ${viewMode === 'flat' ? 'bg-primary text-white' : 'text-muted-foreground hover:text-foreground'}`}>
@@ -306,7 +306,7 @@ function GroupedView({ grouped }: { grouped: Record<string, SearchItem[]> }) {
               </span>
             </div>
             <Link href={`/boxes/${grouped[boxCode][0].box.id}`} className="text-xs text-muted-foreground hover:text-foreground transition-colors">
-              Otevřít krabici →
+              Otevřít kazetu →
             </Link>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-3 p-4">
