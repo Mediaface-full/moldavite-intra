@@ -46,10 +46,6 @@ export default function OrderItemsTab({ order }: { order: SerializedOrder }) {
   };
 
   async function updateManualPrice(itemId: number, manualPrice: string | null) {
-    // POZOR: existující PATCH /api/items/[id] zatím nezná manualPriceInclVatCzk
-    // pole. V Etapě 3 ho přidáme. Zatím update přes přímý prisma endpoint by
-    // potřeboval rozšíření whitelistu. Provizorní: použijeme PATCH ale prijdeme
-    // s prázdným error fallback.
     const res = await apiFetch(`/api/items/${itemId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
