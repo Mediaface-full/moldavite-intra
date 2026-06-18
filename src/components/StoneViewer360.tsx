@@ -13,7 +13,9 @@ interface StoneViewer360Props {
 }
 
 export default function StoneViewer360({ photoPath, evidNumber, itemId, mainPhoto, readOnly }: StoneViewer360Props) {
-  const [currentIndex, setCurrentIndex] = useState(mainPhoto - 1);
+  // Clamp start index — pokud mainPhoto je 0/null (nový kámen bez nastaveného
+  // hlavního foto), použij 0 místo -1 který by způsobil blank viewer.
+  const [currentIndex, setCurrentIndex] = useState(Math.max(0, (mainPhoto || 1) - 1));
   const [currentMainPhoto, setCurrentMainPhoto] = useState(mainPhoto);
   const [isLoaded, setIsLoaded] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
@@ -22,6 +24,9 @@ export default function StoneViewer360({ photoPath, evidNumber, itemId, mainPhot
 
   const photos = useMemo(() => get360Photos(photoPath), [photoPath]);
   const gifUrl = useMemo(() => getGifUrl(photoPath), [photoPath]);
+  // Dynamický počet fotek — fotostudio dělá 24 (360° rotace), ale uživatel
+  // může nahrát i 1-5 přes drag&drop modal. Modulo na 0 by hodilo NaN.
+  const photoCount = Math.max(1, photos.length);
 
   useEffect(() => {
     let loadedCount = 0;
@@ -44,7 +49,7 @@ export default function StoneViewer360({ photoPath, evidNumber, itemId, mainPhot
     if (!isDragging) return;
     const delta = e.clientX - lastX.current;
     if (Math.abs(delta) > 15) {
-      setCurrentIndex((prev) => (prev + (delta > 0 ? 1 : -1) + 24) % 24);
+      setCurrentIndex((prev) => (prev + (delta > 0 ? 1 : -1) + photoCount) % photoCount);
       lastX.current = e.clientX;
     }
   }, [isDragging]);
@@ -60,7 +65,7 @@ export default function StoneViewer360({ photoPath, evidNumber, itemId, mainPhot
     if (!isDragging) return;
     const delta = e.touches[0].clientX - lastX.current;
     if (Math.abs(delta) > 15) {
-      setCurrentIndex((prev) => (prev + (delta > 0 ? 1 : -1) + 24) % 24);
+      setCurrentIndex((prev) => (prev + (delta > 0 ? 1 : -1) + photoCount) % photoCount);
       lastX.current = e.touches[0].clientX;
     }
   }, [isDragging]);
@@ -100,7 +105,7 @@ export default function StoneViewer360({ photoPath, evidNumber, itemId, mainPhot
           /* eslint-disable-next-line @next/next/no-img-element */
           <img
             src={photos[currentIndex]}
-            alt={`Moldavit ${evidNumber} - ${currentIndex + 1}/24`}
+            alt={`Moldavit ${evidNumber} - ${currentIndex + 1}/${photoCount}`}
             className="absolute inset-0 w-full h-full object-contain"
             draggable={false}
           />
@@ -116,7 +121,7 @@ export default function StoneViewer360({ photoPath, evidNumber, itemId, mainPhot
 
         {/* Arrow buttons */}
         <button
-          onClick={(e) => { e.stopPropagation(); setCurrentIndex((prev) => (prev - 1 + 24) % 24); }}
+          onClick={(e) => { e.stopPropagation(); setCurrentIndex((prev) => (prev - 1 + photoCount) % photoCount); }}
           className="absolute left-2 top-1/2 -translate-y-1/2 z-10 w-8 h-8 bg-black/40 hover:bg-black/60 text-white rounded-full flex items-center justify-center transition-colors"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
@@ -124,7 +129,7 @@ export default function StoneViewer360({ photoPath, evidNumber, itemId, mainPhot
           </svg>
         </button>
         <button
-          onClick={(e) => { e.stopPropagation(); setCurrentIndex((prev) => (prev + 1) % 24); }}
+          onClick={(e) => { e.stopPropagation(); setCurrentIndex((prev) => (prev + 1) % photoCount); }}
           className="absolute right-2 top-1/2 -translate-y-1/2 z-10 w-8 h-8 bg-black/40 hover:bg-black/60 text-white rounded-full flex items-center justify-center transition-colors"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
@@ -138,7 +143,7 @@ export default function StoneViewer360({ photoPath, evidNumber, itemId, mainPhot
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
             </svg>
-            <span>{String(currentIndex + 1).padStart(2, '0')}/24</span>
+            <span>{String(currentIndex + 1).padStart(2, '0')}/{String(photoCount).padStart(2, '0')}</span>
           </div>
 
           {isCurrentMain && (

@@ -100,6 +100,16 @@ export async function PATCH(
     } else if (manual === null && recommended !== null) {
       data.pricingStatus = 'OK';
       data.finalInternalPriceInclVatCzk = recommended;
+    } else if (manual !== null && recommended === null) {
+      // Edge case: uživatel zadal speciální cenu PŘED prvním recalc Order
+      // → manual je jediná smysluplná hodnota
+      data.pricingStatus = 'OK';
+      data.finalInternalPriceInclVatCzk = manual;
+    } else if (manual === null && recommended === null) {
+      // Edge case: smazal speciální, žádná recommended ještě není
+      // → vyčistit final, status zpět na NEEDS_INPUT
+      data.pricingStatus = 'NEEDS_INPUT';
+      data.finalInternalPriceInclVatCzk = null;
     }
   }
 

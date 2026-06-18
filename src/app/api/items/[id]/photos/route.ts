@@ -118,10 +118,17 @@ export async function POST(
   }
 
   // Pokud Item nemá photoPath, doplň ho (např. starší kameny). Pokud má, nech.
-  if (!item.photoPath) {
+  // Auto-init mainPhoto na 1 při prvním uploadu (mainPhoto=0/null by způsobilo
+  // StoneViewer360 dostat -1 jako start index → blank viewer).
+  const needsPhotoPath = !item.photoPath;
+  const needsMainPhotoInit = !item.mainPhoto || item.mainPhoto === 0;
+  if (needsPhotoPath || needsMainPhotoInit) {
     await prisma.item.update({
       where: { id: item.id },
-      data: { photoPath: `${item.box.code}/${item.evidNumber}` },
+      data: {
+        ...(needsPhotoPath && { photoPath: `${item.box.code}/${item.evidNumber}` }),
+        ...(needsMainPhotoInit && { mainPhoto: 1 }),
+      },
     });
   }
 
