@@ -102,6 +102,7 @@ export async function POST(
         where: { id: r.stoneId },
         data: {
           allocatedOrderCostCzk: r.steps?.allocatedOrderCostCzk ?? null,
+          costBasisCzk: r.steps?.costBasisCzk ?? null,
           computedMarginRate: r.steps?.totalMarginRate ?? null,
           computedMinPriceExVatCzk: r.steps?.minPriceExVatCzk ?? null,
           computedMinPriceInclVatCzk: r.steps?.minPriceInclVatCzk ?? null,

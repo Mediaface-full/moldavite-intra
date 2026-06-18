@@ -91,7 +91,8 @@ export async function POST(
   // (uživatel může nahrát fotky přes UI modal i bez existující složky).
   // Path traversal defense: photosBase resolved, každá target path musí
   // začínat photosBase + sep, jinak skip (i když isSafePathSegment už ošetřil).
-  const photosBase = path.resolve(process.env.PHOTOS_PATH || '/data/photos');
+  // Default sjednocen s ostatními endpointy (scan, photos, thumbnails).
+  const photosBase = path.resolve(process.env.PHOTOS_PATH || path.join(process.cwd(), '../kameny/FOTO_MOLDAVITE'));
   let foldersCreated = 0;
   let foldersFailed = 0;
   if (fs.existsSync(photosBase)) {

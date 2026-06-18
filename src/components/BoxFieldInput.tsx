@@ -7,7 +7,7 @@
  * - Save trigger: onBlur + Enter; status indikátor (… / ✓)
  * - Žádný refresh stránky — UI změny jsou auto-saved on blur
  */
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { apiFetch } from '@/lib/apiFetch';
 
@@ -37,6 +37,15 @@ export default function BoxFieldInput({
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const lastSaved = useRef<string>(initial == null ? '' : String(initial));
+
+  // Sync s parent re-render (router.refresh přinese nový initial z DB).
+  // Bez tohoto by lastSaved ref držel starou hodnotu a další save by mohl
+  // re-uložit hodnotu kterou jsme již uložili → spam PATCH requests / rollback bug.
+  useEffect(() => {
+    const next = initial == null ? '' : String(initial);
+    lastSaved.current = next;
+    setValue((cur) => (cur === '' || cur === lastSaved.current ? next : cur));
+  }, [initial]);
 
   async function save() {
     if (value === lastSaved.current) return;

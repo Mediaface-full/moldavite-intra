@@ -150,10 +150,10 @@ export default async function BoxDetailPage({
       {/* FTP upload info card */}
       <FtpUploadInfo
         boxCode={box.code}
-        photosBasePath={process.env.PHOTOS_PATH || '/data/photos'}
+        photosBasePath={process.env.PHOTOS_PATH || path.join(process.cwd(), '../kameny/FOTO_MOLDAVITE')}
         items={box.items.map((it) => {
           const photoDir = path.join(
-            process.env.PHOTOS_PATH || '/data/photos',
+            process.env.PHOTOS_PATH || path.join(process.cwd(), '../kameny/FOTO_MOLDAVITE'),
             box.code,
             it.evidNumber
           );
@@ -204,8 +204,8 @@ function isDefaultBoxName(name: string, code: string): boolean {
 
 function PropRow({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="p-4 flex items-center gap-3">
-      <label className="text-[10px] text-muted-foreground uppercase tracking-[0.15em] font-mono whitespace-nowrap w-20 flex-shrink-0">
+    <div className="p-4 flex items-center gap-3 min-w-0">
+      <label className="text-[10px] text-muted-foreground uppercase tracking-[0.15em] font-mono whitespace-nowrap w-28 flex-shrink-0">
         {label}
       </label>
       <div className="flex-1 min-w-0">

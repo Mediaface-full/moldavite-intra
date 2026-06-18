@@ -36,6 +36,8 @@ export default function NewBoxButton({
   const [cassetteType, setCassetteType] = useState('Kameny');
   const [sellerId, setSellerId] = useState<number | null>(defaultSellerId ?? null);
   const [declaredPieces, setDeclaredPieces] = useState('');
+  const [declaredWeight, setDeclaredWeight] = useState('');
+  const [purchaseAmountCzk, setPurchaseAmountCzk] = useState('');
   const [placement, setPlacement] = useState('');
 
   useEffect(() => {
@@ -58,6 +60,8 @@ export default function NewBoxButton({
     setCassetteType('Kameny');
     setSellerId(defaultSellerId ?? null);
     setDeclaredPieces('');
+    setDeclaredWeight('');
+    setPurchaseAmountCzk('');
     setPlacement('');
     setError('');
   }
@@ -79,11 +83,29 @@ export default function NewBoxButton({
     if (declaredPieces) {
       const n = parseInt(declaredPieces, 10);
       if (!Number.isInteger(n) || n < 0) {
-        setError('Deklarovaný počet musí být celé nezáporné číslo');
+        setError('Počet kamenů musí být celé nezáporné číslo');
         setBusy(false);
         return;
       }
       body.declaredPieces = n;
+    }
+    if (declaredWeight) {
+      const n = Number(declaredWeight);
+      if (!Number.isFinite(n) || n < 0) {
+        setError('Váha kazety musí být ≥ 0');
+        setBusy(false);
+        return;
+      }
+      body.declaredWeight = n;
+    }
+    if (purchaseAmountCzk) {
+      const n = Number(purchaseAmountCzk);
+      if (!Number.isFinite(n) || n < 0) {
+        setError('Nákupní cena musí být ≥ 0');
+        setBusy(false);
+        return;
+      }
+      body.purchaseAmountCzk = n;
     }
     const res = await apiFetch('/api/boxes', {
       method: 'POST',
@@ -152,21 +174,47 @@ export default function NewBoxButton({
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className={lbl}>Typ kazety</label>
+                <select value={cassetteType} onChange={(e) => setCassetteType(e.target.value)} className={inp}>
+                  {cassetteTypes.length === 0 && (
+                    <>
+                      <option value="Kameny">Kameny</option>
+                      <option value="Opracované kusy">Opracované kusy</option>
+                      <option value="K opracování">K opracování</option>
+                      <option value="Prach">Prach</option>
+                    </>
+                  )}
+                  {cassetteTypes.map((o) => (
+                    <option key={o.id} value={o.value}>{o.value}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <label className={lbl}>Typ kazety</label>
-                  <select value={cassetteType} onChange={(e) => setCassetteType(e.target.value)} className={inp}>
-                    {cassetteTypes.length === 0 && <option value="Kameny">Kameny</option>}
-                    {cassetteTypes.map((o) => (
-                      <option key={o.id} value={o.value}>{o.value}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className={lbl}>Deklar. počet <span className="text-muted-foreground/60 normal-case font-sans">(volitelné)</span></label>
+                  <label className={lbl}>Počet kamenů</label>
                   <input
                     type="number" min={0} max={9999} value={declaredPieces}
                     onChange={(e) => setDeclaredPieces(e.target.value)}
+                    placeholder="—"
+                    className={inp}
+                  />
+                </div>
+                <div>
+                  <label className={lbl}>Váha (g)</label>
+                  <input
+                    type="number" min={0} step="0.01" value={declaredWeight}
+                    onChange={(e) => setDeclaredWeight(e.target.value)}
+                    placeholder="—"
+                    className={inp}
+                  />
+                </div>
+                <div>
+                  <label className={lbl}>Cena (Kč)</label>
+                  <input
+                    type="number" min={0} step="0.01" value={purchaseAmountCzk}
+                    onChange={(e) => setPurchaseAmountCzk(e.target.value)}
                     placeholder="—"
                     className={inp}
                   />
