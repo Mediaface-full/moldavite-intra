@@ -38,7 +38,15 @@ export type SerializedOrder = {
   lastCalculatedAt: string | Date | null;
   costs: SerializedCost[];
   items: SerializedItem[];
-  boxes: Array<{ id: number; code: string; name: string | null; sellerId?: number | null }>;
+  boxes: Array<{
+    id: number;
+    code: string;
+    name: string | null;
+    sellerId?: number | null;
+    cassetteType?: string | null;
+    declaredPieces?: number | null;
+    purchaseAmountCzk?: string | null;
+  }>;
   pricingConfig: { id: number; name: string; active: boolean } | null;
 };
 

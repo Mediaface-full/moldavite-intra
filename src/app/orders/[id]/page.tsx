@@ -21,7 +21,14 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
           include: { box: { select: { id: true, code: true } } },
           orderBy: { evidNumber: 'asc' },
         },
-        boxes: { select: { id: true, code: true, name: true, sellerId: true }, orderBy: { code: 'asc' } },
+        boxes: {
+          select: {
+            id: true, code: true, name: true,
+            sellerId: true, cassetteType: true,
+            declaredPieces: true, purchaseAmountCzk: true,
+          },
+          orderBy: { code: 'asc' },
+        },
         pricingConfig: true,
         seller: { select: { id: true, firstName: true, lastName: true, alias: true } },
       },
@@ -44,7 +51,10 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
           ...serializeItemForPricing(it),
           box: it.box,
         })),
-        boxes: order.boxes,
+        boxes: order.boxes.map((b) => ({
+          ...b,
+          purchaseAmountCzk: b.purchaseAmountCzk ? b.purchaseAmountCzk.toString() : null,
+        })),
         pricingConfig: order.pricingConfig,
       }}
       pricingConfigs={configs.map((c) => ({ id: c.id, name: c.name, active: c.active }))}

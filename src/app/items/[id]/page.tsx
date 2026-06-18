@@ -135,6 +135,10 @@ export default async function ItemDetailPage({
               box: { code: item.box.code, id: item.box.id },
               priceEUR: Number(item.priceEUR),
               priceUSD: Number(item.priceUSD),
+              costBasisCzk: item.costBasisCzk ? item.costBasisCzk.toString() : null,
+              recommendedPriceInclVatCzk: item.recommendedPriceInclVatCzk ? item.recommendedPriceInclVatCzk.toString() : null,
+              manualPriceInclVatCzk: item.manualPriceInclVatCzk ? item.manualPriceInclVatCzk.toString() : null,
+              pricingStatus: item.pricingStatus,
             }}
           />
         </div>

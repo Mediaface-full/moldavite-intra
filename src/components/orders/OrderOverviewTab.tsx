@@ -74,39 +74,11 @@ export default function OrderOverviewTab({ order }: { order: SerializedOrder }) 
         </div>
       </div>
 
-      {/* Boxes assigned */}
-      {order.boxes.length > 0 && (
-        <div className="bg-card border border-border rounded-xl shadow-sm p-5">
-          <h3 className="text-sm font-semibold mb-3">Přiřazené kazety ({order.boxes.length})</h3>
-          <div className="flex flex-wrap gap-2">
-            {order.boxes.map((b) => {
-              const mix = order.sellerId != null && b.sellerId != null && b.sellerId !== order.sellerId;
-              return (
-                <Link
-                  key={b.id}
-                  href={`/boxes/${b.id}`}
-                  className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-mono bg-muted border border-border hover:border-foreground/40 transition-colors"
-                >
-                  {b.code}
-                  {b.name && <span className="text-muted-foreground">· {b.name}</span>}
-                  {mix && (
-                    <span
-                      className="text-[9px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded"
-                      style={{
-                        background: 'color-mix(in srgb, var(--warning) 15%, transparent)',
-                        color: 'var(--warning)',
-                      }}
-                      title="Dodavatel této kazety se liší od dodavatele zakázky"
-                    >
-                      MIX
-                    </span>
-                  )}
-                </Link>
-              );
-            })}
-          </div>
-        </div>
-      )}
+      {/* Boxes assigned — detailed cards s aggregací */}
+      {order.boxes.length > 0 && <BoxesSummaryCard order={order} />}
+
+      {/* Validace součtů jako warning */}
+      <SumValidationWarnings order={order} />
     </div>
   );
 }
@@ -189,5 +161,151 @@ function MetaForm({ order, onSaved }: { order: SerializedOrder; onSaved: () => v
         <button type="submit" disabled={saving} className="bg-primary hover:bg-primary/90 disabled:opacity-50 text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium">{saving ? 'Ukládám…' : 'Uložit'}</button>
       </div>
     </form>
+  );
+}
+
+/**
+ * Karta s přehledem kazet zakázky — pro každou kazetu: typ, dodavatel,
+ * počet items vs. declaredPieces, Σ doporučené ceny + Σ váha.
+ * MIX badge když dodavatel kazety ≠ dodavatel zakázky.
+ */
+function BoxesSummaryCard({ order }: { order: SerializedOrder }) {
+  // Group items by boxId
+  const itemsByBox = new Map<number, typeof order.items>();
+  for (const it of order.items) {
+    const arr = itemsByBox.get(it.boxId) ?? [];
+    arr.push(it);
+    itemsByBox.set(it.boxId, arr);
+  }
+
+  return (
+    <div className="bg-card border border-border rounded-xl shadow-sm">
+      <div className="px-5 py-3 border-b border-border flex items-center justify-between">
+        <h3 className="text-sm font-semibold inline-flex items-center gap-2">
+          <Icon name="box" className="w-4 h-4" />
+          Přiřazené kazety ({order.boxes.length})
+        </h3>
+        <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">
+          součty: doporučená cena + váha za kazetu
+        </span>
+      </div>
+      <div className="divide-y divide-border">
+        {order.boxes.map((b) => {
+          const items = itemsByBox.get(b.id) ?? [];
+          const itemCount = items.length;
+          const sumRecommended = items.reduce((s, i) => s + Number(i.finalInternalPriceInclVatCzk ?? 0), 0);
+          const sumWeight = items.reduce((s, i) => s + Number(i.weight ?? 0), 0);
+          const mix = order.sellerId != null && b.sellerId != null && b.sellerId !== order.sellerId;
+          const declaredVsActual = b.declaredPieces != null && b.declaredPieces > 0 && b.declaredPieces !== itemCount;
+
+          return (
+            <Link
+              key={b.id}
+              href={`/boxes/${b.id}`}
+              className="grid grid-cols-[1fr_auto_auto_auto] items-center gap-4 px-5 py-3 hover:bg-muted/30 transition-colors"
+            >
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-mono font-semibold text-foreground">{b.code}</span>
+                  {b.name && <span className="text-xs text-muted-foreground">· {b.name}</span>}
+                  {b.cassetteType && (
+                    <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground px-1.5 py-0.5 rounded border border-border">
+                      {b.cassetteType}
+                    </span>
+                  )}
+                  {mix && (
+                    <span
+                      className="text-[9px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded"
+                      style={{ background: 'color-mix(in srgb, var(--warning) 15%, transparent)', color: 'var(--warning)' }}
+                      title="Dodavatel této kazety se liší od dodavatele zakázky"
+                    >
+                      MIX
+                    </span>
+                  )}
+                </div>
+              </div>
+              <div className="text-right">
+                <p className="text-[10px] text-muted-foreground font-mono uppercase tracking-wider">Kameny</p>
+                <p className={`text-sm font-mono ${declaredVsActual ? 'text-warning' : 'text-foreground'}`} title={declaredVsActual ? `Deklarováno ${b.declaredPieces}, skutečně ${itemCount}` : undefined}>
+                  {itemCount}{declaredVsActual ? ` / ${b.declaredPieces}` : ''}
+                </p>
+              </div>
+              <div className="text-right">
+                <p className="text-[10px] text-muted-foreground font-mono uppercase tracking-wider">Σ váha (g)</p>
+                <p className="text-sm font-mono text-foreground">{sumWeight.toFixed(2)}</p>
+              </div>
+              <div className="text-right min-w-24">
+                <p className="text-[10px] text-muted-foreground font-mono uppercase tracking-wider">Σ doporučená</p>
+                <p className="text-sm font-mono" style={{ color: sumRecommended > 0 ? 'var(--success)' : 'var(--muted-foreground)' }}>
+                  {fmtMoney(sumRecommended)}
+                </p>
+              </div>
+            </Link>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Warning panel — zobrazí (nesimuluje, nepovolí pokračovat) když:
+ *  - Σ Box.declaredPieces ≠ Order.declaredPieces
+ *  - Σ Box.purchaseAmountCzk ≠ Order.totalPurchaseAmountCzk
+ *  - Σ Items count ≠ Order.declaredPieces (informativní)
+ */
+function SumValidationWarnings({ order }: { order: SerializedOrder }) {
+  const sumBoxDeclared = order.boxes.reduce((s, b) => s + (b.declaredPieces ?? 0), 0);
+  const sumBoxPurchase = order.boxes.reduce((s, b) => s + Number(b.purchaseAmountCzk ?? 0), 0);
+  const orderDeclared = order.declaredPieces || 0;
+  const orderPurchase = Number(order.totalPurchaseAmountCzk ?? 0);
+  const actualItems = order.items.length;
+
+  const issues: Array<{ key: string; text: string; severity: 'warning' | 'info' }> = [];
+
+  if (sumBoxDeclared > 0 && orderDeclared > 0 && sumBoxDeclared !== orderDeclared) {
+    issues.push({
+      key: 'declared',
+      severity: 'warning',
+      text: `Součet deklarovaných kusů v kazetách (${sumBoxDeclared}) se liší od deklarovaného počtu zakázky (${orderDeclared}). Rozdíl: ${sumBoxDeclared - orderDeclared}.`,
+    });
+  }
+  if (sumBoxPurchase > 0 && orderPurchase > 0 && Math.abs(sumBoxPurchase - orderPurchase) >= 1) {
+    issues.push({
+      key: 'purchase',
+      severity: 'warning',
+      text: `Součet nákupní ceny kazet (${fmtMoney(sumBoxPurchase)}) se liší od celkové nákupní ceny zakázky (${fmtMoney(orderPurchase)}). Rozdíl: ${fmtMoney(sumBoxPurchase - orderPurchase)}.`,
+    });
+  }
+  if (orderDeclared > 0 && actualItems !== orderDeclared) {
+    issues.push({
+      key: 'actual',
+      severity: 'info',
+      text: `Skutečný počet kamenů (${actualItems}) ≠ deklarovaný počet (${orderDeclared}). Pokud chybí, použij „Doplnit kameny" v detailu kazety.`,
+    });
+  }
+
+  if (issues.length === 0) return null;
+
+  return (
+    <div className="bg-card border rounded-xl shadow-sm overflow-hidden" style={{ borderColor: 'color-mix(in srgb, var(--warning) 30%, transparent)' }}>
+      <div className="px-5 py-3 border-b flex items-center gap-2" style={{ borderColor: 'color-mix(in srgb, var(--warning) 20%, transparent)', background: 'color-mix(in srgb, var(--warning) 8%, transparent)' }}>
+        <Icon name="warning" className="w-4 h-4" style={{ color: 'var(--warning)' }} />
+        <h3 className="text-sm font-semibold" style={{ color: 'var(--warning)' }}>Kontrola součtů</h3>
+        <span className="text-[10px] text-muted-foreground font-mono ml-auto">jen upozornění — neblokuje práci</span>
+      </div>
+      <ul className="divide-y divide-border">
+        {issues.map((iss) => (
+          <li key={iss.key} className="px-5 py-2.5 text-sm flex items-start gap-2">
+            <Icon
+              name={iss.severity === 'warning' ? 'warning' : 'info'}
+              className="w-4 h-4 flex-shrink-0 mt-0.5"
+              style={{ color: iss.severity === 'warning' ? 'var(--warning)' : 'var(--info)' }}
+            />
+            <span className="text-foreground">{iss.text}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }

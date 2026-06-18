@@ -37,6 +37,10 @@ interface ItemData {
   box: { code: string; id: number };
   priceEUR?: number;
   priceUSD?: number;
+  costBasisCzk?: string | null;
+  recommendedPriceInclVatCzk?: string | null;
+  manualPriceInclVatCzk?: string | null;
+  pricingStatus?: 'NEEDS_INPUT' | 'NEEDS_REVIEW' | 'OK' | 'STALE' | null;
 }
 
 export default function ItemDetailForm({ item }: { item: ItemData }) {
@@ -60,6 +64,7 @@ export default function ItemDetailForm({ item }: { item: ItemData }) {
     attrDamage: item.attrDamage || '',
     attrColor: item.attrColor || [],
     attrCollectible: item.attrCollectible || false,
+    manualPriceInclVatCzk: item.manualPriceInclVatCzk ?? '',
   });
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -89,6 +94,7 @@ export default function ItemDetailForm({ item }: { item: ItemData }) {
           attrDamage: formData.attrDamage,
           attrColor: formData.attrColor,
           attrCollectible: formData.attrCollectible,
+          manualPriceInclVatCzk: formData.manualPriceInclVatCzk === '' ? null : Number(formData.manualPriceInclVatCzk),
         }),
       });
       if (res.ok) {
@@ -322,36 +328,39 @@ export default function ItemDetailForm({ item }: { item: ItemData }) {
           );
         })()}
 
-        {/* Weight + Prices */}
-        <div className="grid grid-cols-4 gap-4">
+        {/* Hmotnost (g + ct) */}
+        <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-xs text-muted-foreground mb-1 uppercase tracking-wider">Hmotnost (g)</label>
+            <label className="block text-xs text-muted-foreground mb-1 uppercase tracking-wider font-mono">
+              <Icon name="weight" className="w-3.5 h-3.5 inline mr-1" />
+              Hmotnost (g)
+            </label>
             <input type="number" step="0.01" value={formData.weight}
               onChange={(e) => setFormData((f) => ({ ...f, weight: e.target.value }))}
               className="w-full bg-card border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/20 transition-shadow"
             />
           </div>
           <div>
-            <label className="block text-xs text-muted-foreground mb-1 uppercase tracking-wider">Hmotnost (ct)</label>
-            <div className="w-full bg-muted border border-border rounded-lg px-3 py-2 text-sm text-muted-foreground">
+            <label className="block text-xs text-muted-foreground mb-1 uppercase tracking-wider font-mono">Hmotnost (ct)</label>
+            <div className="w-full bg-muted border border-border rounded-lg px-3 py-2 text-sm text-muted-foreground font-mono">
               {(parseFloat(formData.weight) * 5 || 0).toFixed(2)}
             </div>
           </div>
-          <div>
-            <label className="block text-xs text-muted-foreground mb-1 uppercase tracking-wider">Nákupní cena</label>
-            <input type="number" value={formData.purchasePrice}
-              onChange={(e) => setFormData((f) => ({ ...f, purchasePrice: e.target.value }))}
-              className="w-full bg-card border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/20 transition-shadow"
-            />
-          </div>
-          <div>
-            <label className="block text-xs text-muted-foreground mb-1 uppercase tracking-wider">Prodejní cena</label>
-            <input type="number" value={formData.salePrice}
-              onChange={(e) => setFormData((f) => ({ ...f, salePrice: e.target.value }))}
-              className="w-full bg-card border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/20 transition-shadow"
-            />
-          </div>
         </div>
+
+        {/* CENY — 4 řádky */}
+        <PriceSection
+          purchasePrice={formData.purchasePrice}
+          setPurchasePrice={(v) => setFormData((f) => ({ ...f, purchasePrice: v }))}
+          salePrice={formData.salePrice}
+          setSalePrice={(v) => setFormData((f) => ({ ...f, salePrice: v }))}
+          manualPrice={formData.manualPriceInclVatCzk}
+          setManualPrice={(v) => setFormData((f) => ({ ...f, manualPriceInclVatCzk: v }))}
+          costBasisCzk={item.costBasisCzk}
+          recommendedPriceInclVatCzk={item.recommendedPriceInclVatCzk}
+          pricingStatus={item.pricingStatus}
+          orderHref={`/orders`}
+        />
 
         {/* Converted prices */}
         {(Number(item.priceEUR) > 0 || Number(item.priceUSD) > 0) ? (
@@ -475,5 +484,186 @@ export default function ItemDetailForm({ item }: { item: ItemData }) {
         )}
       </div>
     </div>
+  );
+}
+
+/**
+ * Sekce „Ceny" — 4 řádky:
+ *  1. Cena nákupní (editovatelná) — purchasePrice
+ *  2. Cena s náklady (read-only) — costBasisCzk z cenotvorby (purchase + alokace)
+ *  3. Cena prodejní (editovatelná) — salePrice, eshop konzumuje tuto
+ *     hodnotu. Hint vedle: doporučená z cenotvorby.
+ *  4. Cena speciální (editovatelná) — manualPriceInclVatCzk, override
+ *     pro mimořádně pěkné kameny (musí být ≥ doporučená, jinak NEEDS_REVIEW).
+ */
+function PriceSection({
+  purchasePrice,
+  setPurchasePrice,
+  salePrice,
+  setSalePrice,
+  manualPrice,
+  setManualPrice,
+  costBasisCzk,
+  recommendedPriceInclVatCzk,
+  pricingStatus,
+}: {
+  purchasePrice: string;
+  setPurchasePrice: (v: string) => void;
+  salePrice: string;
+  setSalePrice: (v: string) => void;
+  manualPrice: string;
+  setManualPrice: (v: string) => void;
+  costBasisCzk: string | null | undefined;
+  recommendedPriceInclVatCzk: string | null | undefined;
+  pricingStatus: 'NEEDS_INPUT' | 'NEEDS_REVIEW' | 'OK' | 'STALE' | null | undefined;
+  orderHref: string;
+}) {
+  const fmt = (v: string | null | undefined) =>
+    v != null && v !== '' && Number.isFinite(Number(v)) && Number(v) > 0
+      ? `${Math.round(Number(v)).toLocaleString('cs-CZ')} Kč`
+      : '—';
+
+  const manualNum = Number(manualPrice);
+  const recommendedNum = Number(recommendedPriceInclVatCzk);
+  const manualBelowRecommended =
+    Number.isFinite(manualNum) && manualNum > 0 && Number.isFinite(recommendedNum) && recommendedNum > 0 && manualNum < recommendedNum;
+
+  return (
+    <div className="border border-border rounded-xl overflow-hidden">
+      <div className="bg-muted/40 px-4 py-2.5 border-b border-border flex items-center justify-between">
+        <h3 className="text-xs font-mono uppercase tracking-wider text-foreground inline-flex items-center gap-1.5">
+          <Icon name="cash" className="w-3.5 h-3.5" />
+          Ceny
+        </h3>
+        {pricingStatus && pricingStatus !== 'OK' && (
+          <PricingStatusBadge status={pricingStatus} />
+        )}
+      </div>
+
+      <div className="divide-y divide-border">
+        {/* 1. Cena nákupní */}
+        <PriceRow
+          label="Cena nákupní"
+          hint="Co stál kámen při nákupu od dodavatele."
+          editable
+          value={purchasePrice}
+          onChange={setPurchasePrice}
+        />
+
+        {/* 2. Cena s náklady */}
+        <PriceRow
+          label="Cena s náklady"
+          hint="Nákupní cena + alokovaný podíl na společných nákladech zakázky (doprava, certifikace…)."
+          editable={false}
+          displayValue={fmt(costBasisCzk)}
+          emptyHint="Spočítá se po přepočtu cenotvorby zakázky."
+        />
+
+        {/* 3. Cena prodejní */}
+        <PriceRow
+          label="Cena prodejní"
+          hint="Cena, za kterou kámen prodáváme na eshopu / Etsy. Vychází z cenotvorby."
+          editable
+          value={salePrice}
+          onChange={setSalePrice}
+          rightExtra={
+            recommendedPriceInclVatCzk && Number(recommendedPriceInclVatCzk) > 0 ? (
+              <span className="text-[10px] text-muted-foreground font-mono whitespace-nowrap">
+                doporučená: {fmt(recommendedPriceInclVatCzk)}
+              </span>
+            ) : null
+          }
+        />
+
+        {/* 4. Cena speciální */}
+        <PriceRow
+          label="Cena speciální"
+          hint="Mimořádně vyšší cena pro výjimečně pěkné kameny (override doporučené). Musí být ≥ doporučená."
+          editable
+          value={manualPrice}
+          onChange={setManualPrice}
+          placeholder="—"
+          rightExtra={
+            manualBelowRecommended ? (
+              <span className="text-[10px] text-warning font-mono whitespace-nowrap" title="Speciální cena je pod doporučeným minimem — kámen bude označen NEEDS_REVIEW">
+                ⚠ pod doporučenou
+              </span>
+            ) : null
+          }
+        />
+      </div>
+    </div>
+  );
+}
+
+function PriceRow({
+  label,
+  hint,
+  editable,
+  value,
+  onChange,
+  displayValue,
+  emptyHint,
+  placeholder,
+  rightExtra,
+}: {
+  label: string;
+  hint?: string;
+  editable: boolean;
+  value?: string;
+  onChange?: (v: string) => void;
+  displayValue?: string;
+  emptyHint?: string;
+  placeholder?: string;
+  rightExtra?: React.ReactNode;
+}) {
+  return (
+    <div className="grid grid-cols-[1fr_auto_auto] items-center gap-3 px-4 py-2.5 hover:bg-muted/20 transition-colors">
+      <div className="min-w-0">
+        <p className="text-sm font-medium text-foreground">{label}</p>
+        {hint && <p className="text-[10px] text-muted-foreground mt-0.5 truncate">{hint}</p>}
+      </div>
+      {rightExtra && <div>{rightExtra}</div>}
+      <div className="w-40 text-right">
+        {editable ? (
+          <input
+            type="number"
+            value={value ?? ''}
+            onChange={(e) => onChange?.(e.target.value)}
+            placeholder={placeholder ?? ''}
+            className="w-full bg-card border border-border rounded-lg px-3 py-1.5 text-sm font-mono text-right text-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
+          />
+        ) : (
+          <div className="text-sm font-mono text-foreground">
+            {displayValue && displayValue !== '—' ? displayValue : (
+              <span className="text-muted-foreground/60 italic font-sans text-[10px]" title={emptyHint}>{emptyHint || '—'}</span>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function PricingStatusBadge({ status }: { status: 'NEEDS_INPUT' | 'NEEDS_REVIEW' | 'OK' | 'STALE' }) {
+  const meta: Record<string, { label: string; color: string }> = {
+    NEEDS_INPUT:  { label: 'Bez vstupů',  color: 'var(--muted-foreground)' },
+    NEEDS_REVIEW: { label: 'K revizi',    color: 'var(--warning)' },
+    STALE:        { label: 'Zastaralé',   color: 'var(--info)' },
+    OK:           { label: 'Spočítáno',   color: 'var(--success)' },
+  };
+  const m = meta[status];
+  return (
+    <span
+      className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono uppercase tracking-wider border"
+      style={{
+        color: m.color,
+        background: `color-mix(in srgb, ${m.color} 12%, transparent)`,
+        borderColor: `color-mix(in srgb, ${m.color} 30%, transparent)`,
+      }}
+    >
+      <Icon name={status === 'OK' ? 'ok' : status === 'NEEDS_REVIEW' || status === 'STALE' ? 'warning' : 'pending'} className="w-3 h-3" />
+      {m.label}
+    </span>
   );
 }
