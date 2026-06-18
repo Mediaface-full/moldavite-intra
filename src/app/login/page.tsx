@@ -38,10 +38,12 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      <div className="w-full max-w-sm">
-        <div className="flex flex-col items-center mb-8 gap-3">
+      <div className="w-full max-w-md">
+        <div className="flex flex-col items-center mb-10 gap-4">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo-icon.svg" alt="Bohemian Moldavite" className="w-24 h-24" />
+          <img src="/logo-light.svg" alt="Bohemian Moldavite" className="w-full max-w-[360px] h-auto dark:hidden" />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo.svg" alt="Bohemian Moldavite" className="w-full max-w-[360px] h-auto hidden dark:block" />
           <p className="text-[10px] text-muted-foreground uppercase tracking-[0.3em] font-mono">Intra · Evidence</p>
         </div>
 

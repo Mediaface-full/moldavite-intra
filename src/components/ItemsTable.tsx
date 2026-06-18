@@ -1,11 +1,13 @@
 'use client';
 
-import { useState, useCallback, useRef, useMemo } from 'react';
+import React, { useState, useCallback, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { getThumbnailUrl, getCatalogNumber } from '@/lib/utils';
 import { PAS_SHAPES, pasShapeCz } from '@/lib/pasShapes';
 import AiButton from './AiButton';
+import AttrMultiSelect from './AttrMultiSelect';
+import Icon from './Icon';
 import { apiFetch } from '@/lib/apiFetch';
 
 // Buňky ve kterých je interaktivní prvek (input, select, button, toggle) —
@@ -148,18 +150,27 @@ export default function ItemsTable({ items: initialItems, boxCode, isAdmin = tru
     }
   }, [localItems]);
 
-  const handleBulkApply = useCallback(async (data: { description?: string; location?: string; storage?: string; pasShape?: string }) => {
+  const handleBulkApply = useCallback(async (data: {
+    description?: string;
+    location?: string;
+    storage?: string;
+    pasShape?: string;
+    attrDamage?: string;
+    attrColor?: string[];
+  }) => {
     setBulkSaving(true);
     try {
       // Apply only to currently visible (filtered) items so PAS filter can scope
       // the operation, e.g. "set Kapka for only currently shown stones".
       const targetItems = filteredItems;
       for (const item of targetItems) {
-        const fields: Record<string, string> = {};
+        const fields: Record<string, unknown> = {};
         if (data.description) fields.description = data.description;
         if (data.location) fields.location = data.location;
         if (data.storage) fields.storage = data.storage;
         if (data.pasShape !== undefined) fields.pasShape = data.pasShape;
+        if (data.attrDamage !== undefined) fields.attrDamage = data.attrDamage;
+        if (data.attrColor !== undefined) fields.attrColor = data.attrColor;
         if (Object.keys(fields).length > 0) {
           await apiFetch(`/api/items/${item.id}`, {
             method: 'PATCH',
@@ -177,6 +188,8 @@ export default function ItemsTable({ items: initialItems, boxCode, isAdmin = tru
         if (data.location) updated.location = data.location;
         if (data.storage) updated.storage = data.storage;
         if (data.pasShape !== undefined) updated.pasShape = data.pasShape;
+        // attrDamage/attrColor zatím nejsou v Item interface lokální tabulky —
+        // optimistic update přeskočíme, refresh dotáhne při dalším loadu.
         return updated;
       }));
       setShowBulkModal(false);
@@ -457,70 +470,137 @@ function BulkEditModal({
 }: {
   itemCount: number;
   onClose: () => void;
-  onApply: (data: { description?: string; location?: string; storage?: string; pasShape?: string }) => void;
+  onApply: (data: { description?: string; location?: string; storage?: string; pasShape?: string; attrDamage?: string; attrColor?: string[] }) => void;
   saving: boolean;
 }) {
   const [description, setDescription] = useState('');
-  const [location, setLocation] = useState('');
   const [storage, setStorage] = useState('');
-  const [pasShape, setPasShape] = useState<string>('__unchanged__'); // special marker: don't change
+  // '__unchanged__' = nech beze změny, '' = smaž hodnotu, jinak = nastav
+  const [pasShape, setPasShape] = useState<string>('__unchanged__');
+  const [attrDamage, setAttrDamage] = useState<string>('__unchanged__');
+  const [location, setLocation] = useState<string>('__unchanged__');
+  // Barvy: null = neměnit, [] = vymazat, ['x', 'y'] = nastavit
+  const [attrColorMode, setAttrColorMode] = useState<'unchanged' | 'set'>('unchanged');
+  const [attrColor, setAttrColor] = useState<string[]>([]);
+
+  const hasAnything =
+    description !== '' ||
+    storage !== '' ||
+    pasShape !== '__unchanged__' ||
+    attrDamage !== '__unchanged__' ||
+    location !== '__unchanged__' ||
+    attrColorMode === 'set';
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
-      <div className="bg-card border border-border rounded-xl p-6 w-full max-w-md shadow-2xl">
-        <div className="flex items-center justify-between mb-6">
-          <h3 className="text-lg font-semibold">Propsat údaje ke všem kamenům</h3>
-          <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-            </svg>
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+      <div className="bg-card border border-border rounded-xl p-6 w-full max-w-lg shadow-2xl max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-lg font-semibold inline-flex items-center gap-2">
+            <Icon name="duplicate" className="w-5 h-5" />
+            Propsat údaje ke všem kamenům
+          </h3>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground" title="Zavřít">
+            <Icon name="x" className="w-5 h-5" />
           </button>
         </div>
-        <p className="text-sm text-muted-foreground mb-4">
-          Vyplněné hodnoty se propíšou do všech <strong>{itemCount}</strong> kamenů. Prázdná pole se přeskočí.
+        <p className="text-sm text-muted-foreground mb-5">
+          Vyplněné hodnoty se propíšou do všech <strong>{itemCount}</strong> kamenů zobrazených v aktuálním filtru. Pole označená <em>„— neměnit —"</em> se přeskočí.
         </p>
         <div className="space-y-4">
           <div>
-            <label className="block text-xs text-muted-foreground mb-1 uppercase tracking-wider">Popis</label>
-            <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} placeholder="Propsat popis ke všem..."
+            <label className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1.5 uppercase tracking-wider font-mono">
+              <Icon name="edit" className="w-3.5 h-3.5" />
+              Popis
+            </label>
+            <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} placeholder="Propsat popis ke všem… (prázdné = neměnit)"
               className="w-full bg-muted border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/20 resize-none placeholder:text-muted-foreground" />
           </div>
+
           <div>
-            <label className="block text-xs text-muted-foreground mb-1 uppercase tracking-wider">Místo nálezu</label>
-            <input type="text" value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Propsat místo ke všem..."
+            <label className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1.5 uppercase tracking-wider font-mono">
+              <Icon name="storage" className="w-3.5 h-3.5" />
+              Umístění (fyzické)
+            </label>
+            <input type="text" value={storage} onChange={(e) => setStorage(e.target.value)} placeholder="Kde je kámen uložen… (prázdné = neměnit)"
               className="w-full bg-muted border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/20 placeholder:text-muted-foreground" />
           </div>
-          <div>
-            <label className="block text-xs text-muted-foreground mb-1 uppercase tracking-wider">Umístění</label>
-            <input type="text" value={storage} onChange={(e) => setStorage(e.target.value)} placeholder="Propsat umístění ke všem..."
-              className="w-full bg-muted border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/20 placeholder:text-muted-foreground" />
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1.5 uppercase tracking-wider font-mono">
+                <Icon name="shape" className="w-3.5 h-3.5" />
+                Tvar (PAS)
+              </label>
+              <UnchangedAttrSelect attrKey="pasShape" value={pasShape} onChange={setPasShape} />
+            </div>
+
+            <div>
+              <label className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1.5 uppercase tracking-wider font-mono">
+                <Icon name="damage" className="w-3.5 h-3.5" />
+                Poškození
+              </label>
+              <UnchangedAttrSelect attrKey="attrDamage" value={attrDamage} onChange={setAttrDamage} />
+            </div>
+
+            <div className="md:col-span-2">
+              <label className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1.5 uppercase tracking-wider font-mono">
+                <Icon name="location" className="w-3.5 h-3.5" />
+                Lokalita nálezu
+              </label>
+              <UnchangedAttrSelect attrKey="location" value={location} onChange={setLocation} />
+            </div>
           </div>
+
           <div>
-            <label className="block text-xs text-muted-foreground mb-1 uppercase tracking-wider">Primární tvar (PAS)</label>
-            <select value={pasShape} onChange={(e) => setPasShape(e.target.value)}
-              className="w-full bg-muted border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/20">
-              <option value="__unchanged__">— neměnit —</option>
-              <option value="">— smazat / nenastaveno —</option>
-              {PAS_SHAPES.map((s) => (
-                <option key={s.key} value={s.key}>{s.cz} ({s.en})</option>
-              ))}
-            </select>
-            <p className="text-xs text-muted-foreground mt-1">
-              Propíše se pouze do kamenů zobrazených v aktuálním filtru ({itemCount}).
-            </p>
+            <label className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1.5 uppercase tracking-wider font-mono">
+              <Icon name="palette" className="w-3.5 h-3.5" />
+              Barva
+            </label>
+            <div className="flex items-center gap-2 mb-2">
+              <button
+                type="button"
+                onClick={() => setAttrColorMode('unchanged')}
+                className={`px-2.5 py-1 rounded-md text-[10px] font-mono uppercase tracking-wider border transition-colors ${
+                  attrColorMode === 'unchanged'
+                    ? 'bg-foreground text-background border-foreground'
+                    : 'bg-card border-border text-muted-foreground hover:text-foreground hover:border-foreground/40'
+                }`}
+              >
+                Neměnit
+              </button>
+              <button
+                type="button"
+                onClick={() => setAttrColorMode('set')}
+                className={`px-2.5 py-1 rounded-md text-[10px] font-mono uppercase tracking-wider border transition-colors ${
+                  attrColorMode === 'set'
+                    ? 'bg-foreground text-background border-foreground'
+                    : 'bg-card border-border text-muted-foreground hover:text-foreground hover:border-foreground/40'
+                }`}
+              >
+                Nastavit (přepíše původní)
+              </button>
+            </div>
+            {attrColorMode === 'set' && (
+              <AttrMultiSelect attrKey="attrColor" value={attrColor} onChange={setAttrColor} />
+            )}
           </div>
         </div>
-        <div className="mt-6 flex items-center gap-3">
+
+        <div className="mt-6 flex items-center gap-2">
           <button
             onClick={() => onApply({
-              description,
-              location,
-              storage,
+              ...(description ? { description } : {}),
+              ...(storage ? { storage } : {}),
               ...(pasShape !== '__unchanged__' ? { pasShape } : {}),
+              ...(attrDamage !== '__unchanged__' ? { attrDamage } : {}),
+              ...(location !== '__unchanged__' ? { location } : {}),
+              ...(attrColorMode === 'set' ? { attrColor } : {}),
             })}
-            disabled={saving || (!description && !location && !storage && pasShape === '__unchanged__')}
-            className="flex-1 bg-primary hover:bg-primary/90 disabled:opacity-50 text-primary-foreground px-4 py-2.5 rounded-lg text-sm font-medium transition-colors">
-            {saving ? 'Ukládám...' : 'Propsat ke všem kamenům'}
+            disabled={saving || !hasAnything}
+            className="flex-1 bg-primary hover:bg-primary/90 disabled:opacity-50 text-primary-foreground px-4 py-2.5 rounded-lg text-sm font-medium transition-colors inline-flex items-center justify-center gap-2"
+          >
+            <Icon name="duplicate" className="w-4 h-4" />
+            {saving ? 'Ukládám…' : `Propsat do ${itemCount} kamenů`}
           </button>
           <button onClick={onClose} className="px-4 py-2.5 rounded-lg text-sm text-muted-foreground hover:text-foreground border border-border hover:border-foreground/40 transition-colors">
             Zrušit
@@ -528,6 +608,38 @@ function BulkEditModal({
         </div>
       </div>
     </div>
+  );
+}
+
+/**
+ * AttrSelect-wrapper s tří-stavovou logikou pro bulk modal:
+ *   '__unchanged__' = nech beze změny (default, modal pole se přeskočí)
+ *   ''              = smazat hodnotu na všech kamenech
+ *   '<value>'       = nastavit konkrétní hodnotu z AttrOption
+ */
+function UnchangedAttrSelect({
+  attrKey, value, onChange,
+}: { attrKey: string; value: string; onChange: (v: string) => void }) {
+  const [options, setOptions] = useState<Array<{ id: number; value: string }>>([]);
+  React.useEffect(() => {
+    let alive = true;
+    apiFetch(`/api/attr-options?key=${attrKey}`).then(async (r) => {
+      if (alive && r.ok) setOptions(await r.json());
+    });
+    return () => { alive = false; };
+  }, [attrKey]);
+  return (
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      className="w-full bg-muted border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
+    >
+      <option value="__unchanged__">— neměnit —</option>
+      <option value="">— smazat hodnotu —</option>
+      {options.map((o) => (
+        <option key={o.id} value={o.value}>{o.value}</option>
+      ))}
+    </select>
   );
 }
 
