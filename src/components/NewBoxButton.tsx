@@ -12,9 +12,9 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { apiFetch } from '@/lib/apiFetch';
 import Icon from './Icon';
+import SellerPicker from './SellerPicker';
 
 type AttrOption = { id: number; value: string; sortOrder: number };
-type SellerOption = { id: number; firstName: string; lastName: string; alias: string };
 
 export default function NewBoxButton({
   orderId,
@@ -30,7 +30,6 @@ export default function NewBoxButton({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [cassetteTypes, setCassetteTypes] = useState<AttrOption[]>([]);
-  const [sellers, setSellers] = useState<SellerOption[]>([]);
 
   const [name, setName] = useState('');
   const [cassetteType, setCassetteType] = useState('Kameny');
@@ -44,9 +43,6 @@ export default function NewBoxButton({
     if (!open) return;
     apiFetch('/api/attr-options?key=cassetteType').then(async (r) => {
       if (r.ok) setCassetteTypes(await r.json());
-    });
-    apiFetch('/api/sellers').then(async (r) => {
-      if (r.ok) setSellers(await r.json());
     });
   }, [open]);
 
@@ -223,18 +219,7 @@ export default function NewBoxButton({
 
               <div>
                 <label className={lbl}>Dodavatel <span className="text-muted-foreground/60 normal-case font-sans">(volitelné — výchozí z zakázky)</span></label>
-                <select
-                  value={sellerId ?? ''}
-                  onChange={(e) => setSellerId(e.target.value === '' ? null : parseInt(e.target.value, 10))}
-                  className={inp}
-                >
-                  <option value="">— bez dodavatele —</option>
-                  {sellers.map((s) => {
-                    const name = `${s.firstName} ${s.lastName}`.trim();
-                    const label = name && s.alias ? `${name} (${s.alias})` : (name || s.alias || '(bez jména)');
-                    return <option key={s.id} value={s.id}>{label}</option>;
-                  })}
-                </select>
+                <SellerPicker value={sellerId} onChange={(id) => setSellerId(id)} />
               </div>
 
               <div>
