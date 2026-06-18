@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { apiFetch } from '@/lib/apiFetch';
+import Icon, { type IconName } from './Icon';
 
 type AttrOption = {
   id: number;
@@ -13,26 +14,30 @@ type AttrOption = {
   active: boolean;
 };
 
-const SECTIONS: Array<{ key: string; title: string; description: string }> = [
+const SECTIONS: Array<{ key: string; title: string; description: string; icon: IconName }> = [
   {
     key: 'pasShape',
     title: 'Tvar (PAS)',
     description: 'Primary Aerodynamic Shape — tvar vltavínu. Používá se v cenotvorbě a v detailu kamene.',
+    icon: 'shape',
   },
   {
     key: 'attrDamage',
     title: 'Poškození',
     description: 'Míra poškození kamene. Bez poškození → kámen ≥10g jde do kategorie "Sbírkové", jinak "Velké".',
+    icon: 'damage',
   },
   {
     key: 'location',
     title: 'Lokalita nálezu',
     description: 'Místo, kde byl kámen vykopán. Volitelné pole v detailu kamene.',
+    icon: 'location',
   },
   {
     key: 'attrColor',
     title: 'Barva',
     description: 'Multi-výběr — kámen může mít víc barev najednou (např. zelená + radioaktivní).',
+    icon: 'palette',
   },
 ];
 
@@ -74,6 +79,7 @@ export default function AttributesAdminClient({ initialGrouped }: { initialGroup
             attrKey={s.key}
             title={s.title}
             description={s.description}
+            icon={s.icon}
             options={grouped[s.key] ?? []}
             onChange={refresh}
           />
@@ -87,12 +93,14 @@ function SectionBlock({
   attrKey,
   title,
   description,
+  icon,
   options,
   onChange,
 }: {
   attrKey: string;
   title: string;
   description: string;
+  icon: IconName;
   options: AttrOption[];
   onChange: () => void;
 }) {
@@ -172,21 +180,27 @@ function SectionBlock({
   return (
     <div className="bg-card border border-border rounded-xl shadow-sm">
       <div className="px-5 py-4 border-b border-border flex items-start justify-between gap-4">
-        <div className="min-w-0">
-          <h2 className="text-lg font-semibold">{title}</h2>
-          <p className="text-xs text-muted-foreground mt-1">{description}</p>
-          <p className="text-[10px] text-muted-foreground font-mono mt-2">
-            attrKey: <code className="text-foreground">{attrKey}</code> · {options.length} hodnot ({sorted.filter((o) => o.active).length} aktivních)
-          </p>
+        <div className="min-w-0 flex items-start gap-3">
+          <span
+            className="inline-flex items-center justify-center w-10 h-10 rounded-lg flex-shrink-0 mt-0.5"
+            style={{ background: 'color-mix(in srgb, var(--primary) 12%, transparent)', color: 'var(--primary)' }}
+          >
+            <Icon name={icon} className="w-5 h-5" />
+          </span>
+          <div className="min-w-0">
+            <h2 className="text-lg font-semibold">{title}</h2>
+            <p className="text-xs text-muted-foreground mt-1">{description}</p>
+            <p className="text-[10px] text-muted-foreground font-mono mt-2">
+              attrKey: <code className="text-foreground">{attrKey}</code> · {options.length} hodnot ({sorted.filter((o) => o.active).length} aktivních)
+            </p>
+          </div>
         </div>
         {!adding && (
           <button
             onClick={() => setAdding(true)}
             className="bg-primary hover:bg-primary/90 text-primary-foreground px-3 py-1.5 rounded-md text-xs font-mono uppercase tracking-wider transition-colors inline-flex items-center gap-2 flex-shrink-0"
           >
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-            </svg>
+            <Icon name="plus" className="w-3.5 h-3.5" strokeWidth={2} />
             Přidat
           </button>
         )}
@@ -230,22 +244,22 @@ function SectionBlock({
         <ul className="divide-y divide-border">
           {sorted.map((opt, idx) => (
             <li key={opt.id} className={`flex items-center gap-2 px-5 py-2.5 ${opt.active ? '' : 'opacity-50'}`}>
-              <div className="flex flex-col">
+              <div className="flex flex-col gap-0.5">
                 <button
                   onClick={() => move(opt, -1)}
                   disabled={idx === 0}
-                  className="text-muted-foreground hover:text-foreground disabled:opacity-30 leading-none"
+                  className="text-muted-foreground hover:text-foreground disabled:opacity-30 transition-colors"
                   title="Posunout nahoru"
                 >
-                  ▲
+                  <Icon name="arrow-up" className="w-3 h-3" />
                 </button>
                 <button
                   onClick={() => move(opt, 1)}
                   disabled={idx === sorted.length - 1}
-                  className="text-muted-foreground hover:text-foreground disabled:opacity-30 leading-none"
+                  className="text-muted-foreground hover:text-foreground disabled:opacity-30 transition-colors"
                   title="Posunout dolů"
                 >
-                  ▼
+                  <Icon name="arrow-down" className="w-3 h-3" />
                 </button>
               </div>
               <InlineEditValue value={opt.value} onSave={(v) => updateValue(opt, v)} />
@@ -254,20 +268,23 @@ function SectionBlock({
               </span>
               <button
                 onClick={() => toggleActive(opt)}
-                className={`text-[10px] font-mono uppercase tracking-wider px-2 py-1 rounded border transition-colors ${
+                className={`inline-flex items-center gap-1 text-[10px] font-mono uppercase tracking-wider px-2 py-1 rounded border transition-colors ${
                   opt.active
                     ? 'border-border text-muted-foreground hover:text-foreground'
                     : 'border-warning text-warning hover:bg-[color-mix(in_srgb,var(--warning)_10%,transparent)]'
                 }`}
                 title={opt.active ? 'Skrýt z dropdownů' : 'Zobrazit v dropdownech'}
               >
-                {opt.active ? '✓ Aktivní' : '⊘ Skrytá'}
+                <Icon name={opt.active ? 'eye' : 'eye-off'} className="w-3 h-3" />
+                {opt.active ? 'Aktivní' : 'Skrytá'}
               </button>
               <button
                 onClick={() => remove(opt)}
                 style={{ color: 'var(--destructive)' }}
-                className="text-[10px] font-mono uppercase tracking-wider px-2 py-1 rounded border border-[color-mix(in_srgb,var(--destructive)_30%,transparent)] hover:bg-[color-mix(in_srgb,var(--destructive)_10%,transparent)] transition-colors"
+                className="inline-flex items-center gap-1 text-[10px] font-mono uppercase tracking-wider px-2 py-1 rounded border border-[color-mix(in_srgb,var(--destructive)_30%,transparent)] hover:bg-[color-mix(in_srgb,var(--destructive)_10%,transparent)] transition-colors"
+                title="Smazat"
               >
+                <Icon name="trash" className="w-3 h-3" />
                 Smazat
               </button>
             </li>

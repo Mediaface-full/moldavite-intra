@@ -9,6 +9,7 @@ import OrderItemsTab from './OrderItemsTab';
 import OrderPricingTab from './OrderPricingTab';
 import OrderOverviewTab from './OrderOverviewTab';
 import DoubleConfirmDelete from '../DoubleConfirmDelete';
+import Icon from '../Icon';
 
 type Tab = 'overview' | 'costs' | 'items' | 'pricing';
 
@@ -68,12 +69,13 @@ export type SerializedItem = {
   box: { id: number; code: string };
 };
 
-const STATUS_LABEL: Record<string, { label: string; color: string }> = {
-  DRAFT: { label: 'Návrh', color: 'var(--muted-foreground)' },
-  PRICED: { label: 'Naceněno', color: 'var(--info)' },
-  PUBLISHED: { label: 'Publikováno', color: 'var(--success)' },
-  CANCELLED: { label: 'Stornováno', color: 'var(--destructive)' },
-  ARCHIVED: { label: 'Archiv', color: 'var(--muted-foreground)' },
+import { type IconName } from '../Icon';
+const STATUS_LABEL: Record<string, { label: string; color: string; icon: IconName }> = {
+  DRAFT:     { label: 'Návrh',       color: 'var(--muted-foreground)', icon: 'edit' },
+  PRICED:    { label: 'Naceněno',    color: 'var(--info)',             icon: 'calc' },
+  PUBLISHED: { label: 'Publikováno', color: 'var(--success)',          icon: 'ok' },
+  CANCELLED: { label: 'Stornováno',  color: 'var(--destructive)',      icon: 'ban' },
+  ARCHIVED:  { label: 'Archiv',      color: 'var(--muted-foreground)', icon: 'storage' },
 };
 
 export default function OrderDetailClient({
@@ -132,6 +134,7 @@ export default function OrderDetailClient({
                 borderColor: `color-mix(in srgb, ${status.color} 30%, transparent)`,
               }}
             >
+              <Icon name={status.icon} className="w-3 h-3" />
               {status.label}
             </span>
           </div>
@@ -153,8 +156,9 @@ export default function OrderDetailClient({
           <button
             onClick={handleRecalculate}
             disabled={order.status === 'CANCELLED'}
-            className="bg-primary hover:bg-primary/90 disabled:opacity-50 text-primary-foreground px-3 py-1.5 rounded-md text-xs font-mono uppercase tracking-wider transition-colors"
+            className="bg-primary hover:bg-primary/90 disabled:opacity-50 text-primary-foreground px-3 py-1.5 rounded-md text-xs font-mono uppercase tracking-wider transition-colors inline-flex items-center gap-1.5"
           >
+            <Icon name="recalculate" className="w-3.5 h-3.5" />
             Přepočítat
           </button>
           {isAdmin && order.status !== 'CANCELLED' && order.status !== 'ARCHIVED' && (
@@ -164,8 +168,9 @@ export default function OrderDetailClient({
                 color: 'var(--destructive)',
                 borderColor: 'color-mix(in srgb, var(--destructive) 30%, transparent)',
               }}
-              className="bg-transparent border hover:bg-[color-mix(in_srgb,var(--destructive)_10%,transparent)] px-3 py-1.5 rounded-md text-xs font-mono uppercase tracking-wider transition-colors"
+              className="bg-transparent border hover:bg-[color-mix(in_srgb,var(--destructive)_10%,transparent)] px-3 py-1.5 rounded-md text-xs font-mono uppercase tracking-wider transition-colors inline-flex items-center gap-1.5"
             >
+              <Icon name="ban" className="w-3.5 h-3.5" />
               Storno
             </button>
           )}
@@ -196,10 +201,10 @@ export default function OrderDetailClient({
 
       {/* Tabs */}
       <div className="flex items-center gap-6 border-b border-border mb-6">
-        <TabBtn label="Přehled" active={tab === 'overview'} onClick={() => setTab('overview')} />
-        <TabBtn label="Náklady" active={tab === 'costs'} onClick={() => setTab('costs')} count={order.costs.length} />
-        <TabBtn label="Kameny" active={tab === 'items'} onClick={() => setTab('items')} count={order.items.length} />
-        <TabBtn label="Cenotvorba" active={tab === 'pricing'} onClick={() => setTab('pricing')} />
+        <TabBtn label="Přehled" icon="chart-pie" active={tab === 'overview'} onClick={() => setTab('overview')} />
+        <TabBtn label="Náklady" icon="cash" active={tab === 'costs'} onClick={() => setTab('costs')} count={order.costs.length} />
+        <TabBtn label="Kameny" icon="gem" active={tab === 'items'} onClick={() => setTab('items')} count={order.items.length} />
+        <TabBtn label="Cenotvorba" icon="calc" active={tab === 'pricing'} onClick={() => setTab('pricing')} />
       </div>
 
       {/* Tab content */}
@@ -211,17 +216,18 @@ export default function OrderDetailClient({
   );
 }
 
-function TabBtn({ label, active, onClick, count }: { label: string; active: boolean; onClick: () => void; count?: number }) {
+function TabBtn({ label, active, onClick, count, icon }: { label: string; active: boolean; onClick: () => void; count?: number; icon?: IconName }) {
   return (
     <button
       onClick={onClick}
-      className={`relative pb-3 text-sm font-medium transition-colors ${
+      className={`relative pb-3 text-sm font-medium transition-colors inline-flex items-center gap-2 ${
         active ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'
       }`}
     >
+      {icon && <Icon name={icon} className="w-4 h-4" />}
       {label}
       {count !== undefined && (
-        <span className="ml-2 text-[10px] font-mono text-muted-foreground">({count})</span>
+        <span className="ml-1 text-[10px] font-mono text-muted-foreground">({count})</span>
       )}
       {active && (
         <span className="absolute left-0 right-0 -bottom-px h-0.5 bg-primary" />

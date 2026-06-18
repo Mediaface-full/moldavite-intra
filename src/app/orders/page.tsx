@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import ClickableRow from '@/components/ClickableRow';
 import NewOrderButton from '@/components/orders/NewOrderButton';
+import Icon, { type IconName } from '@/components/Icon';
 
 function fmtMoney(n: unknown): string {
   const v = Number(n ?? 0);
@@ -14,12 +15,12 @@ function fmtDate(d: Date | null): string {
   return d ? new Date(d).toLocaleDateString('cs-CZ') : '—';
 }
 
-const STATUS_LABEL: Record<string, { label: string; color: string }> = {
-  DRAFT: { label: 'Návrh', color: 'var(--muted-foreground)' },
-  PRICED: { label: 'Naceněno', color: 'var(--info)' },
-  PUBLISHED: { label: 'Publikováno', color: 'var(--success)' },
-  CANCELLED: { label: 'Stornováno', color: 'var(--destructive)' },
-  ARCHIVED: { label: 'Archiv', color: 'var(--muted-foreground)' },
+const STATUS_LABEL: Record<string, { label: string; color: string; icon: IconName }> = {
+  DRAFT:     { label: 'Návrh',       color: 'var(--muted-foreground)', icon: 'edit' },
+  PRICED:    { label: 'Naceněno',    color: 'var(--info)',             icon: 'calc' },
+  PUBLISHED: { label: 'Publikováno', color: 'var(--success)',          icon: 'ok' },
+  CANCELLED: { label: 'Stornováno',  color: 'var(--destructive)',      icon: 'ban' },
+  ARCHIVED:  { label: 'Archiv',      color: 'var(--muted-foreground)', icon: 'storage' },
 };
 
 export default async function OrdersPage() {
@@ -68,7 +69,7 @@ export default async function OrdersPage() {
             </thead>
             <tbody>
               {orders.map((o) => {
-                const s = STATUS_LABEL[o.status] ?? { label: o.status, color: 'var(--muted-foreground)' };
+                const s = STATUS_LABEL[o.status] ?? { label: o.status, color: 'var(--muted-foreground)', icon: 'info' as IconName };
                 return (
                   <ClickableRow
                     key={o.id}
@@ -93,6 +94,7 @@ export default async function OrdersPage() {
                           borderColor: `color-mix(in srgb, ${s.color} 30%, transparent)`,
                         }}
                       >
+                        <Icon name={s.icon} className="w-3 h-3" />
                         {s.label}
                       </span>
                     </td>

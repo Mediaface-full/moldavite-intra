@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { apiFetch } from '@/lib/apiFetch';
 import type { SerializedOrder, SerializedItem } from './OrderDetailClient';
+import Icon, { type IconName } from '../Icon';
 
 const STATUS_COLOR: Record<string, string> = {
   NEEDS_INPUT: 'var(--destructive)',
@@ -17,6 +18,12 @@ const STATUS_LABEL: Record<string, string> = {
   NEEDS_REVIEW: 'K revizi',
   OK: 'OK',
   STALE: 'Přepočítat',
+};
+const STATUS_ICON: Record<string, IconName> = {
+  NEEDS_INPUT: 'error',
+  NEEDS_REVIEW: 'warning',
+  OK: 'ok',
+  STALE: 'refresh',
 };
 
 function fmt(n: unknown): string {
@@ -58,11 +65,11 @@ export default function OrderItemsTab({ order }: { order: SerializedOrder }) {
   return (
     <div>
       <div className="flex items-center gap-2 mb-4 flex-wrap">
-        <FilterChip label="Vše" count={counts.all} active={filter === 'all'} onClick={() => setFilter('all')} />
-        <FilterChip label={STATUS_LABEL.NEEDS_INPUT} count={counts.NEEDS_INPUT} active={filter === 'NEEDS_INPUT'} onClick={() => setFilter('NEEDS_INPUT')} color={STATUS_COLOR.NEEDS_INPUT} />
-        <FilterChip label={STATUS_LABEL.STALE} count={counts.STALE} active={filter === 'STALE'} onClick={() => setFilter('STALE')} color={STATUS_COLOR.STALE} />
-        <FilterChip label={STATUS_LABEL.NEEDS_REVIEW} count={counts.NEEDS_REVIEW} active={filter === 'NEEDS_REVIEW'} onClick={() => setFilter('NEEDS_REVIEW')} color={STATUS_COLOR.NEEDS_REVIEW} />
-        <FilterChip label={STATUS_LABEL.OK} count={counts.OK} active={filter === 'OK'} onClick={() => setFilter('OK')} color={STATUS_COLOR.OK} />
+        <FilterChip label="Vše" count={counts.all} active={filter === 'all'} onClick={() => setFilter('all')} icon="list" />
+        <FilterChip label={STATUS_LABEL.NEEDS_INPUT} count={counts.NEEDS_INPUT} active={filter === 'NEEDS_INPUT'} onClick={() => setFilter('NEEDS_INPUT')} color={STATUS_COLOR.NEEDS_INPUT} icon={STATUS_ICON.NEEDS_INPUT} />
+        <FilterChip label={STATUS_LABEL.STALE} count={counts.STALE} active={filter === 'STALE'} onClick={() => setFilter('STALE')} color={STATUS_COLOR.STALE} icon={STATUS_ICON.STALE} />
+        <FilterChip label={STATUS_LABEL.NEEDS_REVIEW} count={counts.NEEDS_REVIEW} active={filter === 'NEEDS_REVIEW'} onClick={() => setFilter('NEEDS_REVIEW')} color={STATUS_COLOR.NEEDS_REVIEW} icon={STATUS_ICON.NEEDS_REVIEW} />
+        <FilterChip label={STATUS_LABEL.OK} count={counts.OK} active={filter === 'OK'} onClick={() => setFilter('OK')} color={STATUS_COLOR.OK} icon={STATUS_ICON.OK} />
       </div>
 
       {filtered.length === 0 ? (
@@ -94,7 +101,7 @@ export default function OrderItemsTab({ order }: { order: SerializedOrder }) {
   );
 }
 
-function FilterChip({ label, count, active, onClick, color }: { label: string; count: number; active: boolean; onClick: () => void; color?: string }) {
+function FilterChip({ label, count, active, onClick, color, icon }: { label: string; count: number; active: boolean; onClick: () => void; color?: string; icon?: IconName }) {
   return (
     <button
       onClick={onClick}
@@ -105,6 +112,7 @@ function FilterChip({ label, count, active, onClick, color }: { label: string; c
           : 'bg-card border-border text-muted-foreground hover:text-foreground hover:border-foreground/40'
       }`}
     >
+      {icon && <Icon name={icon} className="w-3 h-3" />}
       {label} <span className="opacity-70">({count})</span>
     </button>
   );
@@ -158,13 +166,14 @@ function ItemRow({ item, boxCode, onSaveManual }: { item: SerializedItem; boxCod
       </td>
       <td className="px-3 py-2">
         <span
-          className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-mono uppercase tracking-wider border"
+          className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono uppercase tracking-wider border"
           style={{
             color,
             background: `color-mix(in srgb, ${color} 12%, transparent)`,
             borderColor: `color-mix(in srgb, ${color} 30%, transparent)`,
           }}
         >
+          <Icon name={STATUS_ICON[status]} className="w-3 h-3" />
           {STATUS_LABEL[status]}
         </span>
       </td>

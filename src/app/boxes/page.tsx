@@ -3,6 +3,7 @@ import Link from 'next/link';
 import ScanNewBoxButton from '@/components/ScanNewBoxButton';
 import BoxPhotoPreview from '@/components/BoxPhotoPreview';
 import { CASSETTE_TYPE_META } from '@/lib/cassetteType';
+import Icon from '@/components/Icon';
 
 export default async function BoxesPage() {
   const boxes = await prisma.box.findMany({
@@ -59,6 +60,7 @@ export default async function BoxesPage() {
                     borderColor: `color-mix(in srgb, ${meta.color} 30%, transparent)`,
                   }}
                 >
+                  <Icon name={meta.icon} className="w-3 h-3" />
                   {meta.short}
                 </span>
               );

@@ -9,6 +9,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { apiFetch } from '@/lib/apiFetch';
 import { CASSETTE_TYPES, CASSETTE_TYPE_META, type CassetteType } from '@/lib/cassetteType';
+import Icon from './Icon';
 
 export default function CassetteTypePicker({
   boxId,
@@ -51,7 +52,7 @@ export default function CassetteTypePicker({
       }}
       title="Změnit typ kazety"
     >
-      <span className="text-[10px]">Typ:</span>
+      <Icon name={meta.icon} className="w-3.5 h-3.5" />
       <select
         value={value}
         disabled={saving}

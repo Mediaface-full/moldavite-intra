@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { apiFetch } from '@/lib/apiFetch';
+import Icon from '../Icon';
 
 export default function NewOrderButton() {
   const router = useRouter();
@@ -48,9 +49,7 @@ export default function NewOrderButton() {
         onClick={() => setShow(true)}
         className="bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2.5 rounded-lg text-sm font-medium transition-colors inline-flex items-center gap-2"
       >
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-        </svg>
+        <Icon name="plus" className="w-4 h-4" strokeWidth={2} />
         Nová zakázka
       </button>
 
