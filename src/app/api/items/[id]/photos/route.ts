@@ -33,6 +33,28 @@ function nextPhotoIndex(dir: string): number {
   return existing.length > 0 ? Math.max(...existing) + 1 : 1;
 }
 
+/**
+ * Race-safe write: zkusí O_CREAT|O_EXCL a inkrementuje idx dokud nenajde
+ * volný slot. Dva souběžné uploady stejného itemu se neperou — každý
+ * dostane unikátní filename.
+ */
+function writePhotoRaceSafe(dir: string, startIdx: number, ext: string, buf: Buffer): { idx: number; filename: string } {
+  let idx = startIdx;
+  while (idx < 1000) {
+    const filename = `${String(idx).padStart(2, '0')}${ext}`;
+    const fullPath = path.join(dir, filename);
+    try {
+      const fd = fs.openSync(fullPath, 'wx'); // 'wx' = O_WRONLY|O_CREAT|O_EXCL — fails if exists
+      try { fs.writeSync(fd, buf); } finally { fs.closeSync(fd); }
+      return { idx, filename };
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code === 'EEXIST') { idx++; continue; }
+      throw err;
+    }
+  }
+  throw new Error('Příliš mnoho fotek v této složce (max 999)');
+}
+
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -90,10 +112,9 @@ export async function POST(
   let nextIdx = nextPhotoIndex(itemDir);
   const written: string[] = [];
   for (const { ext, buf } of buffers) {
-    const filename = `${String(nextIdx).padStart(2, '0')}${ext}`;
-    fs.writeFileSync(path.join(itemDir, filename), buf);
+    const { idx, filename } = writePhotoRaceSafe(itemDir, nextIdx, ext, buf);
     written.push(filename);
-    nextIdx++;
+    nextIdx = idx + 1;
   }
 
   // Pokud Item nemá photoPath, doplň ho (např. starší kameny). Pokud má, nech.

@@ -15,6 +15,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getSession, logActivity } from '@/lib/auth';
+import { isSafePathSegment } from '@/lib/fileValidation';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -41,6 +42,9 @@ export async function POST(
     include: { items: { select: { evidNumber: true }, orderBy: { evidNumber: 'asc' } } },
   });
   if (!box) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  if (!isSafePathSegment(box.code)) {
+    return NextResponse.json({ error: 'Invalid box code (contains unsafe characters)' }, { status: 500 });
+  }
 
   const existing = box.items.length;
   if (count <= existing) {
@@ -85,12 +89,19 @@ export async function POST(
 
   // Vytvoříme folders na disku — best-effort, případná chyba se zaloguje
   // (uživatel může nahrát fotky přes UI modal i bez existující složky).
-  const photosBase = process.env.PHOTOS_PATH || '/data/photos';
+  // Path traversal defense: photosBase resolved, každá target path musí
+  // začínat photosBase + sep, jinak skip (i když isSafePathSegment už ošetřil).
+  const photosBase = path.resolve(process.env.PHOTOS_PATH || '/data/photos');
   let foldersCreated = 0;
   let foldersFailed = 0;
   if (fs.existsSync(photosBase)) {
     for (const evidNumber of newNumbers) {
-      const folder = path.join(photosBase, box.code, evidNumber);
+      const folder = path.resolve(path.join(photosBase, box.code, evidNumber));
+      if (!folder.startsWith(photosBase + path.sep)) {
+        foldersFailed++;
+        console.error(`[generate-items] refused unsafe path: ${folder}`);
+        continue;
+      }
       try {
         fs.mkdirSync(folder, { recursive: true });
         foldersCreated++;

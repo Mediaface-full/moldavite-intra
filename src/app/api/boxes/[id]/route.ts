@@ -10,7 +10,10 @@ export async function PATCH(
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { id } = await params;
-  const boxId = parseInt(id);
+  const boxId = parseInt(id, 10);
+  if (!Number.isInteger(boxId) || boxId <= 0) {
+    return NextResponse.json({ error: 'Invalid box id' }, { status: 400 });
+  }
   const body = await request.json();
 
   const data: Record<string, unknown> = {};

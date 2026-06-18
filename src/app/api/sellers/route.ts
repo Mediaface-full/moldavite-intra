@@ -12,6 +12,11 @@ export async function GET(request: Request) {
 
   const { searchParams } = new URL(request.url);
   const includeInactive = searchParams.get('all') === '1';
+  // Inactive list expose jen pro ADMIN — non-admin user nepotřebuje vidět
+  // deaktivované dodavatele (a nemůže je obnovit).
+  if (includeInactive && session.role !== 'ADMIN') {
+    return NextResponse.json({ error: 'Forbidden — list inactive only for ADMIN' }, { status: 403 });
+  }
 
   const sellers = await prisma.seller.findMany({
     where: includeInactive ? {} : { active: true },
