@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getSession, logActivity } from '@/lib/auth';
 
-const ALLOWED_KEYS = ['pasShape', 'attrDamage', 'attrColor', 'location'] as const;
+const ALLOWED_KEYS = ['pasShape', 'attrDamage', 'attrColor', 'location', 'cassetteType'] as const;
 
 /**
  * GET /api/attr-options?key=pasShape  → seznam aktivních hodnot pro daný atribut

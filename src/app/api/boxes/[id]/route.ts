@@ -17,13 +17,32 @@ export async function PATCH(
   if (body.name !== undefined) data.name = body.name;
   if (body.placement !== undefined) data.placement = body.placement;
 
-  // cassetteType — enum validace
-  if (body.cassetteType !== undefined) {
-    const allowed = ['STONES', 'PROCESSED', 'TO_PROCESS', 'DUST'];
-    if (!allowed.includes(body.cassetteType)) {
-      return NextResponse.json({ error: `cassetteType musí být ${allowed.join('/')}` }, { status: 422 });
-    }
+  // cassetteType je teď String (řízeno přes AttrOption). Validace probíhá
+  // softly — uložíme co přijde; admin si může v /admin/attributes aktivovat
+  // nové hodnoty bez deploye.
+  if (body.cassetteType !== undefined && typeof body.cassetteType === 'string') {
     data.cassetteType = body.cassetteType;
+  }
+
+  // Per-kazeta dodavatel a cenotvorba (vše nullable — null = dědí z Order)
+  if (body.sellerId !== undefined) {
+    data.sellerId = body.sellerId === null ? null : Number(body.sellerId);
+  }
+  if (body.declaredPieces !== undefined) {
+    const n = body.declaredPieces === null ? null : Number(body.declaredPieces);
+    if (n !== null && (!Number.isFinite(n) || n < 0 || !Number.isInteger(n))) {
+      return NextResponse.json({ error: 'declaredPieces musí být nezáporné celé číslo nebo null' }, { status: 422 });
+    }
+    data.declaredPieces = n;
+  }
+  for (const f of ['declaredWeight', 'purchaseAmountCzk', 'purchasePricePerGramCzk'] as const) {
+    if (body[f] === undefined) continue;
+    if (body[f] === null) { data[f] = null; continue; }
+    const n = Number(body[f]);
+    if (!Number.isFinite(n) || n < 0) {
+      return NextResponse.json({ error: `${f} musí být ≥ 0 nebo null` }, { status: 422 });
+    }
+    data[f] = n;
   }
 
   const box = await prisma.box.update({

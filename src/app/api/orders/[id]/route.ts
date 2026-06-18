@@ -5,7 +5,7 @@ import { serializeOrder, serializeCost, serializeItemForPricing } from '@/lib/or
 
 // Whitelist polí povolených pro PATCH (uživatelské metadata + cenotvorba).
 const ALLOWED_PATCH_FIELDS = [
-  'title', 'sellerName', 'sellerContact', 'purchaseDate',
+  'title', 'sellerName', 'sellerContact', 'sellerId', 'purchaseDate',
   'declaredPieces', 'declaredWeight', 'originLocality', 'notes',
   'sourceCurrency', 'totalPurchaseAmountSource', 'totalPurchaseAmountCzk',
   'exchangeRate', 'exchangeRateDate',
@@ -40,15 +40,21 @@ export async function GET(
     include: {
       costs: { orderBy: { createdAt: 'asc' } },
       items: { include: { box: { select: { id: true, code: true } } }, orderBy: { evidNumber: 'asc' } },
-      boxes: { select: { id: true, code: true, name: true }, orderBy: { code: 'asc' } },
+      boxes: { select: { id: true, code: true, name: true, sellerId: true }, orderBy: { code: 'asc' } },
       pricingConfig: true,
+      seller: { select: { id: true, firstName: true, lastName: true, alias: true } },
       _count: { select: { items: true, costs: true } },
     },
   });
   if (!order) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
+  const sellerDisplay = order.seller
+    ? `${order.seller.firstName} ${order.seller.lastName}`.trim() + (order.seller.alias ? ` (${order.seller.alias})` : '')
+    : null;
+
   return NextResponse.json({
     ...serializeOrder(order),
+    sellerDisplay: sellerDisplay || null,
     costs: order.costs.map(serializeCost),
     items: order.items.map(serializeItemForPricing),
     boxes: order.boxes,

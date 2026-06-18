@@ -41,14 +41,16 @@ enum PricingStatus {
 }
 
 /// Typ kazety (Box) — co je v ní fyzicky uložené.
-/// V UI se Box prezentuje jako "Kazeta". Tato volba se promítne do badge
-/// na výpisu kazet a může ovlivnit filtraci v admin sekcích.
-enum CassetteType {
-  STONES       // Kameny — default; surové vltavíny
-  PROCESSED    // Opracované kusy — broušené / leštěné kameny
-  TO_PROCESS   // K opracování — kameny určené k dalšímu opracování
-  DUST         // Prach — drobný materiál
-}
+/// V UI se Box prezentuje jako "Kazeta".
+///
+/// POZN.: Sloupec Box.cassetteType je String (ne enum) — povolené hodnoty
+/// jsou řízené přes AttrOption(attrKey="cassetteType") a editovatelné
+/// v admin sekci /admin/attributes. Default a 4 výchozí hodnoty viz
+/// scripts/seed-attr-options.mjs:
+///   - "Kameny" (default — surové vltavíny)
+///   - "Opracované kusy" (broušené / leštěné)
+///   - "K opracování" (určené k dalšímu opracování)
+///   - "Prach" (drobný materiál)
 
 model User {
   id           Int           @id @default(autoincrement())
@@ -77,17 +79,27 @@ model ActivityLog {
 }
 
 /// Kazeta (DB model historicky "Box"). V UI se prezentuje jako "Kazeta".
-/// Drží kameny, je vázaná na zakázku (Order). Volba `cassetteType` ovlivňuje
-/// jak se kazeta zobrazí na výpisu (badge) a může v budoucnu filtrovat.
+/// Drží kameny, je vázaná na zakázku (Order). cassetteType (String, řízeno
+/// AttrOption) ovlivňuje badge na výpisu.
+///
+/// Kazeta může mít vlastní data co přebijí defaulty zakázky:
+///   - sellerId      — dodavatel (jinak dědí Order.sellerId)
+///   - declaredPieces, declaredWeight — kolik kamenů / kolik gramů reálně
+///                     přišlo (může se lišit od declared na zakázce)
+///   - purchaseAmountCzk — kolik kazeta stála (Σ za zakázku by mělo sedět
+///                     na Order.totalPurchaseAmountCzk; jinak UI warning)
+///   - purchasePricePerGramCzk — cena za gram pro výpočet ceny kamenů v kazetě
+///                     (jinak dědí Order.defaultPurchasePricePerGramCzk)
 model Box {
-  id        Int           @id @default(autoincrement())
-  code      String        @unique // e.g. "K0001"
+  id        Int      @id @default(autoincrement())
+  code      String   @unique // e.g. "K0001"
   name      String?
-  placement String        @default("") // kde je kazeta umístěna
-  photos    String[]      @default([]) // až 5 fotek kazety (cesty)
-  cassetteType CassetteType @default(STONES) // Kameny / Opracované / K opracování / Prach
-  createdAt DateTime      @default(now())
-  updatedAt DateTime      @updatedAt
+  placement String   @default("") // kde je kazeta umístěna
+  photos    String[] @default([]) // až 5 fotek kazety (cesty)
+  /// Řízeno přes AttrOption(attrKey="cassetteType"); default "Kameny"
+  cassetteType String  @default("Kameny")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
   items     Item[]
 
   // Zakázka (Etapa 1, nullable do migrace dat):
@@ -96,8 +108,44 @@ model Box {
   orderId Int?
   order   Order? @relation(fields: [orderId], references: [id], onDelete: SetNull)
 
+  // Dodavatel (override Order.sellerId)
+  sellerId Int?
+  seller   Seller? @relation(fields: [sellerId], references: [id], onDelete: SetNull)
+
+  // Per-kazeta cenotvorba / deklarace (vše nullable → dědí z Order)
+  declaredPieces           Int?
+  declaredWeight           Decimal? @db.Decimal(10, 2)
+  purchaseAmountCzk        Decimal? @db.Decimal(12, 2)
+  purchasePricePerGramCzk  Decimal? @db.Decimal(10, 2)
+
   @@index([orderId])
+  @@index([sellerId])
   @@index([cassetteType])
+}
+
+/// Dodavatel kamenů. Může být přiřazen na úrovni zakázky (Order.sellerId)
+/// nebo per kazeta (Box.sellerId override). V UI listingu zakázky:
+///   - všechny kazety stejný seller → ukáže se v Order header
+///   - smíšené → UI badge "MIX (N dodavatelů)"
+///
+/// Soft-delete přes active=false (stávající Order/Box si reference nechají).
+model Seller {
+  id        Int      @id @default(autoincrement())
+  firstName String   @default("")
+  lastName  String   @default("")
+  alias     String   @default("") // krycí jméno / přezdívka
+  phone     String   @default("")
+  email     String   @default("")
+  note      String   @default("")
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  orders Order[]
+  boxes  Box[]
+
+  @@index([active])
+  @@index([lastName])
 }
 
 /// Řízené hodnoty atributů (categorical dictionary).
@@ -176,6 +224,8 @@ model Item {
 
   // ─── Výstupy výpočtu (snapshot z posledního přepočtu) ─────
   allocatedOrderCostCzk        Decimal?      @db.Decimal(10, 2)
+  /// Cena s náklady = purchasePriceCzk + allocatedOrderCostCzk (řádek "Cena s náklady" v UI)
+  costBasisCzk                 Decimal?      @db.Decimal(10, 2)
   computedMarginRate           Decimal?      @db.Decimal(6, 4)  // decimální multiplikátor (1.5 = 150%)
   computedMinPriceExVatCzk     Decimal?      @db.Decimal(10, 2)
   computedMinPriceInclVatCzk   Decimal?      @db.Decimal(10, 2)
@@ -204,8 +254,13 @@ model Order {
   id            Int     @id @default(autoincrement())
   code          String  @unique  // "Z2026-001" / "MIG-K0042" / "LEGACY-IMPORT"
   title         String  @default("")
+  /// LEGACY free text (zachováno pro migrované zakázky). Pro nové preferuj sellerId FK.
   sellerName    String  @default("")
   sellerContact String  @default("")
+  /// FK na Seller entitu — preferovaný způsob u nových zakázek.
+  /// Pokud Box.sellerId !== Order.sellerId u některé kazety → UI zobrazí "MIX".
+  sellerId      Int?
+  seller        Seller? @relation(fields: [sellerId], references: [id], onDelete: SetNull)
   purchaseDate  DateTime?
   declaredPieces Int    @default(0)
   declaredWeight Decimal? @db.Decimal(10, 2)
@@ -248,6 +303,7 @@ model Order {
 
   @@index([status])
   @@index([purchaseDate])
+  @@index([sellerId])
 }
 
 // ─── OrderCostItem / Nákladová položka zakázky ──────────────────────

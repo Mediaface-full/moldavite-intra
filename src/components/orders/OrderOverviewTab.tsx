@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { apiFetch } from '@/lib/apiFetch';
 import type { SerializedOrder } from './OrderDetailClient';
 import Icon from '../Icon';
+import SellerPicker from '../SellerPicker';
 
 function fmtMoney(n: unknown): string {
   const v = Number(n ?? 0);
@@ -55,7 +56,7 @@ export default function OrderOverviewTab({ order }: { order: SerializedOrder }) 
           ) : (
             <dl className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
               <Item label="Název / poznámka" value={order.title || '—'} />
-              <Item label="Prodejce" value={order.sellerName || '—'} />
+              <Item label="Dodavatel" value={order.sellerDisplay || order.sellerName || '—'} />
               <Item label="Kontakt" value={order.sellerContact || '—'} />
               <Item label="Datum nákupu" value={fmtDate(order.purchaseDate)} />
               <Item label="Lokalita původu" value={order.originLocality || '—'} />
@@ -76,18 +77,33 @@ export default function OrderOverviewTab({ order }: { order: SerializedOrder }) 
       {/* Boxes assigned */}
       {order.boxes.length > 0 && (
         <div className="bg-card border border-border rounded-xl shadow-sm p-5">
-          <h3 className="text-sm font-semibold mb-3">Přiřazené krabice ({order.boxes.length})</h3>
+          <h3 className="text-sm font-semibold mb-3">Přiřazené kazety ({order.boxes.length})</h3>
           <div className="flex flex-wrap gap-2">
-            {order.boxes.map((b) => (
-              <Link
-                key={b.id}
-                href={`/boxes/${b.id}`}
-                className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-mono bg-muted border border-border hover:border-foreground/40 transition-colors"
-              >
-                {b.code}
-                {b.name && <span className="text-muted-foreground">· {b.name}</span>}
-              </Link>
-            ))}
+            {order.boxes.map((b) => {
+              const mix = order.sellerId != null && b.sellerId != null && b.sellerId !== order.sellerId;
+              return (
+                <Link
+                  key={b.id}
+                  href={`/boxes/${b.id}`}
+                  className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-mono bg-muted border border-border hover:border-foreground/40 transition-colors"
+                >
+                  {b.code}
+                  {b.name && <span className="text-muted-foreground">· {b.name}</span>}
+                  {mix && (
+                    <span
+                      className="text-[9px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded"
+                      style={{
+                        background: 'color-mix(in srgb, var(--warning) 15%, transparent)',
+                        color: 'var(--warning)',
+                      }}
+                      title="Dodavatel této kazety se liší od dodavatele zakázky"
+                    >
+                      MIX
+                    </span>
+                  )}
+                </Link>
+              );
+            })}
           </div>
         </div>
       )}
@@ -115,6 +131,7 @@ function Item({ label, value, mono }: { label: string; value: string; mono?: boo
 
 function MetaForm({ order, onSaved }: { order: SerializedOrder; onSaved: () => void }) {
   const [title, setTitle] = useState(order.title);
+  const [sellerId, setSellerId] = useState<number | null>(order.sellerId ?? null);
   const [sellerName, setSellerName] = useState(order.sellerName);
   const [sellerContact, setSellerContact] = useState(order.sellerContact);
   const [purchaseDate, setPurchaseDate] = useState(order.purchaseDate ? new Date(order.purchaseDate).toISOString().slice(0, 10) : '');
@@ -131,7 +148,7 @@ function MetaForm({ order, onSaved }: { order: SerializedOrder; onSaved: () => v
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        title, sellerName, sellerContact,
+        title, sellerId, sellerName, sellerContact,
         purchaseDate: purchaseDate || null,
         originLocality,
         declaredPieces: parseInt(declaredPieces, 10) || 0,
@@ -151,8 +168,18 @@ function MetaForm({ order, onSaved }: { order: SerializedOrder; onSaved: () => v
   return (
     <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
       <div><label className={labelCls}>Název</label><input type="text" value={title} onChange={(e) => setTitle(e.target.value)} className={inputCls} /></div>
-      <div><label className={labelCls}>Prodejce</label><input type="text" value={sellerName} onChange={(e) => setSellerName(e.target.value)} className={inputCls} /></div>
-      <div><label className={labelCls}>Kontakt</label><input type="text" value={sellerContact} onChange={(e) => setSellerContact(e.target.value)} className={inputCls} /></div>
+      <div>
+        <label className={labelCls}>Dodavatel</label>
+        <SellerPicker value={sellerId} onChange={(id) => setSellerId(id)} />
+      </div>
+      <div><label className={labelCls}>Kontakt (legacy text)</label><input type="text" value={sellerContact} onChange={(e) => setSellerContact(e.target.value)} className={inputCls} placeholder="Doplňková poznámka ke kontaktu" /></div>
+      {sellerName && (
+        <div className="md:col-span-2 text-[10px] text-muted-foreground font-mono">
+          Původní textový prodejce: <span className="text-foreground">{sellerName}</span>
+          {' · '}
+          <button type="button" onClick={() => setSellerName('')} className="underline hover:text-foreground">Vymazat</button>
+        </div>
+      )}
       <div><label className={labelCls}>Datum nákupu</label><input type="date" value={purchaseDate} onChange={(e) => setPurchaseDate(e.target.value)} className={inputCls} /></div>
       <div><label className={labelCls}>Lokalita</label><input type="text" value={originLocality} onChange={(e) => setOriginLocality(e.target.value)} className={inputCls} /></div>
       <div><label className={labelCls}>Deklarovaný počet</label><input type="number" min={0} value={declaredPieces} onChange={(e) => setDeclaredPieces(e.target.value)} className={inputCls} /></div>

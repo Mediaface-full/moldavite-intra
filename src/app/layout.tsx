@@ -46,6 +46,7 @@ const icons: Record<string, string> = {
   orders: "M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z",
   pricing: "M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z",
   attributes: "M9.568 3H5.25A2.25 2.25 0 003 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581c.699.699 1.78.872 2.607.33a18.095 18.095 0 005.223-5.223c.542-.827.369-1.908-.33-2.607L11.16 3.66A2.25 2.25 0 009.568 3z",
+  sellers: "M8.25 18.75a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h6m-9-1.5h12.225c.412 0 .75-.338.75-.75v-1.5a.75.75 0 00-.75-.75H2.625m9 5.25h6m-6 0a1.5 1.5 0 00-3 0m3 0a1.5 1.5 0 01-3 0m6 0a1.5 1.5 0 011.5-1.5h.375c.621 0 1.125-.504 1.125-1.125V12.75M14.25 18.75a1.5 1.5 0 00-1.5-1.5H8.25m7.5 1.5H21M3.75 12V6.75a1.5 1.5 0 011.5-1.5h7.5a1.5 1.5 0 011.5 1.5v12M14.25 6.75h2.25l4.5 4.5v6.75",
 };
 
 function NavLink({ href, icon, children }: { href: string; icon: string; children: React.ReactNode }) {
@@ -100,6 +101,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
                     <NavLink href="/admin/users" icon="users">Uživatelé</NavLink>
                     <NavLink href="/admin/pricing-config" icon="pricing">Cenotvorba</NavLink>
                     <NavLink href="/admin/attributes" icon="attributes">Atributy</NavLink>
+                    <NavLink href="/admin/sellers" icon="sellers">Dodavatelé</NavLink>
                     <NavLink href="/admin/logs" icon="logs">Activity Log</NavLink>
                   </>
                 )}

@@ -206,7 +206,7 @@ function computeStone(
     issues.push({
       severity: 'warn',
       code: 'MANUAL_BELOW_MIN',
-      message: `Ruční cena ${moneyString(manual)} je pod doporučeným minimem ${moneyString(recommendedPriceInclVat)}`,
+      message: `Speciální cena ${moneyString(manual)} je pod doporučeným minimem ${moneyString(recommendedPriceInclVat)}`,
     });
     finalInternal = recommendedPriceInclVat; // bezpečně použij doporučenou
     status = 'NEEDS_REVIEW';

@@ -7,6 +7,8 @@ import BoxPlacement from '@/components/BoxPlacement';
 import CassetteTypePicker from '@/components/CassetteTypePicker';
 import AiBulkButton from '@/components/AiBulkButton';
 import BoxDeleteButton from '@/components/BoxDeleteButton';
+import GenerateItemsButton from '@/components/GenerateItemsButton';
+import BoxSellerPicker from '@/components/BoxSellerPicker';
 import { getSession } from '@/lib/auth';
 
 export default async function BoxDetailPage({
@@ -57,6 +59,12 @@ export default async function BoxDetailPage({
           </div>
         </div>
         <div className="flex items-center gap-3">
+          <BoxSellerPicker boxId={box.id} initial={box.sellerId} />
+          <GenerateItemsButton
+            boxId={box.id}
+            currentCount={box.items.length}
+            declaredPieces={box.declaredPieces ?? null}
+          />
           {isAdmin && (
             <AiBulkButton
               boxCode={box.code}

@@ -18,6 +18,9 @@ const prisma = new PrismaClient();
 
 // Pořadí v polích = sortOrder. První je defaultní volba v dropdownu.
 const SEED = {
+  cassetteType: [
+    'Kameny', 'Opracované kusy', 'K opracování', 'Prach',
+  ],
   pasShape: [
     'Běžný', 'Kapka', 'Tyčka', 'Činka', 'Koule', 'Ovál', 'Disk', 'Půldisk',
   ],

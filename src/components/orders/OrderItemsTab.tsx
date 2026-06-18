@@ -85,7 +85,7 @@ export default function OrderItemsTab({ order }: { order: SerializedOrder }) {
                 <th className="text-right px-3 py-3 text-[10px] text-muted-foreground font-mono uppercase tracking-wider">Váha (g)</th>
                 <th className="text-right px-3 py-3 text-[10px] text-muted-foreground font-mono uppercase tracking-wider">Alokace</th>
                 <th className="text-right px-3 py-3 text-[10px] text-muted-foreground font-mono uppercase tracking-wider">Doporučená</th>
-                <th className="text-right px-3 py-3 text-[10px] text-muted-foreground font-mono uppercase tracking-wider">Ruční</th>
+                <th className="text-right px-3 py-3 text-[10px] text-muted-foreground font-mono uppercase tracking-wider" title="Speciální cena — manuálně nastavená vyšší cena pro mimořádně pěkné kameny">Speciální</th>
                 <th className="text-left px-3 py-3 text-[10px] text-muted-foreground font-mono uppercase tracking-wider">Stav</th>
               </tr>
             </thead>

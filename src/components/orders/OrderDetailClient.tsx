@@ -19,6 +19,8 @@ export type SerializedOrder = {
   title: string;
   sellerName: string;
   sellerContact: string;
+  sellerId: number | null;
+  sellerDisplay: string | null;
   purchaseDate: string | Date | null;
   declaredPieces: number;
   declaredWeight: string | null;
@@ -36,7 +38,7 @@ export type SerializedOrder = {
   lastCalculatedAt: string | Date | null;
   costs: SerializedCost[];
   items: SerializedItem[];
-  boxes: Array<{ id: number; code: string; name: string | null }>;
+  boxes: Array<{ id: number; code: string; name: string | null; sellerId?: number | null }>;
   pricingConfig: { id: number; name: string; active: boolean } | null;
 };
 

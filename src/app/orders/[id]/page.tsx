@@ -21,18 +21,24 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
           include: { box: { select: { id: true, code: true } } },
           orderBy: { evidNumber: 'asc' },
         },
-        boxes: { select: { id: true, code: true, name: true }, orderBy: { code: 'asc' } },
+        boxes: { select: { id: true, code: true, name: true, sellerId: true }, orderBy: { code: 'asc' } },
         pricingConfig: true,
+        seller: { select: { id: true, firstName: true, lastName: true, alias: true } },
       },
     }),
     prisma.pricingConfig.findMany({ orderBy: [{ active: 'desc' }, { name: 'asc' }] }),
   ]);
   if (!order) notFound();
 
+  const sellerDisplay = order.seller
+    ? (`${order.seller.firstName} ${order.seller.lastName}`.trim() + (order.seller.alias ? ` (${order.seller.alias})` : ''))
+    : null;
+
   return (
     <OrderDetailClient
       order={{
         ...serializeOrder(order),
+        sellerDisplay,
         costs: order.costs.map(serializeCost),
         items: order.items.map((it) => ({
           ...serializeItemForPricing(it),
