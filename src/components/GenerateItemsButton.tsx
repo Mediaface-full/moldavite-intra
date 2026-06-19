@@ -63,7 +63,8 @@ export default function GenerateItemsButton({
     <>
       <button
         onClick={() => setShow(true)}
-        className="bg-card border border-border hover:border-foreground/40 text-foreground px-3 py-1.5 rounded-md text-xs font-mono uppercase tracking-wider transition-colors inline-flex items-center gap-2"
+        className="text-white px-3 py-1.5 rounded-md text-xs font-mono uppercase tracking-wider transition-colors inline-flex items-center gap-2"
+        style={{ background: 'var(--success)' }}
         title="Doplnit prázdné kameny s evidenčními čísly + složky pro FTP fotky"
       >
         <Icon name="plus" className="w-3.5 h-3.5" strokeWidth={2} />
@@ -124,7 +125,8 @@ export default function GenerateItemsButton({
                   <button
                     onClick={handleSubmit}
                     disabled={busy}
-                    className="flex-1 bg-primary hover:bg-primary/90 disabled:opacity-50 text-primary-foreground py-2 rounded-lg text-sm font-medium inline-flex items-center justify-center gap-2"
+                    className="flex-1 disabled:opacity-50 text-white py-2 rounded-lg text-sm font-medium inline-flex items-center justify-center gap-2"
+                    style={{ background: 'var(--success)' }}
                   >
                     {busy ? 'Vytvářím…' : (
                       <>

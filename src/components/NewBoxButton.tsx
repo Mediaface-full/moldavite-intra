@@ -131,19 +131,16 @@ export default function NewBoxButton({
     router.refresh();
   }
 
+  // Create akce — zelená napříč aplikací (NewBox/NewOrder/Vytvořit Sellera/...)
+  const greenBtn = "px-3 py-1.5 rounded-md text-xs font-mono uppercase tracking-wider inline-flex items-center gap-1.5 transition-colors text-white";
+  const greenStyle = { background: 'var(--success)' };
   const trigger = variant === 'primary' ? (
-    <button
-      onClick={() => setOpen(true)}
-      className="bg-primary hover:bg-primary/90 text-primary-foreground px-3 py-1.5 rounded-md text-xs font-mono uppercase tracking-wider inline-flex items-center gap-1.5 transition-colors"
-    >
+    <button onClick={() => setOpen(true)} className={greenBtn} style={greenStyle}>
       <Icon name="plus" className="w-3.5 h-3.5" strokeWidth={2} />
       Založit kazetu
     </button>
   ) : (
-    <button
-      onClick={() => setOpen(true)}
-      className="bg-card border border-border hover:border-foreground/40 text-foreground px-3 py-1.5 rounded-md text-xs font-mono uppercase tracking-wider inline-flex items-center gap-1.5 transition-colors"
-    >
+    <button onClick={() => setOpen(true)} className={greenBtn} style={greenStyle}>
       <Icon name="plus" className="w-3.5 h-3.5" strokeWidth={2} />
       Založit kazetu
     </button>
@@ -271,7 +268,8 @@ export default function NewBoxButton({
                 <button
                   onClick={submit}
                   disabled={busy}
-                  className="flex-1 bg-primary hover:bg-primary/90 disabled:opacity-50 text-primary-foreground py-2 rounded-lg text-sm font-medium inline-flex items-center justify-center gap-2"
+                  className="flex-1 disabled:opacity-50 text-white py-2 rounded-lg text-sm font-medium inline-flex items-center justify-center gap-2"
+                  style={{ background: 'var(--success)' }}
                 >
                   <Icon name="plus" className="w-4 h-4" strokeWidth={2} />
                   {busy ? 'Zakládám…' : 'Založit'}

@@ -113,7 +113,8 @@ export default function SellersAdminClient({ initial }: { initial: Seller[] }) {
           {!adding && (
             <button
               onClick={() => setAdding(true)}
-              className="bg-primary hover:bg-primary/90 text-primary-foreground px-3 py-1.5 rounded-md text-xs font-mono uppercase tracking-wider inline-flex items-center gap-2"
+              className="text-white px-3 py-1.5 rounded-md text-xs font-mono uppercase tracking-wider inline-flex items-center gap-2"
+              style={{ background: 'var(--success)' }}
             >
               <Icon name="plus" className="w-3.5 h-3.5" strokeWidth={2} />
               Nový dodavatel
@@ -140,7 +141,8 @@ export default function SellersAdminClient({ initial }: { initial: Seller[] }) {
             <button
               onClick={createSeller}
               disabled={busy}
-              className="bg-primary hover:bg-primary/90 disabled:opacity-50 text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium inline-flex items-center gap-2"
+              className="disabled:opacity-50 text-white px-4 py-2 rounded-lg text-sm font-medium inline-flex items-center gap-2"
+              style={{ background: 'var(--success)' }}
             >
               <Icon name="save" className="w-4 h-4" />
               {busy ? 'Ukládám…' : 'Vytvořit'}

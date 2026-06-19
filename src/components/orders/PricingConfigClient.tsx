@@ -50,7 +50,8 @@ export default function PricingConfigClient({ configs }: { configs: Config[] }) 
         </div>
         <button
           onClick={() => setCreating(true)}
-          className="bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2.5 rounded-lg text-sm font-medium inline-flex items-center gap-2"
+          className="text-white px-4 py-2.5 rounded-lg text-sm font-medium inline-flex items-center gap-2"
+          style={{ background: 'var(--success)' }}
         >
           + Nová konfigurace
         </button>
@@ -246,7 +247,12 @@ function ConfigForm({
         )}
       </div>
       <div className="mt-4 flex gap-2">
-        <button type="submit" disabled={saving} className="bg-primary hover:bg-primary/90 disabled:opacity-50 text-primary-foreground px-3 py-1.5 rounded-md text-xs font-mono uppercase tracking-wider">
+        <button
+          type="submit"
+          disabled={saving}
+          className="disabled:opacity-50 text-white px-3 py-1.5 rounded-md text-xs font-mono uppercase tracking-wider"
+          style={{ background: config ? 'var(--primary)' : 'var(--success)' }}
+        >
           {saving ? 'Ukládám…' : config ? 'Uložit' : 'Vytvořit'}
         </button>
         <button type="button" onClick={onCancel} className="px-3 py-1.5 rounded-md text-xs font-mono uppercase tracking-wider border border-border text-muted-foreground hover:text-foreground hover:border-foreground/40 transition-colors">

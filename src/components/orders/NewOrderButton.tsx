@@ -47,7 +47,8 @@ export default function NewOrderButton() {
     <>
       <button
         onClick={() => setShow(true)}
-        className="bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2.5 rounded-lg text-sm font-medium transition-colors inline-flex items-center gap-2"
+        className="text-white px-4 py-2.5 rounded-lg text-sm font-medium transition-colors inline-flex items-center gap-2"
+        style={{ background: 'var(--success)' }}
       >
         <Icon name="plus" className="w-4 h-4" strokeWidth={2} />
         Nová zakázka
@@ -96,7 +97,8 @@ export default function NewOrderButton() {
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="flex-1 bg-primary hover:bg-primary/90 disabled:opacity-50 text-primary-foreground py-2 rounded-lg text-sm font-medium transition-colors"
+                  className="flex-1 disabled:opacity-50 text-white py-2 rounded-lg text-sm font-medium transition-colors"
+                  style={{ background: 'var(--success)' }}
                 >
                   {submitting ? 'Vytvářím…' : 'Vytvořit'}
                 </button>
