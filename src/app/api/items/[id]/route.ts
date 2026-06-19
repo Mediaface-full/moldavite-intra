@@ -118,6 +118,10 @@ export async function PATCH(
   // Není to plný recalc (alokace + margin + DPH potřebují všechny items zakázky),
   // ale „Cena nákupní" v sekci Ceny se okamžitě objeví bez nutnosti Přepočítat.
   // Plus označíme status STALE — signál uživateli „klikni Přepočítat pro úplné ceny".
+  //
+  // Pozor: UI vždy posílá purchasePrice v PATCH (formData submission). Auto-update
+  // nesmí přepsat user input — pokud poslaná hodnota se liší od DB, user ji ručně
+  // změnil a respektujeme to.
   const affectsPurchase =
     data.weight !== undefined ||
     data.purchasePricePerGramCzk !== undefined ||
@@ -131,42 +135,55 @@ export async function PATCH(
       },
     });
     if (ctx) {
-      // Merge nové hodnoty (data.*) s aktuálním DB stavem (ctx.*) — co user
-      // poslal v PATCH ještě není uloženo, ale chceme s tím spočítat hned.
-      const nextWeight = data.weight !== undefined ? Number(data.weight) : (ctx.weight ? Number(ctx.weight) : null);
-      const nextItemPpg = data.purchasePricePerGramCzk !== undefined
-        ? (data.purchasePricePerGramCzk === null ? null : Number(data.purchasePricePerGramCzk))
-        : (ctx.purchasePricePerGramCzk ? Number(ctx.purchasePricePerGramCzk) : null);
+      // Detekce: user explicitně přepsal purchasePrice oproti DB hodnotě?
+      // (0.01 tolerance proti decimal float wobble.) Pokud ano → respektovat,
+      // auto-update neaplikovat. Když pole nebylo posláno (undefined) → UI ho
+      // neposílá v tomto requestu (jiný caller) → auto-update OK.
+      const dbPurchase = ctx.purchasePrice ? Number(ctx.purchasePrice) : 0;
+      const sentPurchase = data.purchasePrice !== undefined ? Number(data.purchasePrice) : null;
+      const userChangedPurchase = sentPurchase !== null && Math.abs(sentPurchase - dbPurchase) >= 0.01;
 
-      const ppg = resolvePpg(
-        {
-          id: itemId,
-          weightGrams: nextWeight !== null ? String(nextWeight) : null,
-          purchasePricePerGramCzk: nextItemPpg !== null ? String(nextItemPpg) : null,
-          manualPriceInclVatCzk: null,
-          attrs: { pasShape: null, location: null, attrDamage: null, attrColor: [], attrCollectible: false },
-          box: {
-            purchasePricePerGramCzk: ctx.box?.purchasePricePerGramCzk?.toString() ?? null,
-            purchaseAmountCzk: ctx.box?.purchaseAmountCzk?.toString() ?? null,
-            declaredWeight: ctx.box?.declaredWeight?.toString() ?? null,
+      if (!userChangedPurchase) {
+        // Merge nové hodnoty (data.*) s aktuálním DB stavem (ctx.*) — co user
+        // poslal v PATCH ještě není uloženo, ale chceme s tím spočítat hned.
+        const nextWeight = data.weight !== undefined ? Number(data.weight) : (ctx.weight ? Number(ctx.weight) : null);
+        const nextItemPpg = data.purchasePricePerGramCzk !== undefined
+          ? (data.purchasePricePerGramCzk === null ? null : Number(data.purchasePricePerGramCzk))
+          : (ctx.purchasePricePerGramCzk ? Number(ctx.purchasePricePerGramCzk) : null);
+
+        const ppg = resolvePpg(
+          {
+            id: itemId,
+            weightGrams: nextWeight !== null ? String(nextWeight) : null,
+            purchasePricePerGramCzk: nextItemPpg !== null ? String(nextItemPpg) : null,
+            manualPriceInclVatCzk: null,
+            attrs: { pasShape: null, location: null, attrDamage: null, attrColor: [], attrCollectible: false },
+            box: {
+              purchasePricePerGramCzk: ctx.box?.purchasePricePerGramCzk?.toString() ?? null,
+              purchaseAmountCzk: ctx.box?.purchaseAmountCzk?.toString() ?? null,
+              declaredWeight: ctx.box?.declaredWeight?.toString() ?? null,
+            },
           },
-        },
-        {
-          id: ctx.orderId ?? 0,
-          defaultPurchasePricePerGramCzk: ctx.order?.defaultPurchasePricePerGramCzk?.toString() ?? null,
-          allocationMethod: 'BY_WEIGHT',
-          vatRatePct: '21',
-          roundingStep: 10,
-        },
-      );
+          {
+            id: ctx.orderId ?? 0,
+            defaultPurchasePricePerGramCzk: ctx.order?.defaultPurchasePricePerGramCzk?.toString() ?? null,
+            allocationMethod: 'BY_WEIGHT',
+            vatRatePct: '21',
+            roundingStep: 10,
+          },
+        );
 
-      if (nextWeight !== null && nextWeight > 0 && ppg !== null && ppg.gt(0)) {
-        data.purchasePrice = ppg.times(nextWeight).toFixed(2);
-        // Pokud byl status OK, downgrade na STALE — alokace nákladů a margin
-        // se neuložily, plné recalc je potřeba pro správné recommended ceny.
-        if (ctx.pricingStatus === 'OK') {
-          data.pricingStatus = 'STALE';
+        if (nextWeight !== null && nextWeight > 0 && ppg !== null && ppg.gt(0)) {
+          data.purchasePrice = ppg.times(nextWeight).toFixed(2);
         }
+      }
+
+      // Status downgrade — vždy když se mění weight/PPG, items mimo NEEDS_INPUT
+      // jdou do STALE (plné recalc potřeba pro správné recommended ceny).
+      // NEEDS_INPUT necháme — chybí základní data, STALE by zakrylo důležitější
+      // signál. Stejně tak nepřevádět z NEEDS_INPUT nahoru.
+      if (ctx.pricingStatus !== 'NEEDS_INPUT' && ctx.pricingStatus !== 'STALE') {
+        data.pricingStatus = 'STALE';
       }
     }
   }

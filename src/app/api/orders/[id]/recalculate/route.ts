@@ -59,8 +59,12 @@ export async function POST(
   //  - Pokud order.pricingConfigSnapshot je už uložený, použij ho (reprodukovatelnost)
   //  - Jinak: pokud Order.pricingConfigId odkazuje na config, vezmi current rules + ulož jako snapshot
   //  - Jinak: použij prázdný config (žádné marže)
+  //
+  // Race protection: pokud config existuje, zapamatuj si jeho updatedAt. V transakci
+  // re-checkneme — pokud se mezitím config změnil (paralelní PATCH), snapshot
+  // nezapíšeme (necháme NULL → další recalc načte aktuální rules).
   let snapshot: PricingConfigSnapshot;
-  let updateSnapshot: { snapshotJson: unknown; configId: number | null; version: number } | null = null;
+  let updateSnapshot: { snapshotJson: unknown; configId: number; version: number; expectedUpdatedAt: Date } | null = null;
 
   if (order.pricingConfigSnapshot && isValidSnapshot(order.pricingConfigSnapshot)) {
     snapshot = order.pricingConfigSnapshot as unknown as PricingConfigSnapshot;
@@ -70,6 +74,7 @@ export async function POST(
       snapshotJson: order.pricingConfig.rules,
       configId: order.pricingConfig.id,
       version: typeof (snapshot as { version?: number }).version === 'number' ? (snapshot as { version: number }).version : 1,
+      expectedUpdatedAt: order.pricingConfig.updatedAt,
     };
   } else {
     snapshot = { version: 1, missingValuePolicy: 'warn', rules: [] };
@@ -116,7 +121,23 @@ export async function POST(
 
   // Zapsat výsledky do Items v transakci
   const now = new Date();
+  let snapshotRaced = false;
   await prisma.$transaction(async (tx) => {
+    // Race check: pokud zapisujeme snapshot, re-readni config a porovnej
+    // updatedAt. Pokud se mezitím změnil → nezapisuj snapshot (necháme NULL,
+    // další recalc načte aktuální rules a vytvoří snapshot poprvé). Item ceny
+    // už spočítané jsou validní vůči snapshotu jaký byl při čtení — nevracíme
+    // je zpět, jen flagneme aby user věděl že má znovu kliknout.
+    if (updateSnapshot) {
+      const fresh = await tx.pricingConfig.findUnique({
+        where: { id: updateSnapshot.configId },
+        select: { updatedAt: true },
+      });
+      if (!fresh || fresh.updatedAt.getTime() !== updateSnapshot.expectedUpdatedAt.getTime()) {
+        snapshotRaced = true;
+        updateSnapshot = null;
+      }
+    }
     for (const r of result.perStone) {
       // Auto-fill „Cena prodejní" (salePrice) = recommended VŽDY při každém
       // recalc. Když user chce speciální cenu mimo cenotvorbu, použije pole
@@ -188,6 +209,12 @@ export async function POST(
     warnings: result.warnings,
     order: fresh ? serializeOrder(fresh) : null,
     items: fresh ? fresh.items.map(serializeItemForPricing) : [],
+    ...(snapshotRaced
+      ? {
+          snapshotRaceNotice:
+            'Cenotvorba byla mezitím upravena někým jiným. Klikni Přepočítat znovu pro aktuální výpočet.',
+        }
+      : {}),
   });
 }
 
