@@ -21,8 +21,14 @@ const SEED = {
   cassetteType: [
     'Kameny', 'Opracované kusy', 'K opracování', 'Prach',
   ],
+  // Sjednoceno s lib/pasShapes.ts (PAS_SHAPES.cz) — full set 10 tvarů
+  // (Kapka, Tyčka, Činka, Medailon, Disk, Půldisk, Kulička, Placka, Lžíce, Dvojče).
+  // V UI dropdownech se zobrazuje tato Czech label, do DB se ukládá stejný text.
+  // Soubor pasShapes.ts zůstává jako metadata zdroj (key/EN/popisy CZ+EN)
+  // pro AI prompts, certifikáty a exporty — lookup přes pasShapeBy(value).
   pasShape: [
-    'Běžný', 'Kapka', 'Tyčka', 'Činka', 'Koule', 'Ovál', 'Disk', 'Půldisk',
+    'Kapka', 'Tyčka', 'Činka', 'Medailon', 'Disk', 'Půldisk',
+    'Kulička', 'Placka', 'Lžíce', 'Dvojče',
   ],
   attrDamage: [
     'Bez poškození', 'Mikro odlesk', 'Odlesk', 'Setření z vrstvy', 'Opravovaný',

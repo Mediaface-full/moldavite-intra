@@ -1,8 +1,7 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { PAS_SHAPES } from '@/lib/pasShapes';
 import Link from 'next/link';
 import { getThumbnailUrl, getCatalogNumber, formatWeight, formatPrice } from '@/lib/utils';
 import { apiFetch } from '@/lib/apiFetch';
@@ -33,6 +32,13 @@ interface SearchResult {
 export default function SearchPage() {
   const [query, setQuery] = useState('');
   const [boxCode, setBoxCode] = useState('');
+  // Tvary z AttrOption — sjednoceno s /admin/attributes, ne hardcoded list
+  const [pasOptions, setPasOptions] = useState<Array<{ value: string }>>([]);
+  useEffect(() => {
+    apiFetch('/api/attr-options?key=pasShape').then(async (r) => {
+      if (r.ok) setPasOptions(await r.json());
+    });
+  }, []);
   const [weightMin, setWeightMin] = useState('');
   const [weightMax, setWeightMax] = useState('');
   const [priceMin, setPriceMin] = useState('');
@@ -205,8 +211,8 @@ export default function SearchPage() {
             className="bg-muted border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/20">
             <option value="">Tvar: Vše</option>
             <option value="NONE">— bez tvaru —</option>
-            {PAS_SHAPES.map((s) => (
-              <option key={s.key} value={s.key}>{s.cz}</option>
+            {pasOptions.map((o) => (
+              <option key={o.value} value={o.value}>{o.value}</option>
             ))}
           </select>
 

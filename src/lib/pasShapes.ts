@@ -84,10 +84,18 @@ export const PAS_SHAPES: PasShape[] = [
 ];
 
 const BY_KEY: Record<string, PasShape> = Object.fromEntries(PAS_SHAPES.map((s) => [s.key, s]));
+const BY_CZ: Record<string, PasShape> = Object.fromEntries(PAS_SHAPES.map((s) => [s.cz.toLowerCase(), s]));
 
+/**
+ * Lookup PAS metadata. Přijímá oba formáty:
+ *  - SHOUTY_SNAKE key (legacy, např. „DROP") — historické záznamy v DB
+ *  - CZ název (např. „Kapka") — nový formát ukládaný přes AttrSelect
+ *
+ * Vrátí null jen pro úplně neznámou hodnotu.
+ */
 export function getPasShape(key: string | null | undefined): PasShape | null {
   if (!key) return null;
-  return BY_KEY[key] ?? null;
+  return BY_KEY[key] ?? BY_CZ[key.toLowerCase()] ?? null;
 }
 
 export function pasShapeCz(key: string | null | undefined): string {

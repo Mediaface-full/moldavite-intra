@@ -1,10 +1,10 @@
 'use client';
 
-import React, { useState, useCallback, useRef, useMemo } from 'react';
+import React, { useState, useCallback, useRef, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { getThumbnailUrl, getCatalogNumber } from '@/lib/utils';
-import { PAS_SHAPES, pasShapeCz } from '@/lib/pasShapes';
+import { pasShapeCz } from '@/lib/pasShapes';
 import AiButton from './AiButton';
 import AttrMultiSelect from './AttrMultiSelect';
 import Icon from './Icon';
@@ -44,9 +44,18 @@ export default function ItemsTable({ items: initialItems, boxCode, isAdmin = tru
   const router = useRouter();
   const [localItems, setLocalItems] = useState(initialItems);
   const [searchQuery, setSearchQuery] = useState('');
-  const [pasFilter, setPasFilter] = useState<string>(''); // '' = all, 'NONE' = not set, otherwise key
+  const [pasFilter, setPasFilter] = useState<string>(''); // '' = all, 'NONE' = not set, otherwise value
   const [showBulkModal, setShowBulkModal] = useState(false);
   const [bulkSaving, setBulkSaving] = useState(false);
+  // Tvary kamene z AttrOption — jediný zdroj pravdy (admin /admin/attributes).
+  // Předchozí hardcoded PAS_SHAPES (pasShapes.ts) drift vůči seedu způsobil
+  // že ItemsTable nabízel jiné hodnoty než /admin/attributes a ItemDetailForm.
+  const [pasOptions, setPasOptions] = useState<Array<{ value: string }>>([]);
+  useEffect(() => {
+    apiFetch('/api/attr-options?key=pasShape').then(async (r) => {
+      if (r.ok) setPasOptions(await r.json());
+    });
+  }, []);
   const saveTimers = useRef<Record<string, NodeJS.Timeout>>({});
 
   const filteredItems = useMemo(() => localItems.filter((item) => {
@@ -227,8 +236,8 @@ export default function ItemsTable({ items: initialItems, boxCode, isAdmin = tru
           >
             <option value="">Všechny tvary</option>
             <option value="NONE">— bez tvaru —</option>
-            {PAS_SHAPES.map((s) => (
-              <option key={s.key} value={s.key}>{s.cz}</option>
+            {pasOptions.map((o) => (
+              <option key={o.value} value={o.value}>{o.value}</option>
             ))}
           </select>
         </div>
@@ -335,8 +344,8 @@ export default function ItemsTable({ items: initialItems, boxCode, isAdmin = tru
                     className="w-full bg-muted border border-border rounded px-2 py-1 text-xs text-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
                   >
                     <option value="">—</option>
-                    {PAS_SHAPES.map((s) => (
-                      <option key={s.key} value={s.key}>{s.cz}</option>
+                    {pasOptions.map((o) => (
+                      <option key={o.value} value={o.value}>{o.value}</option>
                     ))}
                   </select>
                 </td>
