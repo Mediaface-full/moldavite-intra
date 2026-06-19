@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { apiFetch } from '@/lib/apiFetch';
+import PricingRulesEditor, { type Snapshot, DEFAULT_SNAPSHOT } from '../PricingRulesEditor';
 
 type Config = {
   id: number;
@@ -15,54 +16,6 @@ type Config = {
   updatedAt: string;
   _count: { orders: number };
 };
-
-const TEMPLATE = JSON.stringify(
-  {
-    version: 1,
-    missingValuePolicy: 'warn',
-    rules: [
-      {
-        key: 'weightBracket',
-        label: 'Velikost (g)',
-        type: 'bracket',
-        source: 'weightGrams',
-        missingPolicy: 'error',
-        brackets: [
-          { min: 0, max: 3, marginRate: 1.0 },
-          { min: 3, max: 10, marginRate: 1.5 },
-          { min: 10, max: null, marginRate: 2.0 },
-        ],
-      },
-      {
-        key: 'shape',
-        type: 'category',
-        source: 'pasShape',
-        items: [
-          { value: 'drop', marginRate: 0.7 },
-          { value: 'disc', marginRate: 0.5 },
-        ],
-      },
-      {
-        key: 'damage',
-        type: 'category',
-        source: 'attrDamage',
-        items: [
-          { value: 'none', marginRate: 0 },
-          { value: 'minor', marginRate: -0.1 },
-          { value: 'major', marginRate: -0.25 },
-        ],
-      },
-      {
-        key: 'collectible',
-        type: 'boolean',
-        source: 'attrCollectible',
-        marginRate: 0.3,
-      },
-    ],
-  },
-  null,
-  2
-);
 
 export default function PricingConfigClient({ configs }: { configs: Config[] }) {
   const router = useRouter();
@@ -198,8 +151,11 @@ function ConfigForm({
   onCancel: () => void;
   onSaved: () => void;
 }) {
+  const initialSnapshot: Snapshot = config
+    ? (config.rules as Snapshot)
+    : DEFAULT_SNAPSHOT;
   const [name, setName] = useState(config?.name ?? '');
-  const [rulesText, setRulesText] = useState(config ? JSON.stringify(config.rules, null, 2) : TEMPLATE);
+  const [snapshot, setSnapshot] = useState<Snapshot>(initialSnapshot);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -207,20 +163,12 @@ function ConfigForm({
     e.preventDefault();
     setSaving(true);
     setError('');
-    let rules: unknown;
-    try {
-      rules = JSON.parse(rulesText);
-    } catch (err) {
-      setError(`Neplatný JSON: ${err instanceof Error ? err.message : String(err)}`);
-      setSaving(false);
-      return;
-    }
     const url = config ? `/api/pricing-config/${config.id}` : '/api/pricing-config';
     const method = config ? 'PATCH' : 'POST';
     const res = await apiFetch(url, {
       method,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, rules }),
+      body: JSON.stringify({ name, rules: snapshot }),
     });
     setSaving(false);
     if (res.ok) onSaved();
@@ -235,24 +183,17 @@ function ConfigForm({
 
   return (
     <form onSubmit={handleSubmit} className="bg-muted/40 border border-border rounded-xl p-4">
-      <div className="space-y-3">
+      <div className="space-y-4">
         <div>
-          <label className={labelCls}>Název</label>
+          <label className={labelCls}>Název konfigurace</label>
           <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Standardní 2026" className={inputCls} required />
         </div>
         <div>
-          <label className={labelCls}>Pravidla (JSON)</label>
-          <textarea
-            value={rulesText}
-            onChange={(e) => setRulesText(e.target.value)}
-            rows={20}
-            className={`${inputCls} font-mono text-xs resize-y`}
-            spellCheck={false}
-          />
-          <p className="text-[10px] text-muted-foreground font-mono mt-1.5">
-            Struktura: <code>{`{ version, missingValuePolicy: 'zero'|'warn'|'error', rules: [...] }`}</code>.
-            Pravidlo: <code>bracket</code> / <code>category</code> / <code>multi-category</code> / <code>boolean</code>.
-            marginRate je decimální multiplikátor (1.5 = +150%, -0.1 = -10%).
+          <label className={labelCls}>Pravidla marží</label>
+          <PricingRulesEditor value={snapshot} onChange={setSnapshot} />
+          <p className="text-[10px] text-muted-foreground font-mono mt-2">
+            marginRate je <strong>decimální multiplikátor</strong>: 1.5 = +150 %, 0.3 = +30 %, -0.1 = −10 %.
+            Pravidla se aplikují <strong>aditivně</strong>: totalMargin = 1 + Σ jednotlivých marginRate.
           </p>
         </div>
         {error && (
