@@ -14,15 +14,6 @@ import Icon from './Icon';
 
 type Option = { id: number; value: string; sortOrder: number; active: boolean };
 
-// Fallback hodnoty — pokud API selže nebo není naseedovaný AttrOption,
-// stejně chceme nabídnout 4 default typy ať uživatel není uvězněný.
-const FALLBACK_OPTIONS: Option[] = [
-  { id: -1, value: 'Kameny', sortOrder: 0, active: true },
-  { id: -2, value: 'Opracované kusy', sortOrder: 1, active: true },
-  { id: -3, value: 'K opracování', sortOrder: 2, active: true },
-  { id: -4, value: 'Prach', sortOrder: 3, active: true },
-];
-
 export default function CassetteTypePicker({
   boxId,
   current,
@@ -71,7 +62,9 @@ export default function CassetteTypePicker({
   // Fallback (4 known typy) JEN když fetch už doběhl a vrátil prázdno
   // (DB seed neproběhl). Než fetch doběhne, raději nic — vyhneme se flash
   // hardcoded fallbacku který skryje skutečné AttrOption hodnoty.
-  const effectiveOptions = !loaded ? [] : (options.length > 0 ? options : FALLBACK_OPTIONS);
+  // Žádný fallback hardcoded list — AttrOption je jediný zdroj pravdy.
+  // Mid-loading: prázdné options. Po loadu prázdné → empty state.
+  const effectiveOptions = loaded ? options : [];
   const hasCurrent = effectiveOptions.some((o) => o.value === value);
 
   return (

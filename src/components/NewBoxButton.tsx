@@ -186,24 +186,22 @@ export default function NewBoxButton({
                 <select
                   value={cassetteType}
                   onChange={(e) => setCassetteType(e.target.value)}
-                  disabled={!cassetteTypesLoaded}
+                  disabled={!cassetteTypesLoaded || cassetteTypes.length === 0}
                   className={inp}
                 >
                   {!cassetteTypesLoaded && <option>Načítám…</option>}
                   {cassetteTypesLoaded && cassetteTypes.length === 0 && (
-                    // Naprosto výjimečný stav — AttrOption seed neproběhl. Spravit
-                    // v /admin/attributes, fallback aby user nebyl zablokovaný.
-                    <>
-                      <option value="Kameny">Kameny</option>
-                      <option value="Opracované kusy">Opracované kusy</option>
-                      <option value="K opracování">K opracování</option>
-                      <option value="Prach">Prach</option>
-                    </>
+                    <option value="">— žádné hodnoty —</option>
                   )}
                   {cassetteTypes.map((o) => (
                     <option key={o.id} value={o.value}>{o.value}</option>
                   ))}
                 </select>
+                {cassetteTypesLoaded && cassetteTypes.length === 0 && (
+                  <p className="text-[10px] text-warning font-mono mt-1">
+                    ⚠ Žádné typy kazet. Doplň je v <a href="/admin/attributes" target="_blank" className="underline">/admin/attributes</a> → sekce Typ kazety.
+                  </p>
+                )}
               </div>
 
               <div className="grid grid-cols-3 gap-3">
