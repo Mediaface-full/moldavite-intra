@@ -163,19 +163,68 @@ function ConfigForm({
     e.preventDefault();
     setSaving(true);
     setError('');
+
+    // Sanitizace: před save odstraň prázdné položky (`value: ''`) z category
+    // a multi-category pravidel — uživatel přidá pravidlo, klikne „+ hodnota"
+    // ale třeba ji nevyplní. Pak vyhoď celé pravidlo pokud po cleanup nemá
+    // žádné items. Stejné pro bracket bez řádků.
+    const cleaned: Snapshot = {
+      ...snapshot,
+      rules: snapshot.rules
+        .map((r) => {
+          if (r.type === 'category' || r.type === 'multi-category') {
+            const items = r.items.filter((it) => it.value.trim() !== '');
+            return { ...r, items };
+          }
+          if (r.type === 'bracket') {
+            const brackets = r.brackets.filter(
+              (b) => Number.isFinite(b.min) && (b.max === null || Number.isFinite(b.max)),
+            );
+            return { ...r, brackets };
+          }
+          return r;
+        })
+        .filter((r) => {
+          if (r.type === 'category' || r.type === 'multi-category') return r.items.length > 0;
+          if (r.type === 'bracket') return r.brackets.length > 0;
+          return true;
+        }),
+    };
+
     const url = config ? `/api/pricing-config/${config.id}` : '/api/pricing-config';
     const method = config ? 'PATCH' : 'POST';
     const res = await apiFetch(url, {
       method,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, rules: snapshot }),
+      body: JSON.stringify({ name, rules: cleaned }),
     });
     setSaving(false);
-    if (res.ok) onSaved();
-    else {
-      const data = await res.json().catch(() => ({}));
-      setError(data.error + (data.issues ? '\n' + data.issues.map((i: { path: string; message: string }) => `${i.path}: ${i.message}`).join('\n') : ''));
+    if (res.ok) {
+      onSaved();
+      return;
     }
+    const data = await res.json().catch(() => ({}));
+    // Čitelný chybový výpis: technické path (rules[0].items[1].value) přeloženo
+    // do lidštější formy „Pravidlo č. 1, hodnota č. 2 — value: ..."
+    const issuesText = Array.isArray(data.issues)
+      ? data.issues
+          .map((i: { path: string; message: string }) => {
+            const human = i.path
+              .replace(/^rules\[(\d+)\]/, 'Pravidlo č. $1')
+              .replace(/\.brackets\[(\d+)\]/, ', rozsah č. $1')
+              .replace(/\.items\[(\d+)\]/, ', hodnota č. $1')
+              .replace(/\.marginRate/, ' → bonus')
+              .replace(/\.value/, ' → hodnota')
+              .replace(/\.min/, ' → od')
+              .replace(/\.max/, ' → do')
+              .replace(/\.source/, ' → co se počítá')
+              .replace(/\.combine/, ' → kombinace barev')
+              .replace(/\.missingPolicy/, ' → když údaj chybí');
+            return `• ${human}: ${i.message}`;
+          })
+          .join('\n')
+      : '';
+    setError(`${data.error ?? 'Uložení selhalo'}${issuesText ? '\n\n' + issuesText : ''}`);
   }
 
   const inputCls = 'w-full bg-card border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/20 transition-shadow';
