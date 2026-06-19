@@ -201,6 +201,20 @@ function ConfigForm({
     });
     setSaving(false);
     if (res.ok) {
+      // Informuj uživatele kolik zakázek bylo invalidováno (snapshot zneplatněn,
+      // items označené STALE) — musí kliknout Přepočítat na každé z nich.
+      try {
+        const saved = await res.json();
+        const meta = saved?._meta;
+        if (meta && (meta.invalidatedOrders > 0 || meta.stalledItems > 0)) {
+          alert(
+            `Uloženo. Změna pravidel ovlivnila ${meta.invalidatedOrders} aktivních zakázek a ${meta.stalledItems} kamenů. ` +
+            `Klikni „Přepočítat" v každé dotčené zakázce aby se nová pravidla aplikovala.`
+          );
+        }
+      } catch {
+        // ignore — uložení samotné OK
+      }
       onSaved();
       return;
     }

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { getSession, logActivity } from '@/lib/auth';
 import { validatePricingRulesJson } from '@/lib/orders/validateRules';
@@ -41,7 +42,8 @@ export async function PATCH(
   if (body.name !== undefined) data.name = body.name;
   if (body.validFrom !== undefined) data.validFrom = body.validFrom ? new Date(body.validFrom as string) : null;
   if (body.validTo !== undefined) data.validTo = body.validTo ? new Date(body.validTo as string) : null;
-  if (body.rules !== undefined) {
+  const rulesChanged = body.rules !== undefined;
+  if (rulesChanged) {
     const issues = validatePricingRulesJson(body.rules);
     if (issues.length > 0) {
       return NextResponse.json({ error: 'Neplatná struktura rules', issues }, { status: 422 });
@@ -49,9 +51,59 @@ export async function PATCH(
     data.rules = body.rules;
   }
 
-  const updated = await prisma.pricingConfig.update({ where: { id: cfgId }, data });
-  await logActivity(session.id, 'pricing_config.update', String(cfgId), JSON.stringify(Object.keys(data)));
-  return NextResponse.json(updated);
+  // Když se mění pravidla, invaliduj snapshoty v aktivních zakázkách které
+  // tento config používají. Jinak by si zakázky držely starý snapshot a další
+  // Přepočítat by ignorovalo úpravy v cenotvorbě (typický bug: user přidá
+  // attrDamage rule, klikne Přepočítat, bonus se nepřičte). CANCELLED a
+  // ARCHIVED zakázky nechat — jejich snapshot je historický záznam.
+  const result = await prisma.$transaction(async (tx) => {
+    const updated = await tx.pricingConfig.update({ where: { id: cfgId }, data });
+    let invalidatedOrders = 0;
+    let stalledItems = 0;
+    if (rulesChanged) {
+      const affected = await tx.order.updateMany({
+        where: {
+          pricingConfigId: cfgId,
+          status: { in: ['DRAFT', 'PRICED', 'PUBLISHED'] },
+        },
+        data: {
+          pricingConfigSnapshot: Prisma.DbNull,
+          pricingConfigVersion: null,
+        },
+      });
+      invalidatedOrders = affected.count;
+      const stale = await tx.item.updateMany({
+        where: {
+          order: {
+            pricingConfigId: cfgId,
+            status: { in: ['DRAFT', 'PRICED', 'PUBLISHED'] },
+          },
+          pricingStatus: 'OK',
+        },
+        data: { pricingStatus: 'STALE' },
+      });
+      stalledItems = stale.count;
+    }
+    return { updated, invalidatedOrders, stalledItems };
+  });
+
+  await logActivity(
+    session.id,
+    'pricing_config.update',
+    String(cfgId),
+    JSON.stringify({
+      keys: Object.keys(data),
+      invalidatedOrders: result.invalidatedOrders,
+      stalledItems: result.stalledItems,
+    })
+  );
+  return NextResponse.json({
+    ...result.updated,
+    _meta: {
+      invalidatedOrders: result.invalidatedOrders,
+      stalledItems: result.stalledItems,
+    },
+  });
 }
 
 export async function DELETE(
