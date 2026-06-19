@@ -30,7 +30,7 @@ const SECTIONS: Array<{ key: string; title: string; description: string; icon: I
   {
     key: 'attrDamage',
     title: 'Poškození',
-    description: 'Míra poškození kamene. Bez poškození → kámen ≥10g jde do kategorie "Sbírkové", jinak "Velké".',
+    description: 'Míra poškození kamene. Bez poškození → kategorie "Sbírkové" (jakákoliv váha). S poškozením → kategorie podle váhy (Malé / Střední / Velké).',
     icon: 'damage',
   },
   {

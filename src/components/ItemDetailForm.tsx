@@ -259,7 +259,7 @@ export default function ItemDetailForm({ item }: { item: ItemData }) {
               onChange={(v) => setFormData((f) => ({ ...f, attrDamage: v }))}
             />
             <p className="mt-1.5 text-[10px] text-muted-foreground font-mono">
-              Ovlivňuje kategorii: ≥10g bez poškození → <strong>Sbírkové</strong>, jinak <strong>Velké</strong>.
+              Ovlivňuje kategorii: bez poškození → <strong>Sbírkové</strong>; s poškozením podle váhy → Malé / Střední / Velké.
             </p>
           </div>
 
