@@ -93,6 +93,21 @@ export async function POST(request: Request) {
 
   const customCode = typeof body.code === 'string' && body.code.length > 0 ? body.code : null;
 
+  // Auto-default: pokud body neuvedlo pricingConfigId, použít aktuálně aktivní
+  // konfiguraci z admin/pricing-config (jedna z všech může mít active=true).
+  // User to vždy může přepsat v Order detail → tab Cenotvorba.
+  let resolvedPricingConfigId: number | null = null;
+  if (body.pricingConfigId !== undefined && body.pricingConfigId !== null) {
+    const n = Number(body.pricingConfigId);
+    if (!Number.isInteger(n) || n <= 0) {
+      return NextResponse.json({ error: 'pricingConfigId musí být kladné celé číslo nebo null' }, { status: 422 });
+    }
+    resolvedPricingConfigId = n;
+  } else {
+    const activeCfg = await prisma.pricingConfig.findFirst({ where: { active: true }, select: { id: true } });
+    if (activeCfg) resolvedPricingConfigId = activeCfg.id;
+  }
+
   // Race-safe create: pokud generateOrderCode + create dostane unique violation
   // (souběžné požadavky), zkus znova s vyšším číslem. Limit 5 pokusů.
   let lastError: unknown = null;
@@ -118,6 +133,7 @@ export async function POST(request: Request) {
           allocationMethod,
           vatRatePct,
           roundingStep,
+          pricingConfigId: resolvedPricingConfigId,
         },
       });
       await logActivity(session.id, 'order.create', order.code, JSON.stringify({ title: order.title, sellerName: order.sellerName }));

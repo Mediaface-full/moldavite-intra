@@ -121,16 +121,18 @@ export default function OrderPricingTab({
           <div className="md:col-span-2">
             <label className={labelCls}>Konfigurace marží</label>
             <select value={configId} onChange={(e) => setConfigId(e.target.value)} className={inputCls}>
-              <option value="">Žádná (jen nákup + alokace + DPH bez marže)</option>
+              <option value="">— Žádná (jen nákup + alokace + DPH bez marže) —</option>
               {pricingConfigs.map((c) => (
                 <option key={c.id} value={c.id}>
-                  {c.name}{c.active ? ' · aktivní' : ''}
+                  {c.name}{c.active ? '  ✓ aktivní (default pro nové zakázky)' : ''}
                 </option>
               ))}
             </select>
-            <p className="text-[10px] text-muted-foreground font-mono mt-1.5">
-              Snapshot se uloží při přepočtu — pozdější změny v PricingConfig nezasáhnou tuto zakázku, dokud znova nepřepočítáš.{' '}
+            <p className="text-[10px] text-muted-foreground font-mono mt-1.5 leading-relaxed">
+              Nové zakázky automaticky dostanou <strong>aktivní</strong> konfiguraci (jedna z všech v /admin/pricing-config může být označena jako aktivní). Tady ji můžeš pro tuto zakázku přepsat.{' '}
               <Link href="/admin/pricing-config" className="text-primary hover:underline">Spravovat konfigurace →</Link>
+              <br />
+              <strong>Snapshot</strong> se uloží při přepočtu — pozdější změny v PricingConfig <em>nezasáhnou</em> tuto zakázku, dokud znova nepřepočítáš.
             </p>
           </div>
         </div>
