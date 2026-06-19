@@ -62,6 +62,8 @@ export default function OrderOverviewTab({ order }: { order: SerializedOrder }) 
               <Item label="Datum nákupu" value={fmtDate(order.purchaseDate)} />
               <Item label="Lokalita původu" value={order.originLocality || '—'} />
               <Item label="Deklarovaný počet" value={String(order.declaredPieces)} />
+              <Item label="Deklarovaná váha" value={order.declaredWeight ? `${Number(order.declaredWeight).toFixed(2)} g` : '—'} mono />
+              <Item label="Cena za gram" value={order.defaultPurchasePricePerGramCzk ? `${Number(order.defaultPurchasePricePerGramCzk).toFixed(2)} Kč/g` : '—'} mono />
               <Item label="Měna nákupu" value={order.sourceCurrency} mono />
               <Item label="Poslední přepočet" value={fmtDate(order.lastCalculatedAt)} mono />
             </dl>
@@ -114,9 +116,23 @@ function MetaForm({ order, onSaved }: { order: SerializedOrder; onSaved: () => v
   const [purchaseDate, setPurchaseDate] = useState(order.purchaseDate ? new Date(order.purchaseDate).toISOString().slice(0, 10) : '');
   const [originLocality, setOriginLocality] = useState(order.originLocality);
   const [declaredPieces, setDeclaredPieces] = useState(String(order.declaredPieces));
+  const [declaredWeight, setDeclaredWeight] = useState(order.declaredWeight ?? '');
   const [totalPurchase, setTotalPurchase] = useState(order.totalPurchaseAmountCzk ?? '0');
+  const [defaultPPG, setDefaultPPG] = useState(order.defaultPurchasePricePerGramCzk ?? '');
   const [notes, setNotes] = useState(order.notes);
   const [saving, setSaving] = useState(false);
+
+  // Auto-výpočet PPG z totalPurchase / declaredWeight — pomáhá uživateli zjistit
+  // co by tam mělo být, když pole nechá prázdné. Pokud uživatel explicitně zadá
+  // PPG, jeho hodnota přebije.
+  const computedPPG = (() => {
+    const t = Number(totalPurchase);
+    const w = Number(declaredWeight);
+    if (Number.isFinite(t) && Number.isFinite(w) && t > 0 && w > 0) {
+      return (t / w).toFixed(2);
+    }
+    return null;
+  })();
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -129,8 +145,11 @@ function MetaForm({ order, onSaved }: { order: SerializedOrder; onSaved: () => v
         purchaseDate: purchaseDate || null,
         originLocality,
         declaredPieces: parseInt(declaredPieces, 10) || 0,
+        declaredWeight: declaredWeight === '' ? null : Number(declaredWeight),
         totalPurchaseAmountCzk: Number(totalPurchase) || 0,
         totalPurchaseAmountSource: Number(totalPurchase) || 0,
+        defaultPurchasePricePerGramCzk: defaultPPG === '' ? null : Number(defaultPPG),
+        defaultPurchasePricePerGramSource: defaultPPG === '' ? null : Number(defaultPPG),
         notes,
       }),
     });
@@ -160,7 +179,27 @@ function MetaForm({ order, onSaved }: { order: SerializedOrder; onSaved: () => v
       <div><label className={labelCls}>Datum nákupu</label><input type="date" value={purchaseDate} onChange={(e) => setPurchaseDate(e.target.value)} className={inputCls} /></div>
       <div><label className={labelCls}>Lokalita</label><input type="text" value={originLocality} onChange={(e) => setOriginLocality(e.target.value)} className={inputCls} /></div>
       <div><label className={labelCls}>Deklarovaný počet</label><input type="number" min={0} value={declaredPieces} onChange={(e) => setDeclaredPieces(e.target.value)} className={inputCls} /></div>
-      <div><label className={labelCls}>Celková nákupní cena (CZK)</label><input type="number" step="0.01" value={totalPurchase} onChange={(e) => setTotalPurchase(e.target.value)} className={inputCls} /></div>
+      <div>
+        <label className={labelCls}>Deklarovaná váha (g)</label>
+        <input type="number" min={0} step="0.01" value={String(declaredWeight)} onChange={(e) => setDeclaredWeight(e.target.value)} className={inputCls} placeholder="—" />
+      </div>
+      <div><label className={labelCls}>Celková nákupní cena (CZK)</label><input type="number" step="0.01" value={String(totalPurchase)} onChange={(e) => setTotalPurchase(e.target.value)} className={inputCls} /></div>
+      <div>
+        <label className={labelCls}>Cena za gram (Kč/g)</label>
+        <input
+          type="number" min={0} step="0.01"
+          value={String(defaultPPG)}
+          onChange={(e) => setDefaultPPG(e.target.value)}
+          className={inputCls}
+          placeholder={computedPPG ? `auto: ${computedPPG}` : '—'}
+        />
+        {computedPPG && (
+          <p className="text-[10px] text-muted-foreground font-mono mt-1">
+            Vypočítáno z celkové ceny a váhy: <strong className="text-foreground">{computedPPG} Kč/g</strong>
+            {defaultPPG === '' && ' (použije se pokud necháš pole prázdné)'}
+          </p>
+        )}
+      </div>
       <div className="md:col-span-2"><label className={labelCls}>Poznámky</label><textarea rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} className={`${inputCls} resize-none`} /></div>
       <div className="md:col-span-2 flex gap-2">
         <button type="submit" disabled={saving} className="bg-primary hover:bg-primary/90 disabled:opacity-50 text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium">{saving ? 'Ukládám…' : 'Uložit'}</button>
