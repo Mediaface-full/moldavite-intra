@@ -118,24 +118,16 @@ export async function POST(
   const now = new Date();
   await prisma.$transaction(async (tx) => {
     for (const r of result.perStone) {
-      const original = itemsById.get(r.stoneId);
-      const currentSalePrice = original ? Number(original.salePrice) : 0;
-      const previousRecommended = original?.recommendedPriceInclVatCzk
-        ? Number(original.recommendedPriceInclVatCzk)
-        : 0;
+      // Auto-fill „Cena prodejní" (salePrice) = recommended VŽDY při každém
+      // recalc. Když user chce speciální cenu mimo cenotvorbu, použije pole
+      // „Cena speciální" (manualPriceInclVatCzk) — to je explicit override
+      // mechanizmus s vlastní semantikou (NEEDS_REVIEW pokud pod recommended).
+      // Předtím byl detekovaný „user override" který způsoboval že po změně
+      // marginu zůstávala stará salePrice — matoucí.
       const newRecommended = r.steps?.recommendedPriceInclVatCzk
         ? Number(r.steps.recommendedPriceInclVatCzk)
         : 0;
-      // Auto-fill „Cena prodejní" (salePrice) z doporučené v 3 případech:
-      //  1. salePrice = 0 (nezadáno) → vyplnit poprvé
-      //  2. salePrice se rovná předchozímu recommended (= user nezasahl,
-      //     jen předchozí recalc to propsal) → udržuj aktuální
-      //  3. NOVÉ: vždy pokud user neexplicitně nastavil jinou hodnotu
-      //
-      // Pokud user ručně nastavil odlišnou hodnotu (např. 500 zatímco
-      // recommended bylo 460), respektovat override.
-      const userOverride = currentSalePrice > 0 && Math.abs(currentSalePrice - previousRecommended) >= 0.5;
-      const shouldAutoFillSale = newRecommended > 0 && !userOverride;
+      const shouldAutoFillSale = newRecommended > 0;
 
       await tx.item.update({
         where: { id: r.stoneId },
