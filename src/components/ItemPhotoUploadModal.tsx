@@ -77,10 +77,9 @@ export default function ItemPhotoUploadModal({
     const data = await res.json();
     setDone({ added: data.added, files: data.files });
     setFiles([]);
-    setTimeout(() => {
-      close();
-      router.refresh();
-    }, 1800);
+    // Refresh hned — pokud user zavře modal ručně, nové fotky se objeví okamžitě.
+    router.refresh();
+    setTimeout(close, 1800);
   }
 
   const trigger =

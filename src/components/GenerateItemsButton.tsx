@@ -50,11 +50,13 @@ export default function GenerateItemsButton({
       return;
     }
     setResult({ created: data.created, folders: data.foldersCreated });
+    // Refresh hned — uživatel po zavření modalu uvidí nové kameny i kdyby modal
+    // zavřel ručně dříve než vyprší auto-close timeout.
+    router.refresh();
     setTimeout(() => {
       setShow(false);
       setResult(null);
-      router.refresh();
-    }, 2500);
+    }, 1800);
   }
 
   return (
