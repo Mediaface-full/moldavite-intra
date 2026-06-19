@@ -168,12 +168,17 @@ export default function PricingRulesEditor({
           <input type="number" value={value.version} onChange={(e) => update({ version: parseInt(e.target.value, 10) || 1 })} className={inp} />
         </div>
         <div>
-          <label className={lbl}>Default missing value policy</label>
+          <label className={lbl}>Když kámen nemá vyplněný atribut</label>
           <select value={value.missingValuePolicy} onChange={(e) => update({ missingValuePolicy: e.target.value as MissingPolicy })} className={inp}>
-            <option value="zero">zero — chybí atribut → margin 0</option>
-            <option value="warn">warn — margin 0 + warning</option>
-            <option value="error">error — kámen NEEDS_INPUT</option>
+            <option value="zero">Tiše ignorovat — kámen prostě nedostane bonus</option>
+            <option value="warn">Spočítat, ale upozornit — bez bonusu + warning v záznamu</option>
+            <option value="error">Označit jako neúplný — kámen půjde do „Bez vstupů"</option>
           </select>
+          <p className="text-[10px] text-muted-foreground mt-1 leading-relaxed">
+            Týká se případů, kdy pravidlo cílí na atribut (např. <em>Tvar</em>),
+            který u některých kamenů nemáš zadaný. Doporučení: <strong>Tiše ignorovat</strong>
+            pro běžný provoz.
+          </p>
         </div>
       </div>
 
@@ -296,11 +301,11 @@ function CategoryBody({ rule, onChange }: { rule: CategoryRule; onChange: (patch
           </select>
         </div>
         <div>
-          <label className={lbl}>Chybějící hodnota</label>
-          <select value={rule.missingPolicy ?? 'zero'} onChange={(e) => onChange({ missingPolicy: e.target.value as MissingPolicy } as Partial<Rule>)} className={inp}>
-            <option value="zero">zero</option>
-            <option value="warn">warn</option>
-            <option value="error">error</option>
+          <label className={lbl}>Když atribut chybí</label>
+          <select value={rule.missingPolicy ?? 'zero'} onChange={(e) => onChange({ missingPolicy: e.target.value as MissingPolicy } as Partial<Rule>)} className={inp} title="Co dělat když kámen nemá vyplněný atribut">
+            <option value="zero">Tiše ignorovat</option>
+            <option value="warn">Upozornit</option>
+            <option value="error">Označit jako neúplný</option>
           </select>
         </div>
       </div>
@@ -335,11 +340,11 @@ function MultiCategoryBody({ rule, onChange }: { rule: MultiCategoryRule; onChan
           </select>
         </div>
         <div>
-          <label className={lbl}>Chybějící hodnota</label>
-          <select value={rule.missingPolicy ?? 'zero'} onChange={(e) => onChange({ missingPolicy: e.target.value as MissingPolicy } as Partial<Rule>)} className={inp}>
-            <option value="zero">zero</option>
-            <option value="warn">warn</option>
-            <option value="error">error</option>
+          <label className={lbl}>Když atribut chybí</label>
+          <select value={rule.missingPolicy ?? 'zero'} onChange={(e) => onChange({ missingPolicy: e.target.value as MissingPolicy } as Partial<Rule>)} className={inp} title="Co dělat když kámen nemá vyplněný atribut">
+            <option value="zero">Tiše ignorovat</option>
+            <option value="warn">Upozornit</option>
+            <option value="error">Označit jako neúplný</option>
           </select>
         </div>
       </div>
