@@ -321,13 +321,17 @@ function InlineEditValue({ value, onSave }: { value: string; onSave: (v: string)
       />
     );
   }
+  // Explicitní tlačítko Upravit (ne jen click-na-text) — uživatel viděl plain
+  // text bez vizuálního signálu že je editovatelný. Teď je ikona viditelná
+  // vždy, na hover ještě výraznější + podtržení textu.
   return (
     <button
       onClick={() => setEditing(true)}
-      className="flex-1 text-left text-sm text-foreground hover:text-primary transition-colors"
-      title="Klikni pro úpravu"
+      className="flex-1 text-left text-sm text-foreground inline-flex items-center gap-2 group hover:text-primary transition-colors"
+      title="Klikni pro úpravu hodnoty"
     >
-      {value}
+      <span className="group-hover:underline">{value}</span>
+      <Icon name="edit" className="w-3 h-3 text-muted-foreground/60 group-hover:text-primary transition-colors" />
     </button>
   );
 }
