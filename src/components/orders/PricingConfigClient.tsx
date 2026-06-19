@@ -191,10 +191,6 @@ function ConfigForm({
         <div>
           <label className={labelCls}>Pravidla marží</label>
           <PricingRulesEditor value={snapshot} onChange={setSnapshot} />
-          <p className="text-[10px] text-muted-foreground font-mono mt-2">
-            marginRate je <strong>decimální multiplikátor</strong>: 1.5 = +150 %, 0.3 = +30 %, -0.1 = −10 %.
-            Pravidla se aplikují <strong>aditivně</strong>: totalMargin = 1 + Σ jednotlivých marginRate.
-          </p>
         </div>
         {error && (
           <pre className="text-destructive text-xs bg-[color-mix(in_srgb,var(--destructive)_10%,transparent)] border border-[color-mix(in_srgb,var(--destructive)_30%,transparent)] rounded-lg px-3 py-2 whitespace-pre-wrap">{error}</pre>
