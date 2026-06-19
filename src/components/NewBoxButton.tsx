@@ -30,6 +30,7 @@ export default function NewBoxButton({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [cassetteTypes, setCassetteTypes] = useState<AttrOption[]>([]);
+  const [cassetteTypesLoaded, setCassetteTypesLoaded] = useState(false);
 
   const [name, setName] = useState('');
   const [cassetteType, setCassetteType] = useState('Kameny');
@@ -42,8 +43,10 @@ export default function NewBoxButton({
 
   useEffect(() => {
     if (!open) return;
+    setCassetteTypesLoaded(false);
     apiFetch('/api/attr-options?key=cassetteType').then(async (r) => {
       if (r.ok) setCassetteTypes(await r.json());
+      setCassetteTypesLoaded(true);
     });
   }, [open]);
 
@@ -180,8 +183,16 @@ export default function NewBoxButton({
 
               <div>
                 <label className={lbl}>Typ kazety</label>
-                <select value={cassetteType} onChange={(e) => setCassetteType(e.target.value)} className={inp}>
-                  {cassetteTypes.length === 0 && (
+                <select
+                  value={cassetteType}
+                  onChange={(e) => setCassetteType(e.target.value)}
+                  disabled={!cassetteTypesLoaded}
+                  className={inp}
+                >
+                  {!cassetteTypesLoaded && <option>Načítám…</option>}
+                  {cassetteTypesLoaded && cassetteTypes.length === 0 && (
+                    // Naprosto výjimečný stav — AttrOption seed neproběhl. Spravit
+                    // v /admin/attributes, fallback aby user nebyl zablokovaný.
                     <>
                       <option value="Kameny">Kameny</option>
                       <option value="Opracované kusy">Opracované kusy</option>

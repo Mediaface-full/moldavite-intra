@@ -34,12 +34,15 @@ export default function CassetteTypePicker({
   const [saving, setSaving] = useState(false);
   const [value, setValue] = useState<string>(current);
   const [options, setOptions] = useState<Option[]>([]);
+  const [loaded, setLoaded] = useState(false);
   const meta = getCassetteTypeMeta(value);
 
   useEffect(() => {
     let alive = true;
     apiFetch('/api/attr-options?key=cassetteType').then(async (r) => {
-      if (alive && r.ok) setOptions(await r.json());
+      if (!alive) return;
+      if (r.ok) setOptions(await r.json());
+      setLoaded(true);
     });
     return () => { alive = false; };
   }, []);
@@ -65,9 +68,10 @@ export default function CassetteTypePicker({
   // Pokud aktuální hodnota není v aktivním seznamu (legacy), přidej ji do selectu
   // bez "(mimo aktivní)" suffixu — uživatel chce vidět čistou hodnotu, info že
   // hodnota není aktivní v admin/attributes by ho jen zmátla v běžném používání.
-  // Pokud API selhalo / není naseedované, použij FALLBACK_OPTIONS ať uživatel
-  // není zablokovaný (chybí seed → permanent disabled select bylo bug).
-  const effectiveOptions = options.length > 0 ? options : FALLBACK_OPTIONS;
+  // Fallback (4 known typy) JEN když fetch už doběhl a vrátil prázdno
+  // (DB seed neproběhl). Než fetch doběhne, raději nic — vyhneme se flash
+  // hardcoded fallbacku který skryje skutečné AttrOption hodnoty.
+  const effectiveOptions = !loaded ? [] : (options.length > 0 ? options : FALLBACK_OPTIONS);
   const hasCurrent = effectiveOptions.some((o) => o.value === value);
 
   return (
