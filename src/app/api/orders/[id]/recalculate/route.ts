@@ -120,13 +120,22 @@ export async function POST(
     for (const r of result.perStone) {
       const original = itemsById.get(r.stoneId);
       const currentSalePrice = original ? Number(original.salePrice) : 0;
-      // Auto-fill „Cena prodejní" (salePrice) z doporučené, JEN pokud je salePrice
-      // aktuálně 0 (=nezadáno). Pokud user ručně nastavil jinou hodnotu, nepřepíši
-      // — explicit override má prioritu.
-      const shouldAutoFillSale =
-        currentSalePrice === 0 &&
-        r.steps?.recommendedPriceInclVatCzk &&
-        Number(r.steps.recommendedPriceInclVatCzk) > 0;
+      const previousRecommended = original?.recommendedPriceInclVatCzk
+        ? Number(original.recommendedPriceInclVatCzk)
+        : 0;
+      const newRecommended = r.steps?.recommendedPriceInclVatCzk
+        ? Number(r.steps.recommendedPriceInclVatCzk)
+        : 0;
+      // Auto-fill „Cena prodejní" (salePrice) z doporučené v 3 případech:
+      //  1. salePrice = 0 (nezadáno) → vyplnit poprvé
+      //  2. salePrice se rovná předchozímu recommended (= user nezasahl,
+      //     jen předchozí recalc to propsal) → udržuj aktuální
+      //  3. NOVÉ: vždy pokud user neexplicitně nastavil jinou hodnotu
+      //
+      // Pokud user ručně nastavil odlišnou hodnotu (např. 500 zatímco
+      // recommended bylo 460), respektovat override.
+      const userOverride = currentSalePrice > 0 && Math.abs(currentSalePrice - previousRecommended) >= 0.5;
+      const shouldAutoFillSale = newRecommended > 0 && !userOverride;
 
       await tx.item.update({
         where: { id: r.stoneId },
@@ -135,7 +144,7 @@ export async function POST(
           // Item.purchasePrice je computed display field — updatuje se i když ho
           // user nepřepsal ručně, aby sekce Ceny v UI zobrazila aktuální nákupní cenu.
           ...(r.steps?.purchasePriceCzk ? { purchasePrice: r.steps.purchasePriceCzk } : {}),
-          ...(shouldAutoFillSale ? { salePrice: r.steps!.recommendedPriceInclVatCzk! } : {}),
+          ...(shouldAutoFillSale && r.steps?.recommendedPriceInclVatCzk ? { salePrice: r.steps.recommendedPriceInclVatCzk } : {}),
           allocatedOrderCostCzk: r.steps?.allocatedOrderCostCzk ?? null,
           costBasisCzk: r.steps?.costBasisCzk ?? null,
           computedMarginRate: r.steps?.totalMarginRate ?? null,

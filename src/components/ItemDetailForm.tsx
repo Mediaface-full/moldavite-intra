@@ -600,7 +600,7 @@ function PriceSection({
         {/* 3. Cena prodejní */}
         <PriceRow
           label="Cena prodejní"
-          hint="Cena, za kterou kámen prodáváme na eshopu / Etsy. Při přepočtu se auto-vyplní z doporučené, pokud je 0."
+          hint="Cena pro eshop / Etsy. Při přepočtu se auto-aktualizuje na doporučenou — pokud sis ji ručně neupravil na jinou hodnotu (pak respektuje tvůj override)."
           editable
           value={salePrice}
           onChange={setSalePrice}
