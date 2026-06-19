@@ -298,7 +298,7 @@ function RuleEditor({ rule, onChange, onRemove }: { rule: Rule; onChange: (patch
           type="text"
           value={rule.label ?? ''}
           onChange={(e) => onChange({ label: e.target.value } as Partial<Rule>)}
-          placeholder="Pojmenuj pravidlo (např. „Bonus podle hmotnosti")"
+          placeholder='Pojmenuj pravidlo (např. „Bonus podle hmotnosti")'
           className="flex-1 bg-transparent border-0 border-b border-border focus:outline-none focus:border-ring text-sm font-medium px-1 py-0.5"
         />
         <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground px-2 py-0.5 rounded border border-border whitespace-nowrap">
