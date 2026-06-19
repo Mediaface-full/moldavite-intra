@@ -7,7 +7,22 @@
  * k nákupní ceně podle váhy / tvaru / barvy / sbírkovosti) bez znalosti JSON.
  */
 import { useState, useEffect } from 'react';
+import { apiFetch } from '@/lib/apiFetch';
 import Icon from './Icon';
+
+/**
+ * Attribut → attrKey mapování pro fetch AttrOption hodnot.
+ * Hodnoty se ukáží jako dropdown v category / multi-category editoru,
+ * uživatel nemusí psát ručně + zaručena konzistence s /admin/attributes.
+ */
+const SOURCE_TO_ATTR_KEY: Record<string, string> = {
+  pasShape: 'pasShape',
+  attrDamage: 'attrDamage',
+  location: 'location',
+  attrColor: 'attrColor',
+};
+
+type AttrOptions = Record<string, string[]>;
 
 type Bracket = { min: number; max: number | null; marginRate: number };
 type CategoryItem = { value: string; marginRate: number };
@@ -202,6 +217,24 @@ export default function PricingRulesEditor({
   const [jsonText, setJsonText] = useState(() => JSON.stringify(value, null, 2));
   const [jsonError, setJsonError] = useState('');
 
+  // Hodnoty AttrOption pro dropdowny v category/multi-category pravidlech.
+  // Fetchneme všechny 4 atributy najednou a cache se sdílí mezi sub-editory.
+  const [attrOptions, setAttrOptions] = useState<AttrOptions>({});
+  useEffect(() => {
+    let alive = true;
+    Promise.all(
+      Object.values(SOURCE_TO_ATTR_KEY).map(async (key) => {
+        const r = await apiFetch(`/api/attr-options?key=${key}`);
+        if (!r.ok) return [key, []] as const;
+        const data: Array<{ value: string }> = await r.json();
+        return [key, data.map((o) => o.value)] as const;
+      }),
+    ).then((pairs) => {
+      if (alive) setAttrOptions(Object.fromEntries(pairs));
+    });
+    return () => { alive = false; };
+  }, []);
+
   function update(patch: Partial<Snapshot>) {
     onChange({ ...value, ...patch });
   }
@@ -339,6 +372,7 @@ export default function PricingRulesEditor({
           <RuleEditor
             key={idx}
             rule={rule}
+            attrOptions={attrOptions}
             onChange={(patch) => updateRule(idx, patch)}
             onRemove={() => removeRule(idx)}
           />
@@ -404,7 +438,7 @@ function AddBtn({ title, description, icon, onClick }: { title: string; descript
   );
 }
 
-function RuleEditor({ rule, onChange, onRemove }: { rule: Rule; onChange: (patch: Partial<Rule>) => void; onRemove: () => void }) {
+function RuleEditor({ rule, attrOptions, onChange, onRemove }: { rule: Rule; attrOptions: AttrOptions; onChange: (patch: Partial<Rule>) => void; onRemove: () => void }) {
   const typeLabel = rule.type === 'bracket' ? 'Hmotnost'
     : rule.type === 'category' ? (SOURCE_LABEL[rule.source] ?? 'Kategorie')
     : rule.type === 'multi-category' ? 'Barvy'
@@ -429,8 +463,8 @@ function RuleEditor({ rule, onChange, onRemove }: { rule: Rule; onChange: (patch
       </div>
 
       {rule.type === 'bracket' && <BracketBody rule={rule} onChange={onChange} />}
-      {rule.type === 'category' && <CategoryBody rule={rule} onChange={onChange} />}
-      {rule.type === 'multi-category' && <MultiCategoryBody rule={rule} onChange={onChange} />}
+      {rule.type === 'category' && <CategoryBody rule={rule} attrOptions={attrOptions} onChange={onChange} />}
+      {rule.type === 'multi-category' && <MultiCategoryBody rule={rule} attrOptions={attrOptions} onChange={onChange} />}
       {rule.type === 'boolean' && <BooleanBody rule={rule} onChange={onChange} />}
     </div>
   );
@@ -483,9 +517,13 @@ function BracketBody({ rule, onChange }: { rule: BracketRule; onChange: (patch: 
   );
 }
 
-function CategoryBody({ rule, onChange }: { rule: CategoryRule; onChange: (patch: Partial<Rule>) => void }) {
+function CategoryBody({ rule, attrOptions, onChange }: { rule: CategoryRule; attrOptions: AttrOptions; onChange: (patch: Partial<Rule>) => void }) {
   function setItems(items: CategoryItem[]) { onChange({ items } as Partial<Rule>); }
   const hint = SOURCE_HINT[rule.source] ?? '';
+  const availableValues = attrOptions[SOURCE_TO_ATTR_KEY[rule.source] ?? ''] ?? [];
+  // Hodnoty které už jsou v pravidle — vyloučíme je z dropdownu pro ostatní řádky
+  // (na řádce s tou hodnotou ji ponecháme, jinak je výběr duplicitní)
+  const usedValues = new Set(rule.items.map((it) => it.value));
   return (
     <div className="space-y-1.5">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -514,29 +552,55 @@ function CategoryBody({ rule, onChange }: { rule: CategoryRule; onChange: (patch
         <span>bonus (%)</span>
         <span></span>
       </div>
-      {rule.items.map((it, i) => (
-        <div key={i} className="grid grid-cols-[2fr_1fr_auto] gap-1.5 items-center">
-          <input type="text" value={it.value} onChange={(e) => { const x = [...rule.items]; x[i] = { ...it, value: e.target.value }; setItems(x); }} placeholder={hint || 'hodnota'} className={inp} />
-          <PercentInput
-            value={it.marginRate}
-            onChange={(d) => { const x = [...rule.items]; x[i] = { ...it, marginRate: d }; setItems(x); }}
-            placeholder="např. 70"
-            className={inpNum}
-          />
-          <button type="button" onClick={() => setItems(rule.items.filter((_, j) => j !== i))} title="Smazat hodnotu" className="text-muted-foreground hover:text-destructive">
-            <Icon name="x" className="w-4 h-4" />
-          </button>
-        </div>
-      ))}
+      {rule.items.map((it, i) => {
+        const selectable = availableValues.filter((v) => v === it.value || !usedValues.has(v));
+        return (
+          <div key={i} className="grid grid-cols-[2fr_1fr_auto] gap-1.5 items-center">
+            {availableValues.length > 0 ? (
+              <select
+                value={it.value}
+                onChange={(e) => { const x = [...rule.items]; x[i] = { ...it, value: e.target.value }; setItems(x); }}
+                className={inp}
+              >
+                <option value="">— vyber hodnotu —</option>
+                {selectable.map((v) => (
+                  <option key={v} value={v}>{v}</option>
+                ))}
+                {it.value && !availableValues.includes(it.value) && (
+                  <option value={it.value}>{it.value} (mimo seznam)</option>
+                )}
+              </select>
+            ) : (
+              <input type="text" value={it.value} onChange={(e) => { const x = [...rule.items]; x[i] = { ...it, value: e.target.value }; setItems(x); }} placeholder={hint || 'hodnota (AttrOption nenaseedovaná)'} className={inp} />
+            )}
+            <PercentInput
+              value={it.marginRate}
+              onChange={(d) => { const x = [...rule.items]; x[i] = { ...it, marginRate: d }; setItems(x); }}
+              placeholder="např. 70"
+              className={inpNum}
+            />
+            <button type="button" onClick={() => setItems(rule.items.filter((_, j) => j !== i))} title="Smazat hodnotu" className="text-muted-foreground hover:text-destructive">
+              <Icon name="x" className="w-4 h-4" />
+            </button>
+          </div>
+        );
+      })}
       <button type="button" onClick={() => setItems([...rule.items, { value: '', marginRate: 0 }])} className="text-xs text-primary hover:underline font-mono pt-1">
         + přidat hodnotu
       </button>
+      {availableValues.length === 0 && (
+        <p className="text-[10px] text-warning font-mono mt-1">
+          ⚠ Žádné hodnoty v /admin/attributes pro „{SOURCE_LABEL[rule.source]}". Doplň je tam pro dropdown.
+        </p>
+      )}
     </div>
   );
 }
 
-function MultiCategoryBody({ rule, onChange }: { rule: MultiCategoryRule; onChange: (patch: Partial<Rule>) => void }) {
+function MultiCategoryBody({ rule, attrOptions, onChange }: { rule: MultiCategoryRule; attrOptions: AttrOptions; onChange: (patch: Partial<Rule>) => void }) {
   function setItems(items: CategoryItem[]) { onChange({ items } as Partial<Rule>); }
+  const availableValues = attrOptions[SOURCE_TO_ATTR_KEY[rule.source] ?? ''] ?? [];
+  const usedValues = new Set(rule.items.map((it) => it.value));
   return (
     <div className="space-y-1.5">
       <p className="text-[11px] text-muted-foreground leading-relaxed">
@@ -565,23 +629,47 @@ function MultiCategoryBody({ rule, onChange }: { rule: MultiCategoryRule; onChan
         <span>bonus (%)</span>
         <span></span>
       </div>
-      {rule.items.map((it, i) => (
-        <div key={i} className="grid grid-cols-[2fr_1fr_auto] gap-1.5 items-center">
-          <input type="text" value={it.value} onChange={(e) => { const x = [...rule.items]; x[i] = { ...it, value: e.target.value }; setItems(x); }} placeholder="např. radioaktivní zelená" className={inp} />
-          <PercentInput
-            value={it.marginRate}
-            onChange={(d) => { const x = [...rule.items]; x[i] = { ...it, marginRate: d }; setItems(x); }}
-            placeholder="např. 50"
-            className={inpNum}
-          />
-          <button type="button" onClick={() => setItems(rule.items.filter((_, j) => j !== i))} title="Smazat barvu" className="text-muted-foreground hover:text-destructive">
-            <Icon name="x" className="w-4 h-4" />
-          </button>
-        </div>
-      ))}
+      {rule.items.map((it, i) => {
+        const selectable = availableValues.filter((v) => v === it.value || !usedValues.has(v));
+        return (
+          <div key={i} className="grid grid-cols-[2fr_1fr_auto] gap-1.5 items-center">
+            {availableValues.length > 0 ? (
+              <select
+                value={it.value}
+                onChange={(e) => { const x = [...rule.items]; x[i] = { ...it, value: e.target.value }; setItems(x); }}
+                className={inp}
+              >
+                <option value="">— vyber barvu —</option>
+                {selectable.map((v) => (
+                  <option key={v} value={v}>{v}</option>
+                ))}
+                {it.value && !availableValues.includes(it.value) && (
+                  <option value={it.value}>{it.value} (mimo seznam)</option>
+                )}
+              </select>
+            ) : (
+              <input type="text" value={it.value} onChange={(e) => { const x = [...rule.items]; x[i] = { ...it, value: e.target.value }; setItems(x); }} placeholder="např. radioaktivní zelená" className={inp} />
+            )}
+            <PercentInput
+              value={it.marginRate}
+              onChange={(d) => { const x = [...rule.items]; x[i] = { ...it, marginRate: d }; setItems(x); }}
+              placeholder="např. 50"
+              className={inpNum}
+            />
+            <button type="button" onClick={() => setItems(rule.items.filter((_, j) => j !== i))} title="Smazat barvu" className="text-muted-foreground hover:text-destructive">
+              <Icon name="x" className="w-4 h-4" />
+            </button>
+          </div>
+        );
+      })}
       <button type="button" onClick={() => setItems([...rule.items, { value: '', marginRate: 0 }])} className="text-xs text-primary hover:underline font-mono pt-1">
         + přidat barvu
       </button>
+      {availableValues.length === 0 && (
+        <p className="text-[10px] text-warning font-mono mt-1">
+          ⚠ Žádné barvy v /admin/attributes. Doplň je tam pro dropdown.
+        </p>
+      )}
     </div>
   );
 }
