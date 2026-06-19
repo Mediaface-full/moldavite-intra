@@ -655,26 +655,37 @@ function PriceRow({
   placeholder?: string;
   rightExtra?: React.ReactNode;
 }) {
+  // Sjednocený layout: 2-sloupcový grid, value box vždy stejná šířka.
+  // rightExtra (např. „doporučená: 460 Kč" pro Cena prodejní) se ukáže pod
+  // popisem vlevo, ne v rohu — aby neměnil šířku value boxu a aby všechny
+  // řádky byly opticky zarovnané jako tabulka.
   return (
-    <div className="grid grid-cols-[1fr_auto_auto] items-center gap-3 px-4 py-2.5 hover:bg-muted/20 transition-colors">
+    <div className="grid grid-cols-[1fr_10rem] items-center gap-3 px-4 py-2.5 hover:bg-muted/20 transition-colors">
       <div className="min-w-0">
         <p className="text-sm font-medium text-foreground">{label}</p>
-        {hint && <p className="text-[10px] text-muted-foreground mt-0.5 truncate">{hint}</p>}
+        {hint && <p className="text-[10px] text-muted-foreground mt-0.5 line-clamp-2">{hint}</p>}
+        {rightExtra && <div className="mt-0.5">{rightExtra}</div>}
       </div>
-      {rightExtra && <div>{rightExtra}</div>}
-      <div className="w-40 text-right">
+      <div className="w-full">
         {editable ? (
           <input
             type="number"
             value={value ?? ''}
             onChange={(e) => onChange?.(e.target.value)}
             placeholder={placeholder ?? ''}
-            className="w-full bg-card border border-border rounded-lg px-3 py-1.5 text-sm font-mono text-right text-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
+            className="w-full bg-card border border-border rounded-lg px-3 h-9 text-sm font-mono text-right text-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
           />
         ) : (
-          <div className="text-sm font-mono text-foreground">
-            {displayValue && displayValue !== '—' ? displayValue : (
-              <span className="text-muted-foreground/60 italic font-sans text-[10px]" title={emptyHint}>{emptyHint || '—'}</span>
+          // Read-only display — stejný rozměr a tvar jako input, ale bez border
+          // a se subtle background aby bylo zřejmé že je zamčené.
+          <div
+            className="w-full bg-muted/40 border border-border/40 rounded-lg px-3 h-9 inline-flex items-center justify-end text-sm font-mono text-foreground"
+            title={emptyHint}
+          >
+            {displayValue && displayValue !== '—' ? (
+              displayValue
+            ) : (
+              <span className="text-muted-foreground/60 italic font-sans text-[10px]">{emptyHint ? 'spočítá se' : '—'}</span>
             )}
           </div>
         )}
