@@ -364,6 +364,12 @@ export default function ItemDetailForm({ item }: { item: ItemData }) {
           costBasisCzk={item.costBasisCzk}
           recommendedPriceInclVatCzk={item.recommendedPriceInclVatCzk}
           pricingStatus={item.pricingStatus}
+          usedPpgHint={(() => {
+            // Derivuje použité PPG z aktuální purchasePrice / weight (po recalculate).
+            const w = Number(formData.weight);
+            const pp = Number(formData.purchasePrice);
+            return w > 0 && pp > 0 ? (pp / w).toFixed(2) : null;
+          })()}
           orderHref={`/orders`}
         />
 
@@ -513,6 +519,7 @@ function PriceSection({
   costBasisCzk,
   recommendedPriceInclVatCzk,
   pricingStatus,
+  usedPpgHint,
 }: {
   purchasePrice: string;
   setPurchasePrice: (v: string) => void;
@@ -525,6 +532,7 @@ function PriceSection({
   costBasisCzk: string | null | undefined;
   recommendedPriceInclVatCzk: string | null | undefined;
   pricingStatus: 'NEEDS_INPUT' | 'NEEDS_REVIEW' | 'OK' | 'STALE' | null | undefined;
+  usedPpgHint: string | null;
   orderHref: string;
 }) {
   const fmt = (v: string | null | undefined) =>
@@ -562,7 +570,13 @@ function PriceSection({
         {/* 1b. Cena za gram (override) — pro výjimečné kameny */}
         <PriceRow
           label="Cena za gram"
-          hint="Override jen pro tento kámen. Nech prázdné — kámen zdědí PPG kazety (ručně nebo z dopočtu Cena ÷ Váha) nebo PPG zakázky."
+          hint={
+            ppgOverride && Number(ppgOverride) > 0
+              ? 'Override jen pro tento kámen — přebije PPG kazety i zakázky.'
+              : usedPpgHint
+                ? `Aktuálně použito: ${usedPpgHint} Kč/g (zděděno z kazety / zakázky). Override nech prázdné nebo zadej vlastní.`
+                : 'Override jen pro tento kámen. Nech prázdné — kámen zdědí PPG kazety nebo zakázky.'
+          }
           editable
           value={ppgOverride}
           onChange={setPpgOverride}

@@ -118,6 +118,10 @@ export async function POST(
       await tx.item.update({
         where: { id: r.stoneId },
         data: {
+          // purchasePrice = weight × resolved PPG (z fallback řetězce kazety nebo zakázky).
+          // Item.purchasePrice je computed display field — updatuje se i když ho
+          // user nepřepsal ručně, aby sekce Ceny v UI zobrazila aktuální nákupní cenu.
+          ...(r.steps?.purchasePriceCzk ? { purchasePrice: r.steps.purchasePriceCzk } : {}),
           allocatedOrderCostCzk: r.steps?.allocatedOrderCostCzk ?? null,
           costBasisCzk: r.steps?.costBasisCzk ?? null,
           computedMarginRate: r.steps?.totalMarginRate ?? null,
