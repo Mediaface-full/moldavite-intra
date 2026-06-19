@@ -15,6 +15,16 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: 'Invalid request' }, { status: 400 });
   }
 
+  // Validate IDs PŘED otevřením transakce — invalid id by jinak shodil celou
+  // batch mid-flight (Prisma runtime error v transakci). Plus předchází DoS
+  // pokud klient pošle 500 batch s garbage IDs.
+  for (const update of updates) {
+    const id = (update as { id?: unknown }).id;
+    if (typeof id !== 'number' || !Number.isInteger(id) || id <= 0) {
+      return NextResponse.json({ error: 'Každá položka musí mít id: positive integer' }, { status: 422 });
+    }
+  }
+
   const results = await prisma.$transaction(
     updates.map((update) => {
       const { id, ...fields } = update;

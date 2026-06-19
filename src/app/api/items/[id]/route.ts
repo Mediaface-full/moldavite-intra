@@ -16,6 +16,11 @@ const ALLOWED_FIELDS = [
   'attrDamage', 'attrColor', 'attrCollectible',
 ];
 
+function parseItemId(id: string): number | null {
+  const n = Number.parseInt(id, 10);
+  return Number.isInteger(n) && n > 0 ? n : null;
+}
+
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -24,8 +29,10 @@ export async function GET(
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { id } = await params;
+  const itemId = parseItemId(id);
+  if (itemId === null) return NextResponse.json({ error: 'Invalid id' }, { status: 400 });
   const item = await prisma.item.findUnique({
-    where: { id: parseInt(id) },
+    where: { id: itemId },
     include: { box: true },
   });
 
@@ -41,6 +48,8 @@ export async function PATCH(
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { id } = await params;
+  const itemId = parseItemId(id);
+  if (itemId === null) return NextResponse.json({ error: 'Invalid id' }, { status: 400 });
   const body = await request.json();
 
   // Whitelist fields
@@ -56,7 +65,7 @@ export async function PATCH(
 
   // Validate: can't enable shop/etsy without weight and price
   if (data.onShop === true || data.onEtsy === true) {
-    const existing = await prisma.item.findUnique({ where: { id: parseInt(id) } });
+    const existing = await prisma.item.findUnique({ where: { id: itemId } });
     if (existing) {
       const weight = Number(existing.weight);
       const price = Number(existing.salePrice);
@@ -74,8 +83,6 @@ export async function PATCH(
       }
     }
   }
-
-  const itemId = parseInt(id);
 
   // Etapa 2: manualPriceInclVatCzk → pokud spadla pod recommended, označ NEEDS_REVIEW
   // (ale neblokuj — uživatel může vědomě jít pod minimum, jen mu to flagujeme).
@@ -254,7 +261,9 @@ export async function DELETE(
   }
 
   const { id } = await params;
-  await prisma.item.delete({ where: { id: parseInt(id) } });
+  const itemId = parseItemId(id);
+  if (itemId === null) return NextResponse.json({ error: 'Invalid id' }, { status: 400 });
+  await prisma.item.delete({ where: { id: itemId } });
   await logActivity(session.id, 'item.delete', id);
   return NextResponse.json({ success: true });
 }

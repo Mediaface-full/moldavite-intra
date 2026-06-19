@@ -126,8 +126,10 @@ export async function POST(request: Request) {
         // Auto-gen kolize → další pokus
         continue;
       }
-      const msg = err instanceof Error ? err.message : String(err);
-      return NextResponse.json({ error: msg }, { status: 400 });
+      // Negenerovat detailní Prisma chybu uživateli — mohla by leaknout
+      // schema info / FK constraints. Server-side log + generic message.
+      console.error('[POST /api/boxes] DB error:', err);
+      return NextResponse.json({ error: 'Nepodařilo se vytvořit kazetu (DB chyba)' }, { status: 500 });
     }
   }
   return NextResponse.json({ error: 'Nepodařilo se vygenerovat unikátní kód kazety po 5 pokusech — zkus to znovu' }, { status: 503 });

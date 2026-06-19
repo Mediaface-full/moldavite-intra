@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { timingSafeEqual } from 'crypto';
 import { verifyToken } from '@/lib/auth';
 import { CSRF_COOKIE_NAME, CSRF_HEADER, verifyCsrf } from '@/lib/csrf';
 
 const PUBLIC_PATHS = ['/login', '/api/auth/login', '/api/cron', '/verify'];
+// Proxy gating pro plně admin prefixy. Pricing-config / attr-options / sellers
+// mají mix GET (pro non-admin UI) + mutate (admin) — gating řeší vnitřní handler
+// per metoda. ADMIN_PATHS držet jen pro 100% admin prefixy.
 const ADMIN_PATHS = ['/admin', '/api/admin', '/export', '/api/export'];
 
 // API endpoints where we enforce CSRF on state-changing methods. The cron
@@ -27,6 +31,25 @@ function isVerifyHost(host: string): boolean {
 function isAllowedOnVerifyHost(pathname: string): boolean {
   if (pathname === '/favicon.ico') return true;
   return VERIFY_HOST_ALLOWED_PREFIXES.some(p => pathname.startsWith(p));
+}
+
+/**
+ * Constant-time comparison cron-secret hlavičky vs `CRON_SECRET` env.
+ * Vrací true jen pokud env je definovaný, header je přítomen a hodnoty se
+ * přesně shodují. Bez env (nebo neshody) vrátí false — žádný bypass CSRF.
+ */
+function hasValidCronSecret(request: NextRequest): boolean {
+  const headerValue = request.headers.get('x-cron-secret');
+  const expected = process.env.CRON_SECRET;
+  if (!headerValue || !expected) return false;
+  try {
+    const a = Buffer.from(headerValue);
+    const b = Buffer.from(expected);
+    if (a.length !== b.length) return false;
+    return timingSafeEqual(a, b);
+  } catch {
+    return false;
+  }
 }
 
 // Per-request nonce enables a strict CSP without 'unsafe-inline'/'unsafe-eval'.
@@ -141,7 +164,9 @@ export function proxy(request: NextRequest) {
   // CSRF guard for mutation requests to enforced API paths.
   // Skip when a valid cron-secret header is present — scheduled tasks carry
   // their own out-of-band auth and don't have a browser cookie jar.
-  const hasCronSecret = !!request.headers.get('x-cron-secret');
+  // SECURITY: must do constant-time compare against env, not just truthy check
+  // (audit 19. 6. 2026 — truthy umožňoval bypass CSRF s libovolnou hodnotou).
+  const hasCronSecret = hasValidCronSecret(request);
   if (!hasCronSecret && requiresCsrf(pathname, request.method)) {
     const headerToken = request.headers.get(CSRF_HEADER);
     const cookieToken = request.cookies.get(CSRF_COOKIE_NAME)?.value;

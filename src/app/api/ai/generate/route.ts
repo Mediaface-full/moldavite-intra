@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma';
 import { NextResponse } from 'next/server';
 import { getSession, logActivity } from '@/lib/auth';
 import { getPasShape } from '@/lib/pasShapes';
+import { checkRateLimit } from '@/lib/rateLimit';
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
 const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
@@ -12,11 +13,26 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
+  // Rate limit per-admin — Gemini API je placený, bez limitu může jeden uživatel
+  // vyfakturovat Gideona. 20 generací / hod / admin je dost pro normální workflow.
+  const limit = checkRateLimit(`ai:${session.id}`, 20, 60 * 60 * 1000);
+  if (!limit.ok) {
+    return NextResponse.json(
+      { error: `Příliš mnoho AI generací. Zkus to za ${Math.ceil(limit.retryAfterSec / 60)} min.` },
+      { status: 429, headers: { 'Retry-After': String(limit.retryAfterSec) } }
+    );
+  }
+
   if (!GEMINI_API_KEY) {
     return NextResponse.json({ error: 'Gemini API key not configured' }, { status: 500 });
   }
 
-  const { itemId, prompt } = await request.json();
+  const body = await request.json();
+  const itemId = Number(body?.itemId);
+  const prompt = typeof body?.prompt === 'string' ? body.prompt : '';
+  if (!Number.isInteger(itemId) || itemId <= 0 || !prompt) {
+    return NextResponse.json({ error: 'Invalid itemId nebo prompt' }, { status: 422 });
+  }
 
   // Get item data
   const item = await prisma.item.findUnique({
