@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma';
 import { NextResponse } from 'next/server';
 import { getSession, logActivity } from '@/lib/auth';
 import { recalcItemPrices } from '@/lib/exchangeRates';
+import { resolvePpg } from '@/lib/pricing/resolve';
 
 const ALLOWED_FIELDS = [
   'name', 'nameEn', 'description', 'descriptionEn', 'longDescription', 'longDescriptionEn',
@@ -110,6 +111,63 @@ export async function PATCH(
       // → vyčistit final, status zpět na NEEDS_INPUT
       data.pricingStatus = 'NEEDS_INPUT';
       data.finalInternalPriceInclVatCzk = null;
+    }
+  }
+
+  // Auto-update Item.purchasePrice když user změnil weight nebo PPG override.
+  // Není to plný recalc (alokace + margin + DPH potřebují všechny items zakázky),
+  // ale „Cena nákupní" v sekci Ceny se okamžitě objeví bez nutnosti Přepočítat.
+  // Plus označíme status STALE — signál uživateli „klikni Přepočítat pro úplné ceny".
+  const affectsPurchase =
+    data.weight !== undefined ||
+    data.purchasePricePerGramCzk !== undefined ||
+    data.purchasePricePerGramSource !== undefined;
+  if (affectsPurchase) {
+    const ctx = await prisma.item.findUnique({
+      where: { id: itemId },
+      include: {
+        box: { select: { purchasePricePerGramCzk: true, purchaseAmountCzk: true, declaredWeight: true } },
+        order: { select: { defaultPurchasePricePerGramCzk: true } },
+      },
+    });
+    if (ctx) {
+      // Merge nové hodnoty (data.*) s aktuálním DB stavem (ctx.*) — co user
+      // poslal v PATCH ještě není uloženo, ale chceme s tím spočítat hned.
+      const nextWeight = data.weight !== undefined ? Number(data.weight) : (ctx.weight ? Number(ctx.weight) : null);
+      const nextItemPpg = data.purchasePricePerGramCzk !== undefined
+        ? (data.purchasePricePerGramCzk === null ? null : Number(data.purchasePricePerGramCzk))
+        : (ctx.purchasePricePerGramCzk ? Number(ctx.purchasePricePerGramCzk) : null);
+
+      const ppg = resolvePpg(
+        {
+          id: itemId,
+          weightGrams: nextWeight !== null ? String(nextWeight) : null,
+          purchasePricePerGramCzk: nextItemPpg !== null ? String(nextItemPpg) : null,
+          manualPriceInclVatCzk: null,
+          attrs: { pasShape: null, location: null, attrDamage: null, attrColor: [], attrCollectible: false },
+          box: {
+            purchasePricePerGramCzk: ctx.box?.purchasePricePerGramCzk?.toString() ?? null,
+            purchaseAmountCzk: ctx.box?.purchaseAmountCzk?.toString() ?? null,
+            declaredWeight: ctx.box?.declaredWeight?.toString() ?? null,
+          },
+        },
+        {
+          id: ctx.orderId ?? 0,
+          defaultPurchasePricePerGramCzk: ctx.order?.defaultPurchasePricePerGramCzk?.toString() ?? null,
+          allocationMethod: 'BY_WEIGHT',
+          vatRatePct: '21',
+          roundingStep: 10,
+        },
+      );
+
+      if (nextWeight !== null && nextWeight > 0 && ppg !== null && ppg.gt(0)) {
+        data.purchasePrice = ppg.times(nextWeight).toFixed(2);
+        // Pokud byl status OK, downgrade na STALE — alokace nákladů a margin
+        // se neuložily, plné recalc je potřeba pro správné recommended ceny.
+        if (ctx.pricingStatus === 'OK') {
+          data.pricingStatus = 'STALE';
+        }
+      }
     }
   }
 
