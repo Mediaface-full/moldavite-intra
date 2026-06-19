@@ -262,6 +262,21 @@ function BoxesSummaryCard({ order }: { order: SerializedOrder }) {
           const itemCount = items.length;
           const sumRecommended = items.reduce((s, i) => s + Number(i.finalInternalPriceInclVatCzk ?? 0), 0);
           const sumWeight = Number(b.declaredWeight ?? 0) || items.reduce((s, i) => s + Number(i.weight ?? 0), 0);
+          // Effective PPG = jaký Kč/g se reálně použije v cenotvorbě pro tuto kazetu
+          //   1. explicit Box.purchasePricePerGramCzk
+          //   2. dopočet Box.purchaseAmountCzk / Box.declaredWeight
+          //   3. fallback na Order default (zobrazeno jen pro transparentnost)
+          const boxAmount = Number(b.purchaseAmountCzk ?? 0);
+          const boxDeclWeight = Number(b.declaredWeight ?? 0);
+          let effectivePpg: number | null = null;
+          let ppgSource: 'box' | 'compute' | 'order' = 'order';
+          if (b.purchasePricePerGramCzk && Number(b.purchasePricePerGramCzk) > 0) {
+            effectivePpg = Number(b.purchasePricePerGramCzk); ppgSource = 'box';
+          } else if (boxAmount > 0 && boxDeclWeight > 0) {
+            effectivePpg = boxAmount / boxDeclWeight; ppgSource = 'compute';
+          } else if (order.defaultPurchasePricePerGramCzk && Number(order.defaultPurchasePricePerGramCzk) > 0) {
+            effectivePpg = Number(order.defaultPurchasePricePerGramCzk); ppgSource = 'order';
+          }
           const mix = order.sellerId != null && b.sellerId != null && b.sellerId !== order.sellerId;
           const declaredVsActual = b.declaredPieces != null && b.declaredPieces > 0 && b.declaredPieces !== itemCount;
 
@@ -269,7 +284,7 @@ function BoxesSummaryCard({ order }: { order: SerializedOrder }) {
             <Link
               key={b.id}
               href={`/boxes/${b.id}`}
-              className="grid grid-cols-[1fr_auto_auto_auto] items-center gap-4 px-5 py-3 hover:bg-muted/30 transition-colors"
+              className="grid grid-cols-[1fr_auto_auto_auto_auto] items-center gap-4 px-5 py-3 hover:bg-muted/30 transition-colors"
             >
               <div className="min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
@@ -300,6 +315,19 @@ function BoxesSummaryCard({ order }: { order: SerializedOrder }) {
               <div className="text-right">
                 <p className="text-[10px] text-muted-foreground font-mono uppercase tracking-wider">Σ váha (g)</p>
                 <p className="text-sm font-mono text-foreground">{sumWeight.toFixed(2)}</p>
+              </div>
+              <div className="text-right min-w-20">
+                <p className="text-[10px] text-muted-foreground font-mono uppercase tracking-wider">PPG</p>
+                <p
+                  className="text-sm font-mono"
+                  style={{ color: effectivePpg === null ? 'var(--muted-foreground)' : ppgSource === 'order' ? 'var(--muted-foreground)' : 'var(--foreground)' }}
+                  title={effectivePpg === null ? 'Žádný PPG zdroj — kámen půjde do NEEDS_INPUT' : ppgSource === 'box' ? 'Explicit PPG kazety' : ppgSource === 'compute' ? `Dopočet z ${boxAmount.toFixed(0)} ÷ ${boxDeclWeight.toFixed(2)}` : 'Fallback na PPG zakázky'}
+                >
+                  {effectivePpg !== null ? `${effectivePpg.toFixed(2)}` : '—'}
+                </p>
+                <p className="text-[9px] text-muted-foreground font-mono uppercase tracking-wider">
+                  {ppgSource === 'box' ? 'override' : ppgSource === 'compute' ? 'auto' : 'order'}
+                </p>
               </div>
               <div className="text-right min-w-24">
                 <p className="text-[10px] text-muted-foreground font-mono uppercase tracking-wider">Σ doporučená</p>
@@ -419,6 +447,21 @@ function SumValidationWarnings({ order }: { order: SerializedOrder }) {
       severity: 'warning',
       text: `Součet deklarované váhy kazet (${sumBoxWeight.toFixed(2)} g) se liší od celkové váhy zakázky (${orderWeight.toFixed(2)} g). Rozdíl: ${(sumBoxWeight - orderWeight).toFixed(2)} g.`,
     });
+  }
+  // Effective PPG kontrola: Σ Box.purchase ÷ Σ Box.weight by mělo dát PPG
+  // blízké Order.defaultPPG. Pokud se liší o víc než 5 %, je to možný neprůhled —
+  // některé kazety mají per-Box PPG override který Order PPG nesedí.
+  const orderPpg = Number(order.defaultPurchasePricePerGramCzk ?? 0);
+  if (orderPpg > 0 && sumBoxPurchase > 0 && sumBoxWeight > 0) {
+    const effectivePpg = sumBoxPurchase / sumBoxWeight;
+    const ppgDiffPct = Math.abs((effectivePpg - orderPpg) / orderPpg) * 100;
+    if (ppgDiffPct > 5) {
+      issues.push({
+        key: 'ppg',
+        severity: 'info',
+        text: `Efektivní PPG ze součtu kazet (${effectivePpg.toFixed(2)} Kč/g) se liší od PPG zakázky (${orderPpg.toFixed(2)} Kč/g) o ${ppgDiffPct.toFixed(1)} %. Per-Box cenotvorba je aktivní — kameny v různých kazetách dostanou různý PPG.`,
+      });
+    }
   }
   if (sumBoxPurchase > 0 && orderPurchase > 0 && Math.abs(sumBoxPurchase - orderPurchase) >= 1) {
     issues.push({

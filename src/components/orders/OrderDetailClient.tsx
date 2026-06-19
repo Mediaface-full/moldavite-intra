@@ -48,6 +48,7 @@ export type SerializedOrder = {
     declaredPieces?: number | null;
     declaredWeight?: string | null;
     purchaseAmountCzk?: string | null;
+    purchasePricePerGramCzk?: string | null;
   }>;
   pricingConfig: { id: number; name: string; active: boolean } | null;
 };

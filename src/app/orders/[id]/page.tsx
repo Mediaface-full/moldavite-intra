@@ -25,7 +25,8 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
           select: {
             id: true, code: true, name: true,
             sellerId: true, cassetteType: true,
-            declaredPieces: true, declaredWeight: true, purchaseAmountCzk: true,
+            declaredPieces: true, declaredWeight: true,
+            purchaseAmountCzk: true, purchasePricePerGramCzk: true,
           },
           orderBy: { code: 'asc' },
         },
@@ -55,6 +56,7 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
           ...b,
           declaredWeight: b.declaredWeight ? b.declaredWeight.toString() : null,
           purchaseAmountCzk: b.purchaseAmountCzk ? b.purchaseAmountCzk.toString() : null,
+          purchasePricePerGramCzk: b.purchasePricePerGramCzk ? b.purchasePricePerGramCzk.toString() : null,
         })),
         pricingConfig: order.pricingConfig,
       }}

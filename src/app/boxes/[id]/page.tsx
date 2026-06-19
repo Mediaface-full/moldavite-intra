@@ -15,6 +15,7 @@ import FtpUploadInfo from '@/components/FtpUploadInfo';
 import BoxFieldInput from '@/components/BoxFieldInput';
 import BoxNameInline from '@/components/BoxNameInline';
 import BoxPpgField from '@/components/BoxPpgField';
+import BoxIntegrityCheck from '@/components/BoxIntegrityCheck';
 import { getSession } from '@/lib/auth';
 
 export default async function BoxDetailPage({
@@ -153,6 +154,18 @@ export default async function BoxDetailPage({
           </PropRow>
         </div>
       </div>
+
+      {/* Kontrolní součty kazety — Σ items vs deklarované */}
+      <BoxIntegrityCheck
+        declaredPieces={box.declaredPieces ?? null}
+        declaredWeight={box.declaredWeight?.toString() ?? null}
+        purchaseAmountCzk={box.purchaseAmountCzk?.toString() ?? null}
+        purchasePricePerGramCzk={box.purchasePricePerGramCzk?.toString() ?? null}
+        items={box.items.map((it) => ({
+          weight: it.weight?.toString() ?? null,
+          purchasePrice: it.purchasePrice?.toString() ?? null,
+        }))}
+      />
 
       {/* Box Photos */}
       <BoxPhotoUpload
