@@ -20,6 +20,9 @@ export default function StoneViewer360({ photoPath, evidNumber, itemId, mainPhot
   const [isLoaded, setIsLoaded] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [saving, setSaving] = useState(false);
+  // Track index → selhalo loadnutí. Místo broken img ukážeme placeholder.
+  const [failedIndexes, setFailedIndexes] = useState<Set<number>>(new Set());
+  const [gifFailed, setGifFailed] = useState(false);
   const lastX = useRef(0);
 
   const photos = useMemo(() => get360Photos(photoPath), [photoPath]);
@@ -31,13 +34,24 @@ export default function StoneViewer360({ photoPath, evidNumber, itemId, mainPhot
   useEffect(() => {
     let loadedCount = 0;
     const total = photos.length;
-    for (const src of photos) {
+    const failed = new Set<number>();
+    for (let i = 0; i < photos.length; i++) {
       const img = new window.Image();
+      const idx = i;
       img.onload = () => { loadedCount++; if (loadedCount === total) setIsLoaded(true); };
-      img.onerror = () => { loadedCount++; if (loadedCount === total) setIsLoaded(true); };
-      img.src = src;
+      img.onerror = () => {
+        failed.add(idx);
+        loadedCount++;
+        if (loadedCount === total) {
+          setFailedIndexes(new Set(failed));
+          setIsLoaded(true);
+        }
+      };
+      img.src = photos[i];
     }
   }, [photos]);
+
+  const currentFailed = failedIndexes.has(currentIndex);
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     setIsDragging(true);
@@ -102,13 +116,20 @@ export default function StoneViewer360({ photoPath, evidNumber, itemId, mainPhot
         onTouchEnd={handleMouseUp}
       >
         {isLoaded ? (
-          /* eslint-disable-next-line @next/next/no-img-element */
-          <img
-            src={photos[currentIndex]}
-            alt={`Moldavit ${evidNumber} - ${currentIndex + 1}/${photoCount}`}
-            className="absolute inset-0 w-full h-full object-contain"
-            draggable={false}
-          />
+          currentFailed ? (
+            <PhotoPlaceholder label={`Foto ${currentIndex + 1}/${photoCount} chybí`} />
+          ) : (
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img
+              src={photos[currentIndex]}
+              alt={`Moldavit ${evidNumber} - ${currentIndex + 1}/${photoCount}`}
+              className="absolute inset-0 w-full h-full object-contain"
+              draggable={false}
+              onError={() => setFailedIndexes((prev) => new Set(prev).add(currentIndex))}
+            />
+          )
+        ) : gifFailed ? (
+          <PhotoPlaceholder label={`Moldavit ${evidNumber}`} />
         ) : (
           /* eslint-disable-next-line @next/next/no-img-element */
           <img
@@ -116,6 +137,7 @@ export default function StoneViewer360({ photoPath, evidNumber, itemId, mainPhot
             alt={`Moldavit ${evidNumber}`}
             className="absolute inset-0 w-full h-full object-contain"
             draggable={false}
+            onError={() => setGifFailed(true)}
           />
         )}
 
@@ -157,27 +179,42 @@ export default function StoneViewer360({ photoPath, evidNumber, itemId, mainPhot
       {/* Controls under viewer */}
       <div className="mt-3">
         <div className="flex gap-1 overflow-x-auto pb-2">
-          {photos.map((src, index) => (
-            <button
-              key={index}
-              onClick={() => setCurrentIndex(index)}
-              className={`flex-shrink-0 w-10 h-10 rounded border-2 overflow-hidden transition-colors relative ${
-                index === currentIndex
-                  ? 'border-warning'
-                  : index + 1 === currentMainPhoto
-                  ? 'border-warning/50'
-                  : 'border-border hover:border-foreground/40'
-              }`}
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={src} alt={`${index + 1}`} className="object-cover w-full h-full" loading="lazy" />
-              {index + 1 === currentMainPhoto && (
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="w-2 h-2 bg-warning rounded-full" />
-                </div>
-              )}
-            </button>
-          ))}
+          {photos.map((src, index) => {
+            const failed = failedIndexes.has(index);
+            return (
+              <button
+                key={index}
+                onClick={() => setCurrentIndex(index)}
+                className={`flex-shrink-0 w-10 h-10 rounded border-2 overflow-hidden transition-colors relative ${
+                  index === currentIndex
+                    ? 'border-warning'
+                    : index + 1 === currentMainPhoto
+                    ? 'border-warning/50'
+                    : 'border-border hover:border-foreground/40'
+                }`}
+              >
+                {failed ? (
+                  <div className="w-full h-full flex items-center justify-center bg-muted/40 text-muted-foreground text-[8px] font-mono">
+                    —
+                  </div>
+                ) : (
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img
+                    src={src}
+                    alt={`${index + 1}`}
+                    className="object-cover w-full h-full"
+                    loading="lazy"
+                    onError={() => setFailedIndexes((prev) => new Set(prev).add(index))}
+                  />
+                )}
+                {index + 1 === currentMainPhoto && (
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="w-2 h-2 bg-warning rounded-full" />
+                  </div>
+                )}
+              </button>
+            );
+          })}
         </div>
 
         {/* Set main photo button */}
@@ -198,6 +235,32 @@ export default function StoneViewer360({ photoPath, evidNumber, itemId, mainPhot
           </button>
         </div>}
       </div>
+    </div>
+  );
+}
+
+function PhotoPlaceholder({ label }: { label: string }) {
+  return (
+    <div
+      className="absolute inset-0 flex flex-col items-center justify-center gap-3 select-none"
+      style={{
+        background: 'linear-gradient(135deg, color-mix(in srgb, var(--muted) 60%, transparent), color-mix(in srgb, var(--muted) 30%, transparent))',
+      }}
+    >
+      <svg
+        className="w-16 h-16"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={1}
+        style={{ color: 'color-mix(in srgb, var(--muted-foreground) 50%, transparent)' }}
+        aria-hidden
+      >
+        <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
+      </svg>
+      <p className="text-xs font-mono" style={{ color: 'var(--muted-foreground)' }}>
+        {label}
+      </p>
     </div>
   );
 }

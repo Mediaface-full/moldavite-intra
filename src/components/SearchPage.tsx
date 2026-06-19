@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { getThumbnailUrl, getCatalogNumber, formatWeight, formatPrice } from '@/lib/utils';
 import { apiFetch } from '@/lib/apiFetch';
+import SafeImage from './SafeImage';
 
 interface SearchItem {
   id: number;
@@ -352,8 +353,7 @@ function FlatView({ items }: { items: SearchItem[] }) {
             >
               <td className="px-3 py-2">
                 <div className="w-10 h-10 rounded-lg overflow-hidden bg-white border border-border">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={getThumbnailUrl(item.photoPath, item.mainPhoto)} alt="" className="object-cover w-full h-full" />
+                  <SafeImage src={getThumbnailUrl(item.photoPath, item.mainPhoto)} alt="" className="object-cover w-full h-full" placeholder="minimal" />
                 </div>
               </td>
               <td className="px-3 py-2">
@@ -386,11 +386,11 @@ function StoneCard({ item }: { item: SearchItem }) {
     <Link href={`/items/${item.id}`} className="group">
       <div className={`bg-muted border border-border rounded-lg overflow-hidden hover:border-primary/60 transition-all ${item.sold ? 'opacity-50' : ''}`}>
         <div className="aspect-square bg-white relative">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
+          <SafeImage
             src={getThumbnailUrl(item.photoPath, item.mainPhoto)}
             alt={catalogNumber}
             className="w-full h-full object-contain"
+            placeholderLabel={catalogNumber}
           />
           <div className="absolute top-1 right-1 flex gap-0.5">
             {item.sold && <span className="bg-[color-mix(in_srgb,var(--destructive)_60%,transparent)] text-destructive text-[9px] px-1.5 py-0.5 rounded font-medium">PROD</span>}

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { getThumbnailUrl, getCatalogNumber } from '@/lib/utils';
 import { pasShapeCz } from '@/lib/pasShapes';
+import SafeImage from './SafeImage';
 import AiButton from './AiButton';
 import AttrMultiSelect from './AttrMultiSelect';
 import Icon from './Icon';
@@ -314,8 +315,12 @@ export default function ItemsTable({ items: initialItems, boxCode, isAdmin = tru
                 <td className="px-3 py-2">
                   <div className="w-11 h-11 rounded-lg overflow-hidden bg-white border border-border">
                     {item.photoPath ? (
-                      /* eslint-disable-next-line @next/next/no-img-element */
-                      <img src={getThumbnailUrl(item.photoPath, item.mainPhoto)} alt={item.evidNumber} className="object-cover w-full h-full" />
+                      <SafeImage
+                        src={getThumbnailUrl(item.photoPath, item.mainPhoto)}
+                        alt={item.evidNumber}
+                        className="object-cover w-full h-full"
+                        placeholder="minimal"
+                      />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-muted-foreground text-xs">N/A</div>
                     )}

@@ -3,6 +3,7 @@
 import { useState, useRef } from 'react';
 import { apiFetch } from '@/lib/apiFetch';
 import PhotoLightbox from './PhotoLightbox';
+import SafeImage from './SafeImage';
 
 interface BoxPhotoUploadProps {
   boxId: number;
@@ -121,8 +122,7 @@ export default function BoxPhotoUpload({ boxId, boxCode, existingPhotos }: BoxPh
                   <span className="text-[10px] text-muted-foreground mt-1">PDF</span>
                 </div>
               ) : (
-                /* eslint-disable-next-line @next/next/no-img-element */
-                <img src={`/images/${photo}`} alt={`${boxCode} foto ${i + 1}`} className="w-full h-full object-cover" />
+                <SafeImage src={`/images/${photo}`} alt={`${boxCode} foto ${i + 1}`} className="w-full h-full object-cover" placeholder="minimal" />
               )}
             </button>
           ))}

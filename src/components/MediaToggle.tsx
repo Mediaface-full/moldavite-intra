@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import VideoPlayer from './VideoPlayer';
+import SafeImage from './SafeImage';
 
 export default function MediaToggle({ photoPath, catalogNumber }: { photoPath: string; catalogNumber: string }) {
   const [open, setOpen] = useState(false);
@@ -22,9 +23,8 @@ export default function MediaToggle({ photoPath, catalogNumber }: { photoPath: s
         <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-8">
           <div>
             <h3 className="text-sm font-medium mb-2 text-muted-foreground">Film (flim.jpg)</h3>
-            <div className="rounded-xl overflow-hidden border border-border bg-white max-w-sm">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={`/images/${photoPath}/flim.jpg`} alt={`Film ${catalogNumber}`} className="w-full object-contain" />
+            <div className="rounded-xl overflow-hidden border border-border bg-white max-w-sm min-h-[200px]">
+              <SafeImage src={`/images/${photoPath}/flim.jpg`} alt={`Film ${catalogNumber}`} className="w-full min-h-[200px] object-contain" placeholderLabel="Film není k dispozici" />
             </div>
           </div>
           <div>

@@ -15,6 +15,7 @@
  */
 import { useEffect } from 'react';
 import Icon from './Icon';
+import SafeImage from './SafeImage';
 
 export default function PhotoLightbox({
   photos,
@@ -94,11 +95,11 @@ export default function PhotoLightbox({
             title={alt}
           />
         ) : (
-          /* eslint-disable-next-line @next/next/no-img-element */
-          <img
+          <SafeImage
             src={`/images/${current}`}
             alt={alt}
-            className="max-w-[90vw] max-h-[90vh] object-contain rounded-lg shadow-2xl"
+            className="max-w-[90vw] max-h-[90vh] min-w-[40vw] min-h-[40vh] object-contain rounded-lg shadow-2xl"
+            placeholderLabel={alt || 'Foto chybí'}
           />
         )}
       </div>
