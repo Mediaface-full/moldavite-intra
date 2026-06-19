@@ -2,6 +2,7 @@
 
 import { useState, useRef } from 'react';
 import { apiFetch } from '@/lib/apiFetch';
+import PhotoLightbox from './PhotoLightbox';
 
 interface BoxPhotoUploadProps {
   boxId: number;
@@ -13,6 +14,7 @@ export default function BoxPhotoUpload({ boxId, boxCode, existingPhotos }: BoxPh
   const [photos, setPhotos] = useState<string[]>(existingPhotos || []);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState('');
+  const [lightboxIdx, setLightboxIdx] = useState<number | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -104,8 +106,13 @@ export default function BoxPhotoUpload({ boxId, boxCode, existingPhotos }: BoxPh
       {photos.length > 0 ? (
         <div className="flex gap-2 overflow-x-auto pb-2">
           {photos.map((photo, i) => (
-            <a key={i} href={`/images/${photo}`} target="_blank" rel="noopener noreferrer"
-              className="flex-shrink-0 w-28 h-28 rounded-lg overflow-hidden border border-border bg-white hover:border-ring transition-colors">
+            <button
+              key={i}
+              type="button"
+              onClick={() => setLightboxIdx(i)}
+              className="flex-shrink-0 w-28 h-28 rounded-lg overflow-hidden border border-border bg-white hover:border-ring hover:scale-[1.02] transition-all cursor-zoom-in"
+              title={`Otevřít foto ${i + 1} v plné velikosti`}
+            >
               {photo.endsWith('.pdf') ? (
                 <div className="w-full h-full flex flex-col items-center justify-center bg-muted">
                   <svg className="w-8 h-8 text-destructive" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
@@ -117,7 +124,7 @@ export default function BoxPhotoUpload({ boxId, boxCode, existingPhotos }: BoxPh
                 /* eslint-disable-next-line @next/next/no-img-element */
                 <img src={`/images/${photo}`} alt={`${boxCode} foto ${i + 1}`} className="w-full h-full object-cover" />
               )}
-            </a>
+            </button>
           ))}
         </div>
       ) : (
@@ -129,6 +136,14 @@ export default function BoxPhotoUpload({ boxId, boxCode, existingPhotos }: BoxPh
           ))}
         </div>
       )}
+
+      <PhotoLightbox
+        photos={photos}
+        index={lightboxIdx}
+        onIndexChange={setLightboxIdx}
+        onClose={() => setLightboxIdx(null)}
+        alt={`${boxCode} foto`}
+      />
     </div>
   );
 }

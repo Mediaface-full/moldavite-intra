@@ -1,6 +1,10 @@
 'use client';
 
+import { useState } from 'react';
+import PhotoLightbox from './PhotoLightbox';
+
 export default function BoxPhotoPreview({ photos }: { photos: string[] }) {
+  const [lightboxIdx, setLightboxIdx] = useState<number | null>(null);
   if (!photos || photos.length === 0) return null;
 
   return (
@@ -12,9 +16,10 @@ export default function BoxPhotoPreview({ photos }: { photos: string[] }) {
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
-            window.open(`/images/${photo}`, '_blank');
+            setLightboxIdx(i);
           }}
-          className="w-14 h-14 rounded overflow-hidden border border-border bg-white flex items-center justify-center hover:border-ring transition-colors"
+          className="w-14 h-14 rounded overflow-hidden border border-border bg-white flex items-center justify-center hover:border-ring hover:scale-105 transition-all cursor-zoom-in"
+          title="Otevřít v lightboxu"
         >
           {photo.endsWith('.pdf') ? (
             <svg className="w-6 h-6 text-destructive" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
@@ -26,6 +31,13 @@ export default function BoxPhotoPreview({ photos }: { photos: string[] }) {
           )}
         </button>
       ))}
+      <PhotoLightbox
+        photos={photos}
+        index={lightboxIdx}
+        onIndexChange={setLightboxIdx}
+        onClose={() => setLightboxIdx(null)}
+        alt="Foto kazety"
+      />
     </div>
   );
 }
