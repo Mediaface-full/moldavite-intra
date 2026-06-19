@@ -258,9 +258,6 @@ export default function ItemDetailForm({ item }: { item: ItemData }) {
               value={formData.attrDamage}
               onChange={(v) => setFormData((f) => ({ ...f, attrDamage: v }))}
             />
-            <p className="mt-1.5 text-[10px] text-muted-foreground font-mono">
-              Ovlivňuje kategorii: bez poškození → <strong>Sbírkové</strong>; s poškozením podle váhy → Malé / Střední / Velké.
-            </p>
           </div>
 
           <div>
@@ -305,9 +302,9 @@ export default function ItemDetailForm({ item }: { item: ItemData }) {
           </div>
         </div>
 
-        {/* Kategorie velikosti — automaticky podle weight + attrDamage */}
+        {/* Kategorie velikosti — automaticky podle weight */}
         {(() => {
-          const cat = computeSizeCategory(formData.weight, formData.attrDamage);
+          const cat = computeSizeCategory(formData.weight);
           if (!cat) return null;
           const color = SIZE_CATEGORY_COLOR[cat];
           return (
@@ -325,7 +322,7 @@ export default function ItemDetailForm({ item }: { item: ItemData }) {
                 {cat}
               </span>
               <span className="text-[10px] text-muted-foreground font-mono">
-                (automaticky z hmotnosti + poškození)
+                (automaticky z hmotnosti)
               </span>
             </div>
           );

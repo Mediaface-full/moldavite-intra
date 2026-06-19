@@ -30,7 +30,7 @@ const SECTIONS: Array<{ key: string; title: string; description: string; icon: I
   {
     key: 'attrDamage',
     title: 'Poškození',
-    description: 'Míra poškození kamene. Bez poškození → kategorie "Sbírkové" (jakákoliv váha). S poškozením → kategorie podle váhy (Malé / Střední / Velké).',
+    description: 'Míra poškození kamene. Samostatný atribut — nevazaný na velikostní kategorii. Používá se v cenotvorbě pokud máš v PricingConfig „Bonus podle poškození".',
     icon: 'damage',
   },
   {

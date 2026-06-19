@@ -1,32 +1,24 @@
 /**
- * Automatický výpočet kategorie velikosti kamene podle hmotnosti + poškození.
+ * Automatický výpočet kategorie velikosti kamene POUZE podle hmotnosti.
  *
- * Pravidla (upravená pro Gideona 19. 6. 2026 — poškození ovlivňuje vždy,
- * ne jen u ≥10g jak bylo původně v Excel modelu kolegy):
+ * Pravidla (upravená 19. 6. 2026 — poškození je samostatný atribut,
+ * nevazaný na sizeCategory; Sbírkový je samostatný boolean checkbox):
  *
- *   - Bez poškození (jakákoliv váha) → "Sbírkové"
- *   - 0.1–3.0 g s poškozením         → "Malé"
- *   - 3.1–9.9 g s poškozením         → "Střední"
- *   - ≥ 10 g s poškozením            → "Velké"
+ *   - 0.1–3.0 g     → "Malé"
+ *   - 3.1–9.9 g     → "Střední"
+ *   - ≥ 10 g        → "Velké"
  *
- * „Bez poškození" znamená attrDamage === "Bez poškození" nebo nevyplněno.
- * Funkce je pure — pro UI display, validaci, pricing rule.
+ * Funkce je pure — pro UI display badge v detailu kamene.
  */
-export type SizeCategory = 'Malé' | 'Střední' | 'Velké' | 'Sbírkové' | null;
+export type SizeCategory = 'Malé' | 'Střední' | 'Velké' | null;
 
 export function computeSizeCategory(
-  weightGrams: number | string | null | undefined,
-  attrDamage: string | null | undefined
+  weightGrams: number | string | null | undefined
 ): SizeCategory {
   const w = weightGrams === null || weightGrams === undefined || weightGrams === ''
     ? NaN
     : Number(weightGrams);
   if (!Number.isFinite(w) || w <= 0) return null;
-  const damage = (attrDamage ?? '').trim();
-  const undamaged = damage === '' || damage === 'Bez poškození';
-  // Bez poškození → Sbírkové (jakákoliv váha)
-  if (undamaged) return 'Sbírkové';
-  // S poškozením → kategorie podle váhy
   if (w <= 3) return 'Malé';
   if (w < 10) return 'Střední';
   return 'Velké';
@@ -37,5 +29,4 @@ export const SIZE_CATEGORY_COLOR: Record<NonNullable<SizeCategory>, string> = {
   'Malé': 'var(--muted-foreground)',
   'Střední': 'var(--info)',
   'Velké': 'var(--warning)',
-  'Sbírkové': 'var(--primary)',
 };
