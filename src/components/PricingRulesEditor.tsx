@@ -55,6 +55,27 @@ const lbl = 'block text-[10px] text-muted-foreground mb-1 uppercase tracking-wid
 const inp = 'w-full bg-card border border-border rounded-md px-2 py-1.5 text-sm text-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/20';
 const inpNum = inp + ' text-right font-mono';
 
+/**
+ * Konverze mezi decimal multiplikátorem (schema: 1.5 = +150 %) a lidskou
+ * procentní hodnotou (UI: 150 = +150 %). User píše procenta, ukládáme decimal.
+ *
+ * Akceptujeme i českou desetinnou čárku (`50,5` → 50.5 → 0.505).
+ */
+function decimalToPct(d: number | null | undefined): string {
+  if (d === null || d === undefined || !Number.isFinite(d)) return '';
+  return String(Math.round(d * 10000) / 100); // 1.555 → 155.5 (truncate na .5%)
+}
+function pctToDecimal(pctStr: string): number {
+  const normalized = pctStr.replace(',', '.').trim();
+  const n = Number(normalized);
+  if (!Number.isFinite(n)) return 0;
+  return Math.round(n * 100) / 10000; // 150 → 1.5
+}
+function gramsParse(s: string): number {
+  const n = Number(s.replace(',', '.').trim());
+  return Number.isFinite(n) ? n : 0;
+}
+
 // České názvy pro Item atributy — používá se v dropdownech (skryjeme tech jména).
 const SOURCE_LABEL: Record<string, string> = {
   pasShape: 'Tvar kamene',
@@ -180,12 +201,12 @@ export default function PricingRulesEditor({
         </p>
         <p className="text-muted-foreground text-xs leading-relaxed">
           <strong>Příklad:</strong> Nákupní cena kamene 100 Kč. Pravidla:
-          „Hmotnost 3–10 g → +50 %", „Tvar Kapka → +70 %", „Sbírkový → +30 %".
-          Pokud kámen splňuje vše: bonus = 50+70+30 = 150 %.
-          Cena před DPH = 100 × (1 + 1.5) = <strong>250 Kč</strong>. S DPH 21 % ≈ <strong>303 Kč</strong>, zaokrouhleno na 310 Kč.
+          „Hmotnost 3–10 g → <strong>+50 %</strong>", „Tvar Kapka → <strong>+70 %</strong>", „Sbírkový → <strong>+30 %</strong>".
+          Pokud kámen splňuje vše: bonus = 50+70+30 = <strong>150 %</strong>.
+          Cena před DPH = 100 + 150 % = <strong>250 Kč</strong>. S DPH 21 % ≈ <strong>303 Kč</strong>, zaokrouhleno na <strong>310 Kč</strong>.
         </p>
         <p className="text-[10px] text-muted-foreground font-mono mt-2 uppercase tracking-wider">
-          Bonus jako desetinné číslo: <strong>0.5 = +50 %</strong>, <strong>1.5 = +150 %</strong>, <strong>−0.1 = sleva 10 %</strong>
+          Bonus se zadává jako <strong>procenta</strong>: 50 = +50 %, 150 = +150 %, −10 = sleva 10 %. Max ±1000 %.
         </p>
       </div>
 
@@ -322,21 +343,21 @@ function BracketBody({ rule, onChange }: { rule: BracketRule; onChange: (patch: 
   return (
     <div className="space-y-1.5">
       <p className="text-[11px] text-muted-foreground leading-relaxed">
-        Rozsah hmotnosti (g) a bonus, který se za něj přidá.
+        Rozsah hmotnosti (g) a bonus v procentech, který se za něj přidá.
         Jeden interval musí navazovat na druhý.
-        <strong> Bonus 0.5 = +50 %, 1.5 = +150 %.</strong>
+        <strong> Bonus 50 = +50 %, 150 = +150 %.</strong>
       </p>
       <div className="grid grid-cols-[1fr_1fr_1fr_auto] gap-1.5 items-center text-[10px] font-mono uppercase tracking-wider text-muted-foreground pt-1">
         <span>od (g)</span>
         <span>do (g, prázdné = bez horní hranice)</span>
-        <span>bonus</span>
+        <span>bonus (%)</span>
         <span></span>
       </div>
       {rule.brackets.map((b, i) => (
         <div key={i} className="grid grid-cols-[1fr_1fr_1fr_auto] gap-1.5 items-center">
-          <input type="number" step="0.01" value={b.min} onChange={(e) => { const x = [...rule.brackets]; x[i] = { ...b, min: Number(e.target.value) }; setBrackets(x); }} className={inpNum} />
-          <input type="number" step="0.01" value={b.max ?? ''} onChange={(e) => { const x = [...rule.brackets]; x[i] = { ...b, max: e.target.value === '' ? null : Number(e.target.value) }; setBrackets(x); }} placeholder="bez limitu" className={inpNum} />
-          <input type="number" step="0.01" value={b.marginRate} onChange={(e) => { const x = [...rule.brackets]; x[i] = { ...b, marginRate: Number(e.target.value) }; setBrackets(x); }} className={inpNum} />
+          <input type="text" inputMode="decimal" value={String(b.min).replace('.', ',')} onChange={(e) => { const x = [...rule.brackets]; x[i] = { ...b, min: gramsParse(e.target.value) }; setBrackets(x); }} className={inpNum} />
+          <input type="text" inputMode="decimal" value={b.max === null ? '' : String(b.max).replace('.', ',')} onChange={(e) => { const x = [...rule.brackets]; x[i] = { ...b, max: e.target.value === '' ? null : gramsParse(e.target.value) }; setBrackets(x); }} placeholder="bez limitu" className={inpNum} />
+          <input type="text" inputMode="decimal" value={decimalToPct(b.marginRate)} onChange={(e) => { const x = [...rule.brackets]; x[i] = { ...b, marginRate: pctToDecimal(e.target.value) }; setBrackets(x); }} placeholder="např. 150" className={inpNum} />
           <button type="button" onClick={() => setBrackets(rule.brackets.filter((_, j) => j !== i))} title="Smazat tento řádek" className="text-muted-foreground hover:text-destructive">
             <Icon name="x" className="w-4 h-4" />
           </button>
@@ -373,17 +394,17 @@ function CategoryBody({ rule, onChange }: { rule: CategoryRule; onChange: (patch
         </div>
       </div>
       <p className="text-[11px] text-muted-foreground leading-relaxed pt-1">
-        Hodnoty atributu a jaký bonus se za každou přidá. {hint && <em>(hodnoty {hint}…)</em>}
+        Hodnoty atributu a jaký bonus se za každou přidá (v procentech). {hint && <em>(hodnoty {hint}…)</em>}
       </p>
       <div className="grid grid-cols-[2fr_1fr_auto] gap-1.5 items-center text-[10px] font-mono uppercase tracking-wider text-muted-foreground">
         <span>hodnota</span>
-        <span>bonus</span>
+        <span>bonus (%)</span>
         <span></span>
       </div>
       {rule.items.map((it, i) => (
         <div key={i} className="grid grid-cols-[2fr_1fr_auto] gap-1.5 items-center">
           <input type="text" value={it.value} onChange={(e) => { const x = [...rule.items]; x[i] = { ...it, value: e.target.value }; setItems(x); }} placeholder={hint || 'hodnota'} className={inp} />
-          <input type="number" step="0.01" value={it.marginRate} onChange={(e) => { const x = [...rule.items]; x[i] = { ...it, marginRate: Number(e.target.value) }; setItems(x); }} className={inpNum} />
+          <input type="text" inputMode="decimal" value={decimalToPct(it.marginRate)} onChange={(e) => { const x = [...rule.items]; x[i] = { ...it, marginRate: pctToDecimal(e.target.value) }; setItems(x); }} placeholder="např. 70" className={inpNum} />
           <button type="button" onClick={() => setItems(rule.items.filter((_, j) => j !== i))} title="Smazat hodnotu" className="text-muted-foreground hover:text-destructive">
             <Icon name="x" className="w-4 h-4" />
           </button>
@@ -423,13 +444,13 @@ function MultiCategoryBody({ rule, onChange }: { rule: MultiCategoryRule; onChan
       </div>
       <div className="grid grid-cols-[2fr_1fr_auto] gap-1.5 items-center text-[10px] font-mono uppercase tracking-wider text-muted-foreground pt-1">
         <span>barva</span>
-        <span>bonus</span>
+        <span>bonus (%)</span>
         <span></span>
       </div>
       {rule.items.map((it, i) => (
         <div key={i} className="grid grid-cols-[2fr_1fr_auto] gap-1.5 items-center">
           <input type="text" value={it.value} onChange={(e) => { const x = [...rule.items]; x[i] = { ...it, value: e.target.value }; setItems(x); }} placeholder="např. radioaktivní zelená" className={inp} />
-          <input type="number" step="0.01" value={it.marginRate} onChange={(e) => { const x = [...rule.items]; x[i] = { ...it, marginRate: Number(e.target.value) }; setItems(x); }} className={inpNum} />
+          <input type="text" inputMode="decimal" value={decimalToPct(it.marginRate)} onChange={(e) => { const x = [...rule.items]; x[i] = { ...it, marginRate: pctToDecimal(e.target.value) }; setItems(x); }} placeholder="např. 50" className={inpNum} />
           <button type="button" onClick={() => setItems(rule.items.filter((_, j) => j !== i))} title="Smazat barvu" className="text-muted-foreground hover:text-destructive">
             <Icon name="x" className="w-4 h-4" />
           </button>
@@ -455,8 +476,8 @@ function BooleanBody({ rule, onChange }: { rule: BooleanRule; onChange: (patch: 
           <input type="text" value="Sbírkový (Item.attrCollectible)" disabled className={`${inp} opacity-60`} />
         </div>
         <div>
-          <label className={lbl}>Bonus když Sbírkový = ano</label>
-          <input type="number" step="0.01" value={rule.marginRate} onChange={(e) => onChange({ marginRate: Number(e.target.value) } as Partial<Rule>)} placeholder="např. 0.3 = +30 %" className={inpNum} />
+          <label className={lbl}>Bonus když Sbírkový = ano (%)</label>
+          <input type="text" inputMode="decimal" value={decimalToPct(rule.marginRate)} onChange={(e) => onChange({ marginRate: pctToDecimal(e.target.value) } as Partial<Rule>)} placeholder="např. 30" className={inpNum} />
         </div>
       </div>
     </div>
