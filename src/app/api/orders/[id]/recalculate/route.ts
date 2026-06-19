@@ -37,7 +37,19 @@ export async function POST(
     where: { id: orderId },
     include: {
       costs: true,
-      items: true,
+      // Box data potřebujeme pro per-Box PPG fallback v calculate.ts
+      // (Item PPG → Box PPG → Box.amount/weight → Order default)
+      items: {
+        include: {
+          box: {
+            select: {
+              purchasePricePerGramCzk: true,
+              purchaseAmountCzk: true,
+              declaredWeight: true,
+            },
+          },
+        },
+      },
       pricingConfig: true,
     },
   });
@@ -82,6 +94,11 @@ export async function POST(
         attrDamage: it.attrDamage || null,
         attrColor: it.attrColor ?? [],
         attrCollectible: it.attrCollectible,
+      },
+      box: {
+        purchasePricePerGramCzk: it.box?.purchasePricePerGramCzk?.toString() ?? null,
+        purchaseAmountCzk: it.box?.purchaseAmountCzk?.toString() ?? null,
+        declaredWeight: it.box?.declaredWeight?.toString() ?? null,
       },
     })),
     costs: order.costs.map((c) => ({

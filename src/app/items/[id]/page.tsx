@@ -140,6 +140,7 @@ export default async function ItemDetailPage({
               costBasisCzk: item.costBasisCzk ? item.costBasisCzk.toString() : null,
               recommendedPriceInclVatCzk: item.recommendedPriceInclVatCzk ? item.recommendedPriceInclVatCzk.toString() : null,
               manualPriceInclVatCzk: item.manualPriceInclVatCzk ? item.manualPriceInclVatCzk.toString() : null,
+              purchasePricePerGramCzk: item.purchasePricePerGramCzk ? item.purchasePricePerGramCzk.toString() : null,
               pricingStatus: item.pricingStatus,
             }}
           />

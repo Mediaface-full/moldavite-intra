@@ -86,16 +86,32 @@ export type StoneAttrs = {
   weightGrams?: never; // weightGrams je top-level, ne attr
 };
 
+/** Box-level data zděděná do StoneInput (per-kazeta cenotvorba). */
+export type StoneBoxContext = {
+  /** Explicitní PPG (Kč/g) pro celou kazetu — nejvíc specifické na úrovni Boxu. */
+  purchasePricePerGramCzk: string | null;
+  /** Nákupní cena kazety v CZK — fallback dopočet PPG = amount / weight. */
+  purchaseAmountCzk: string | null;
+  /** Deklarovaná váha kazety v g — jmenovatel pro dopočet PPG z amount. */
+  declaredWeight: string | null;
+};
+
 /** Vstupní data jednoho kamene. */
 export type StoneInput = {
   id: number;
   /** Gramy. NULL pokud uživatel ještě nezadal — kámen půjde do NEEDS_INPUT. */
   weightGrams: string | null;
-  /** Cena za gram v CZK. NULL = použij Order.defaultPurchasePricePerGramCzk. */
+  /** Cena za gram v CZK. NULL = fallback řetězec (viz resolvePpg). */
   purchasePricePerGramCzk: string | null;
   /** Ručně nastavená cena vč. DPH v CZK. Musí být ≥ recommendedPriceInclVatCzk. */
   manualPriceInclVatCzk: string | null;
   attrs: StoneAttrs;
+  /**
+   * Kontext kazety, ve které kámen leží. Volitelné kvůli zpětné kompatibilitě
+   * testů s legacy fixtures. Pokud chybí, PPG fallback přeskočí box-level
+   * úroveň a jde rovnou Item → Order.
+   */
+  box?: StoneBoxContext;
 };
 
 /** Vstupní data zakázky. */

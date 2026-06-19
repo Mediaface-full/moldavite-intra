@@ -37,6 +37,7 @@ export default function NewBoxButton({
   const [declaredPieces, setDeclaredPieces] = useState('');
   const [declaredWeight, setDeclaredWeight] = useState('');
   const [purchaseAmountCzk, setPurchaseAmountCzk] = useState('');
+  const [purchasePricePerGramCzk, setPurchasePricePerGramCzk] = useState('');
   const [placement, setPlacement] = useState('');
 
   useEffect(() => {
@@ -58,6 +59,7 @@ export default function NewBoxButton({
     setDeclaredPieces('');
     setDeclaredWeight('');
     setPurchaseAmountCzk('');
+    setPurchasePricePerGramCzk('');
     setPlacement('');
     setError('');
   }
@@ -102,6 +104,15 @@ export default function NewBoxButton({
         return;
       }
       body.purchaseAmountCzk = n;
+    }
+    if (purchasePricePerGramCzk) {
+      const n = Number(purchasePricePerGramCzk);
+      if (!Number.isFinite(n) || n < 0) {
+        setError('Cena za gram musí být ≥ 0');
+        setBusy(false);
+        return;
+      }
+      body.purchasePricePerGramCzk = n;
     }
     const res = await apiFetch('/api/boxes', {
       method: 'POST',
@@ -215,6 +226,19 @@ export default function NewBoxButton({
                     className={inp}
                   />
                 </div>
+              </div>
+
+              <div>
+                <label className={lbl}>Cena za gram (Kč/g) <span className="text-muted-foreground/60 normal-case font-sans">(volitelné — override)</span></label>
+                <input
+                  type="number" min={0} step="0.01" value={purchasePricePerGramCzk}
+                  onChange={(e) => setPurchasePricePerGramCzk(e.target.value)}
+                  placeholder={purchaseAmountCzk && declaredWeight && Number(declaredWeight) > 0 ? `auto: ${(Number(purchaseAmountCzk) / Number(declaredWeight)).toFixed(2)}` : '—'}
+                  className={inp}
+                />
+                <p className="text-[10px] text-muted-foreground font-mono mt-1">
+                  Pro per-kazeta cenotvorbu (jiný PPG než zakázka). Necháš-li prázdné, použije se dopočet z Ceny ÷ Váhy, jinak hodnota ze zakázky.
+                </p>
               </div>
 
               <div>

@@ -14,6 +14,7 @@ import BoxSellerPicker from '@/components/BoxSellerPicker';
 import FtpUploadInfo from '@/components/FtpUploadInfo';
 import BoxFieldInput from '@/components/BoxFieldInput';
 import BoxNameInline from '@/components/BoxNameInline';
+import BoxPpgField from '@/components/BoxPpgField';
 import { getSession } from '@/lib/auth';
 
 export default async function BoxDetailPage({
@@ -135,6 +136,19 @@ export default async function BoxDetailPage({
               min={0}
               suffix="g"
               placeholder="—"
+            />
+          </PropRow>
+        </div>
+        <div className="border-t border-border">
+          <PropRow label="Cena za gram">
+            <BoxPpgField
+              boxId={box.id}
+              initial={box.purchasePricePerGramCzk?.toString() ?? null}
+              computedFrom={
+                box.purchaseAmountCzk && box.declaredWeight && Number(box.declaredWeight) > 0
+                  ? (Number(box.purchaseAmountCzk) / Number(box.declaredWeight)).toFixed(2)
+                  : null
+              }
             />
           </PropRow>
         </div>

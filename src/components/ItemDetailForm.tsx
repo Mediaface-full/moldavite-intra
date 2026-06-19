@@ -41,6 +41,7 @@ interface ItemData {
   recommendedPriceInclVatCzk?: string | null;
   manualPriceInclVatCzk?: string | null;
   pricingStatus?: 'NEEDS_INPUT' | 'NEEDS_REVIEW' | 'OK' | 'STALE' | null;
+  purchasePricePerGramCzk?: string | null;
 }
 
 export default function ItemDetailForm({ item }: { item: ItemData }) {
@@ -65,6 +66,7 @@ export default function ItemDetailForm({ item }: { item: ItemData }) {
     attrColor: item.attrColor || [],
     attrCollectible: item.attrCollectible || false,
     manualPriceInclVatCzk: item.manualPriceInclVatCzk ?? '',
+    purchasePricePerGramCzk: item.purchasePricePerGramCzk ?? '',
   });
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -95,6 +97,7 @@ export default function ItemDetailForm({ item }: { item: ItemData }) {
           attrColor: formData.attrColor,
           attrCollectible: formData.attrCollectible,
           manualPriceInclVatCzk: formData.manualPriceInclVatCzk === '' ? null : Number(formData.manualPriceInclVatCzk),
+          purchasePricePerGramCzk: formData.purchasePricePerGramCzk === '' ? null : Number(formData.purchasePricePerGramCzk),
         }),
       });
       if (res.ok) {
@@ -356,6 +359,8 @@ export default function ItemDetailForm({ item }: { item: ItemData }) {
           setSalePrice={(v) => setFormData((f) => ({ ...f, salePrice: v }))}
           manualPrice={formData.manualPriceInclVatCzk}
           setManualPrice={(v) => setFormData((f) => ({ ...f, manualPriceInclVatCzk: v }))}
+          ppgOverride={formData.purchasePricePerGramCzk}
+          setPpgOverride={(v) => setFormData((f) => ({ ...f, purchasePricePerGramCzk: v }))}
           costBasisCzk={item.costBasisCzk}
           recommendedPriceInclVatCzk={item.recommendedPriceInclVatCzk}
           pricingStatus={item.pricingStatus}
@@ -503,6 +508,8 @@ function PriceSection({
   setSalePrice,
   manualPrice,
   setManualPrice,
+  ppgOverride,
+  setPpgOverride,
   costBasisCzk,
   recommendedPriceInclVatCzk,
   pricingStatus,
@@ -513,6 +520,8 @@ function PriceSection({
   setSalePrice: (v: string) => void;
   manualPrice: string;
   setManualPrice: (v: string) => void;
+  ppgOverride: string;
+  setPpgOverride: (v: string) => void;
   costBasisCzk: string | null | undefined;
   recommendedPriceInclVatCzk: string | null | undefined;
   pricingStatus: 'NEEDS_INPUT' | 'NEEDS_REVIEW' | 'OK' | 'STALE' | null | undefined;
@@ -548,6 +557,21 @@ function PriceSection({
           editable
           value={purchasePrice}
           onChange={setPurchasePrice}
+        />
+
+        {/* 1b. Cena za gram (override) — pro výjimečné kameny */}
+        <PriceRow
+          label="Cena za gram"
+          hint="Override pro tento konkrétní kámen. Nech prázdné — použije se PPG kazety nebo zakázky."
+          editable
+          value={ppgOverride}
+          onChange={setPpgOverride}
+          placeholder="—"
+          rightExtra={
+            <span className="text-[10px] text-muted-foreground font-mono whitespace-nowrap">
+              {ppgOverride && Number(ppgOverride) > 0 ? 'override aktivní' : 'dědí z kazety'}
+            </span>
+          }
         />
 
         {/* 2. Cena s náklady */}
