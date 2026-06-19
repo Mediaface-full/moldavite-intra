@@ -136,8 +136,36 @@ export async function PATCH(
     data.defaultPurchasePricePerGramSource !== undefined ||
     data.pricingConfigId !== undefined;
 
+  // Lifecycle snapshot: přechod do CANCELLED/ARCHIVED zafixuje aktuální
+  // PricingConfig.rules do Order.pricingConfigSnapshot. Recalc na historické
+  // zakázce pak používá tento snapshot (reprodukovatelnost ceny v okamžiku
+  // uzavření). Aktivní zakázky snapshot nepoužívají vůbec.
+  const archivingTransition =
+    data.status === 'CANCELLED' || data.status === 'ARCHIVED';
+
   try {
     const updated = await prisma.$transaction(async (tx) => {
+      // Pokud archivujeme a snapshot ještě není uložený, načti aktuální config
+      // a zafixuj ho. Pokud zakázka nemá pricingConfigId, snapshot zůstane NULL
+      // (znamená že recalc použije prázdný config = žádné marže).
+      if (archivingTransition) {
+        const existing = await tx.order.findUnique({
+          where: { id: orderId },
+          select: { pricingConfigSnapshot: true, pricingConfigId: true },
+        });
+        if (existing && !existing.pricingConfigSnapshot && existing.pricingConfigId) {
+          const cfg = await tx.pricingConfig.findUnique({
+            where: { id: existing.pricingConfigId },
+            select: { rules: true },
+          });
+          if (cfg) {
+            const rulesJson = cfg.rules as { version?: number } | null;
+            const version = typeof rulesJson?.version === 'number' ? rulesJson.version : 1;
+            data.pricingConfigSnapshot = cfg.rules as never;
+            data.pricingConfigVersion = version;
+          }
+        }
+      }
       const order = await tx.order.update({ where: { id: orderId }, data: data as never });
       if (triggersStale) {
         await tx.item.updateMany({

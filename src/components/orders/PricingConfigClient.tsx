@@ -201,15 +201,15 @@ function ConfigForm({
     });
     setSaving(false);
     if (res.ok) {
-      // Informuj uživatele kolik zakázek bylo invalidováno (snapshot zneplatněn,
-      // items označené STALE) — musí kliknout Přepočítat na každé z nich.
+      // Informuj uživatele kolik kamenů je teď STALE (= signál pro Přepočítat).
       try {
         const saved = await res.json();
-        const meta = saved?._meta;
-        if (meta && (meta.invalidatedOrders > 0 || meta.stalledItems > 0)) {
+        const stalled = saved?._meta?.stalledItems ?? 0;
+        if (stalled > 0) {
           alert(
-            `Uloženo. Změna pravidel ovlivnila ${meta.invalidatedOrders} aktivních zakázek a ${meta.stalledItems} kamenů. ` +
-            `Klikni „Přepočítat" v každé dotčené zakázce aby se nová pravidla aplikovala.`
+            `Uloženo. ${stalled} kamenů v aktivních zakázkách je teď označeno STALE. ` +
+            `Klikni „Přepočítat" v každé dotčené zakázce aby se nová pravidla aplikovala. ` +
+            `(Aktivní zakázky vždy používají aktuální cenotvorbu — archivované zakázky mají vlastní zafixovaná pravidla.)`
           );
         }
       } catch {

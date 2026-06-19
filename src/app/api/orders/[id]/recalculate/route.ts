@@ -1,12 +1,15 @@
 /**
  * POST /api/orders/[id]/recalculate
  *
- * 1. Načte Order + items + costs + active PricingConfig (nebo Order.pricingConfigSnapshot)
- * 2. Pokud Order.pricingConfigSnapshot je null a Order.pricingConfigId odkazuje na
- *    aktivní config, vytvoří snapshot do Order (kanonický zdroj pravdy).
- * 3. Pustí calculateOrderPricing
- * 4. Zapíše perStone výsledky zpět do Item.computed*, recommended*, finalInternal*, pricingStatus
- * 5. Vrátí summary + perStone (pro UI)
+ * Snapshot policy (od 19. 6. 2026):
+ *  - DRAFT / PRICED / PUBLISHED — VŽDY použít aktuální PricingConfig.rules.
+ *    Snapshot se ani nečte, ani nezapisuje. „Co je v Cenotvorbě, to platí."
+ *  - CANCELLED / ARCHIVED — použít zafixovaný Order.pricingConfigSnapshot
+ *    (historický záznam). Snapshot zafixuje PATCH Order.status při přechodu
+ *    do těchto stavů.
+ *
+ * Tím je vyloučená inkonzistence „UI editor ukazuje X, výpočet použije Y"
+ * pro aktivní zakázky.
  *
  * Stones se zapisují v jedné transakci. Lastcalculated timestamp se nastaví
  * na Order.lastCalculatedAt + Item.lastCalculatedAt.
@@ -55,27 +58,18 @@ export async function POST(
   });
   if (!order) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-  // Snapshot strategie:
-  //  - Pokud order.pricingConfigSnapshot je už uložený, použij ho (reprodukovatelnost)
-  //  - Jinak: pokud Order.pricingConfigId odkazuje na config, vezmi current rules + ulož jako snapshot
-  //  - Jinak: použij prázdný config (žádné marže)
-  //
-  // Race protection: pokud config existuje, zapamatuj si jeho updatedAt. V transakci
-  // re-checkneme — pokud se mezitím config změnil (paralelní PATCH), snapshot
-  // nezapíšeme (necháme NULL → další recalc načte aktuální rules).
+  // Snapshot strategie (cesta A — 19. 6. 2026):
+  //  - Aktivní zakázky (DRAFT/PRICED/PUBLISHED): vždy aktuální config.rules.
+  //    Snapshot v Order ignorujeme i pokud existuje (legacy z dřívějška).
+  //  - Historické (CANCELLED/ARCHIVED): preferuj snapshot pokud je. Když chybí
+  //    (zakázka uzavřená dřív než lifecycle hook ho zapsal), fallback na current.
+  const isHistorical = order.status === 'CANCELLED' || order.status === 'ARCHIVED';
   let snapshot: PricingConfigSnapshot;
-  let updateSnapshot: { snapshotJson: unknown; configId: number; version: number; expectedUpdatedAt: Date } | null = null;
 
-  if (order.pricingConfigSnapshot && isValidSnapshot(order.pricingConfigSnapshot)) {
+  if (isHistorical && order.pricingConfigSnapshot && isValidSnapshot(order.pricingConfigSnapshot)) {
     snapshot = order.pricingConfigSnapshot as unknown as PricingConfigSnapshot;
   } else if (order.pricingConfig) {
     snapshot = order.pricingConfig.rules as unknown as PricingConfigSnapshot;
-    updateSnapshot = {
-      snapshotJson: order.pricingConfig.rules,
-      configId: order.pricingConfig.id,
-      version: typeof (snapshot as { version?: number }).version === 'number' ? (snapshot as { version: number }).version : 1,
-      expectedUpdatedAt: order.pricingConfig.updatedAt,
-    };
   } else {
     snapshot = { version: 1, missingValuePolicy: 'warn', rules: [] };
   }
@@ -119,25 +113,12 @@ export async function POST(
   // Map originálních items pro lookup současného salePrice (auto-fill logika).
   const itemsById = new Map(order.items.map((it) => [it.id, it]));
 
-  // Zapsat výsledky do Items v transakci
+  // Zapsat výsledky do Items v transakci. Snapshot ZÁMĚRNĚ nepíšeme —
+  // aktivní zakázky vždy používají aktuální PricingConfig.rules (cesta A).
+  // Historický snapshot zapisuje až PATCH Order.status při přechodu do
+  // CANCELLED/ARCHIVED.
   const now = new Date();
-  let snapshotRaced = false;
   await prisma.$transaction(async (tx) => {
-    // Race check: pokud zapisujeme snapshot, re-readni config a porovnej
-    // updatedAt. Pokud se mezitím změnil → nezapisuj snapshot (necháme NULL,
-    // další recalc načte aktuální rules a vytvoří snapshot poprvé). Item ceny
-    // už spočítané jsou validní vůči snapshotu jaký byl při čtení — nevracíme
-    // je zpět, jen flagneme aby user věděl že má znovu kliknout.
-    if (updateSnapshot) {
-      const fresh = await tx.pricingConfig.findUnique({
-        where: { id: updateSnapshot.configId },
-        select: { updatedAt: true },
-      });
-      if (!fresh || fresh.updatedAt.getTime() !== updateSnapshot.expectedUpdatedAt.getTime()) {
-        snapshotRaced = true;
-        updateSnapshot = null;
-      }
-    }
     for (const r of result.perStone) {
       // Auto-fill „Cena prodejní" (salePrice) = recommended VŽDY při každém
       // recalc. Když user chce speciální cenu mimo cenotvorbu, použije pole
@@ -175,12 +156,6 @@ export async function POST(
       data: {
         lastCalculatedAt: now,
         status: order.status === 'DRAFT' ? 'PRICED' : order.status,
-        ...(updateSnapshot
-          ? {
-              pricingConfigSnapshot: updateSnapshot.snapshotJson as never,
-              pricingConfigVersion: updateSnapshot.version,
-            }
-          : {}),
       },
     });
   });
@@ -210,14 +185,8 @@ export async function POST(
     order: fresh ? serializeOrder(fresh) : null,
     items: fresh ? fresh.items.map(serializeItemForPricing) : [],
     // Snapshot který se reálně použil pro výpočet — pro debug v UI
-    // (Gideon uvidí raw marginRate a může porovnat se zadanými procenty).
+    // (uvidíš raw marginRate a můžeš porovnat se zadanými procenty).
     usedSnapshot: snapshot,
-    ...(snapshotRaced
-      ? {
-          snapshotRaceNotice:
-            'Cenotvorba byla mezitím upravena někým jiným. Klikni Přepočítat znovu pro aktuální výpočet.',
-        }
-      : {}),
   });
 }
 

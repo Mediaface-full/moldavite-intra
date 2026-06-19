@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { getSession, logActivity } from '@/lib/auth';
 import { validatePricingRulesJson } from '@/lib/orders/validateRules';
@@ -51,27 +50,15 @@ export async function PATCH(
     data.rules = body.rules;
   }
 
-  // Když se mění pravidla, invaliduj snapshoty v aktivních zakázkách které
-  // tento config používají. Jinak by si zakázky držely starý snapshot a další
-  // Přepočítat by ignorovalo úpravy v cenotvorbě (typický bug: user přidá
-  // attrDamage rule, klikne Přepočítat, bonus se nepřičte). CANCELLED a
-  // ARCHIVED zakázky nechat — jejich snapshot je historický záznam.
+  // Když se mění pravidla, označ items aktivních zakázek STALE — signál pro
+  // user „zakázka má neaktuální ceny, klikni Přepočítat". Snapshoty se už
+  // neinvalidují — aktivní zakázky snapshot vůbec nepoužívají (cesta A,
+  // 19. 6. 2026), recalc čte vždy current rules. CANCELLED/ARCHIVED items
+  // STALE nedáváme — jejich ceny jsou historické a recalc by je rozhodil.
   const result = await prisma.$transaction(async (tx) => {
     const updated = await tx.pricingConfig.update({ where: { id: cfgId }, data });
-    let invalidatedOrders = 0;
     let stalledItems = 0;
     if (rulesChanged) {
-      const affected = await tx.order.updateMany({
-        where: {
-          pricingConfigId: cfgId,
-          status: { in: ['DRAFT', 'PRICED', 'PUBLISHED'] },
-        },
-        data: {
-          pricingConfigSnapshot: Prisma.DbNull,
-          pricingConfigVersion: null,
-        },
-      });
-      invalidatedOrders = affected.count;
       const stale = await tx.item.updateMany({
         where: {
           order: {
@@ -84,7 +71,7 @@ export async function PATCH(
       });
       stalledItems = stale.count;
     }
-    return { updated, invalidatedOrders, stalledItems };
+    return { updated, stalledItems };
   });
 
   await logActivity(
@@ -93,16 +80,12 @@ export async function PATCH(
     String(cfgId),
     JSON.stringify({
       keys: Object.keys(data),
-      invalidatedOrders: result.invalidatedOrders,
       stalledItems: result.stalledItems,
     })
   );
   return NextResponse.json({
     ...result.updated,
-    _meta: {
-      invalidatedOrders: result.invalidatedOrders,
-      stalledItems: result.stalledItems,
-    },
+    _meta: { stalledItems: result.stalledItems },
   });
 }
 
@@ -126,7 +109,7 @@ export async function DELETE(
   if (cfg._count.orders > 0) {
     return NextResponse.json(
       {
-        error: 'PricingConfig používá alespoň jedna Order — nelze smazat. Zakázky mají vlastní snapshot, takže smazání ovlivní jen UI dropdown.',
+        error: 'PricingConfig používá alespoň jedna Order — nelze smazat. Nejprve změň konfiguraci u dotčených zakázek nebo je archivuj (archivované drží vlastní snapshot pravidel).',
         orderCount: cfg._count.orders,
       },
       { status: 409 }

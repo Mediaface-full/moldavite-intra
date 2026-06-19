@@ -27,7 +27,6 @@ type RecalcResponse = {
   warnings: Array<{ code: string; message: string }>;
   items: Array<{ id: number; evidNumber: string; name: string; weight: string | null; attrDamage: string | null }>;
   usedSnapshot?: { version: number; rules: SnapshotRuleSummary[] };
-  snapshotRaceNotice?: string;
 };
 
 export default function OrderPricingTab({
@@ -86,9 +85,6 @@ export default function OrderPricingTab({
     if (res.ok) {
       const data = (await res.json()) as RecalcResponse;
       setRecalcResult(data);
-      if (data.snapshotRaceNotice) {
-        alert(data.snapshotRaceNotice);
-      }
       router.refresh();
     } else {
       alert('Přepočet selhal');
@@ -167,7 +163,7 @@ export default function OrderPricingTab({
               Nové zakázky automaticky dostanou <strong>aktivní</strong> konfiguraci (jedna z všech v /admin/pricing-config může být označena jako aktivní). Tady ji můžeš pro tuto zakázku přepsat.{' '}
               <Link href="/admin/pricing-config" className="text-primary hover:underline">Spravovat konfigurace →</Link>
               <br />
-              <strong>Snapshot</strong> se uloží při přepočtu — pozdější změny v PricingConfig <em>nezasáhnou</em> tuto zakázku, dokud znova nepřepočítáš.
+              <strong>Aktivní zakázky</strong> (rozpracovaná, ceněná, publikovaná) vždy používají <em>aktuální</em> pravidla z Cenotvorby — po každé úpravě stačí kliknout „Přepočítat". <strong>Archivované zakázky</strong> drží pravidla zafixovaná v okamžiku archivace (historický záznam).
             </p>
           </div>
         </div>
@@ -341,11 +337,8 @@ export default function OrderPricingTab({
               {showRawConfig && (
                 <div className="mt-2 space-y-2">
                   <p className="text-[11px] text-muted-foreground">
-                    Toto je <strong>přesný snapshot pravidel</strong> jaký server použil. Pokud zde vidíš
-                    <code className="mx-1 px-1 bg-muted rounded">marginRate: 0</code>
-                    u hodnoty kde jsi v editoru zadal procenta, byl uložen špatně — zkontroluj a znovu ulož v Cenotvorbě (admin).
-                    <br />
-                    <strong>Decimal = procento / 100</strong> (tj. <code className="mx-1 px-1 bg-muted rounded">1.5</code> = +150 %).
+                    Přesná pravidla která server použil pro tento výpočet (raw JSON).
+                    <strong> Decimal = procento / 100</strong> (tj. <code className="mx-1 px-1 bg-muted rounded">1.5</code> = +150 %).
                   </p>
                   <pre className="text-[10px] font-mono bg-muted/40 border border-border rounded p-3 overflow-x-auto max-h-96">
                     {JSON.stringify(recalcResult.usedSnapshot, null, 2)}
