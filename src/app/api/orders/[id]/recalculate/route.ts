@@ -111,10 +111,23 @@ export async function POST(
 
   const result = calculateOrderPricing(input);
 
+  // Map originálních items pro lookup současného salePrice (auto-fill logika).
+  const itemsById = new Map(order.items.map((it) => [it.id, it]));
+
   // Zapsat výsledky do Items v transakci
   const now = new Date();
   await prisma.$transaction(async (tx) => {
     for (const r of result.perStone) {
+      const original = itemsById.get(r.stoneId);
+      const currentSalePrice = original ? Number(original.salePrice) : 0;
+      // Auto-fill „Cena prodejní" (salePrice) z doporučené, JEN pokud je salePrice
+      // aktuálně 0 (=nezadáno). Pokud user ručně nastavil jinou hodnotu, nepřepíši
+      // — explicit override má prioritu.
+      const shouldAutoFillSale =
+        currentSalePrice === 0 &&
+        r.steps?.recommendedPriceInclVatCzk &&
+        Number(r.steps.recommendedPriceInclVatCzk) > 0;
+
       await tx.item.update({
         where: { id: r.stoneId },
         data: {
@@ -122,6 +135,7 @@ export async function POST(
           // Item.purchasePrice je computed display field — updatuje se i když ho
           // user nepřepsal ručně, aby sekce Ceny v UI zobrazila aktuální nákupní cenu.
           ...(r.steps?.purchasePriceCzk ? { purchasePrice: r.steps.purchasePriceCzk } : {}),
+          ...(shouldAutoFillSale ? { salePrice: r.steps!.recommendedPriceInclVatCzk! } : {}),
           allocatedOrderCostCzk: r.steps?.allocatedOrderCostCzk ?? null,
           costBasisCzk: r.steps?.costBasisCzk ?? null,
           computedMarginRate: r.steps?.totalMarginRate ?? null,

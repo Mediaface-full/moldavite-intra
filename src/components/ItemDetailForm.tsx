@@ -600,15 +600,22 @@ function PriceSection({
         {/* 3. Cena prodejní */}
         <PriceRow
           label="Cena prodejní"
-          hint="Cena, za kterou kámen prodáváme na eshopu / Etsy. Vychází z cenotvorby."
+          hint="Cena, za kterou kámen prodáváme na eshopu / Etsy. Při přepočtu se auto-vyplní z doporučené, pokud je 0."
           editable
           value={salePrice}
           onChange={setSalePrice}
           rightExtra={
             recommendedPriceInclVatCzk && Number(recommendedPriceInclVatCzk) > 0 ? (
-              <span className="text-[10px] text-muted-foreground font-mono whitespace-nowrap">
-                doporučená: {fmt(recommendedPriceInclVatCzk)}
-              </span>
+              (() => {
+                const sale = Number(salePrice);
+                const rec = Number(recommendedPriceInclVatCzk);
+                const matches = sale > 0 && Math.abs(sale - rec) < 0.5;
+                return (
+                  <span className="text-[10px] font-mono whitespace-nowrap" style={{ color: matches ? 'var(--success)' : 'var(--muted-foreground)' }}>
+                    {matches ? `✓ odpovídá doporučené (${fmt(recommendedPriceInclVatCzk)})` : `doporučená: ${fmt(recommendedPriceInclVatCzk)}`}
+                  </span>
+                );
+              })()
             ) : null
           }
         />
