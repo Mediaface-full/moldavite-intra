@@ -529,7 +529,20 @@ function CategoryBody({ rule, attrOptions, onChange }: { rule: CategoryRule; att
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         <div>
           <label className={lbl}>Co se počítá</label>
-          <select value={rule.source} onChange={(e) => onChange({ source: e.target.value as CategoryRule['source'] } as Partial<Rule>)} className={inp}>
+          <select
+            value={rule.source}
+            onChange={(e) => {
+              // Source diktuje i `key` — bez toho 2 pravidla typu category mají
+              // stejný ruleKey v breakdown a uživatel nepozná o které jde.
+              // Pokud user měl ručně zadaný custom key (odlišný od defaultů),
+              // zachováme ho.
+              const newSource = e.target.value as CategoryRule['source'];
+              const defaultKeys = ['pasShape', 'attrDamage', 'location', 'attrColor'];
+              const keyPatch = defaultKeys.includes(rule.key) ? { key: newSource } : {};
+              onChange({ source: newSource, ...keyPatch } as Partial<Rule>);
+            }}
+            className={inp}
+          >
             <option value="pasShape">Tvar kamene</option>
             <option value="attrDamage">Poškození</option>
             <option value="location">Místo nálezu</option>

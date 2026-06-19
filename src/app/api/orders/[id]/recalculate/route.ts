@@ -209,6 +209,9 @@ export async function POST(
     warnings: result.warnings,
     order: fresh ? serializeOrder(fresh) : null,
     items: fresh ? fresh.items.map(serializeItemForPricing) : [],
+    // Snapshot který se reálně použil pro výpočet — pro debug v UI
+    // (Gideon uvidí raw marginRate a může porovnat se zadanými procenty).
+    usedSnapshot: snapshot,
     ...(snapshotRaced
       ? {
           snapshotRaceNotice:

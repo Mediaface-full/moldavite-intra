@@ -21,10 +21,12 @@ type RecalcPerStone = {
   finalInternalPriceInclVatCzk: string | null;
   issues: Array<{ severity: string; code: string; message: string }>;
 };
+type SnapshotRuleSummary = { key: string; label?: string; type: string; source?: string; items?: Array<{ value: string; marginRate: number }>; brackets?: Array<{ min: number; max: number | null; marginRate: number }>; marginRate?: number };
 type RecalcResponse = {
   perStone: RecalcPerStone[];
   warnings: Array<{ code: string; message: string }>;
   items: Array<{ id: number; evidNumber: string; name: string; weight: string | null; attrDamage: string | null }>;
+  usedSnapshot?: { version: number; rules: SnapshotRuleSummary[] };
   snapshotRaceNotice?: string;
 };
 
@@ -44,6 +46,7 @@ export default function OrderPricingTab({
   const [saving, setSaving] = useState(false);
   const [recalcResult, setRecalcResult] = useState<RecalcResponse | null>(null);
   const [expandedStoneId, setExpandedStoneId] = useState<number | null>(null);
+  const [showRawConfig, setShowRawConfig] = useState(false);
   const dirty =
     allocation !== order.allocationMethod ||
     vat !== (order.vatRatePct ?? '21') ||
@@ -277,9 +280,16 @@ export default function OrderPricingTab({
                                     {stone.steps.marginBreakdown.map((b, i) => {
                                       const pct = (Number(b.marginRate) * 100).toFixed(1);
                                       const matched = b.matched !== null;
+                                      // Najdi label pravidla v usedSnapshot (i-tý rule v pořadí)
+                                      const ruleMeta = recalcResult.usedSnapshot?.rules[i];
+                                      const displayLabel = ruleMeta?.label?.trim() || b.ruleKey;
+                                      const sourceTag = ruleMeta?.source ? ` (${ruleMeta.source})` : '';
                                       return (
                                         <tr key={i} className="border-t border-border/40">
-                                          <td className="py-1">{b.ruleKey}</td>
+                                          <td className="py-1">
+                                            <span>{displayLabel}</span>
+                                            <span className="text-muted-foreground text-[10px]">{sourceTag}</span>
+                                          </td>
                                           <td className="py-1">
                                             {matched ? (
                                               <span style={{ color: 'var(--success)' }}>✓ {b.matched}</span>
@@ -318,6 +328,32 @@ export default function OrderPricingTab({
               </tbody>
             </table>
           </div>
+
+          {recalcResult.usedSnapshot && (
+            <div className="mt-4 pt-3 border-t border-border">
+              <button
+                type="button"
+                onClick={() => setShowRawConfig((v) => !v)}
+                className="text-[11px] text-muted-foreground hover:text-foreground underline font-mono"
+              >
+                {showRawConfig ? '▾' : '▸'} Pravidla cenotvorby použitá pro tento výpočet (raw)
+              </button>
+              {showRawConfig && (
+                <div className="mt-2 space-y-2">
+                  <p className="text-[11px] text-muted-foreground">
+                    Toto je <strong>přesný snapshot pravidel</strong> jaký server použil. Pokud zde vidíš
+                    <code className="mx-1 px-1 bg-muted rounded">marginRate: 0</code>
+                    u hodnoty kde jsi v editoru zadal procenta, byl uložen špatně — zkontroluj a znovu ulož v Cenotvorbě (admin).
+                    <br />
+                    <strong>Decimal = procento / 100</strong> (tj. <code className="mx-1 px-1 bg-muted rounded">1.5</code> = +150 %).
+                  </p>
+                  <pre className="text-[10px] font-mono bg-muted/40 border border-border rounded p-3 overflow-x-auto max-h-96">
+                    {JSON.stringify(recalcResult.usedSnapshot, null, 2)}
+                  </pre>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>
