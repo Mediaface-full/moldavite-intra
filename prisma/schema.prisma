@@ -237,6 +237,15 @@ model Item {
   pricingStatus                PricingStatus @default(NEEDS_INPUT)
   lastCalculatedAt             DateTime?
 
+  // ─── Audit prodeje ─────────────────────────────────────────
+  /// Datum kdy kámen přešel z sold=false na sold=true.
+  soldAt                       DateTime?
+  /// Zafixovaný snapshot výpočtu v okamžiku prodeje — pro dohledatelnost
+  /// jak vznikla prodejní cena. Obsahuje rules + breakdown + steps z calculate().
+  /// Po nastavení už se nemění — i kdyby user změnil sold zpět a znovu.
+  priceCalcSnapshot            Json?
+  priceCalcSnapshotAt          DateTime?
+
   @@unique([boxId, evidNumber])
   @@index([boxId])
   @@index([orderId])

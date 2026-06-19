@@ -10,6 +10,7 @@ import AttrSelect from './AttrSelect';
 import AttrMultiSelect from './AttrMultiSelect';
 import Icon from './Icon';
 import { apiFetch } from '@/lib/apiFetch';
+import SaleSnapshotPanel from './SaleSnapshotPanel';
 
 const RichTextEditor = dynamic(() => import('./RichTextEditor'), { ssr: false });
 
@@ -42,6 +43,9 @@ interface ItemData {
   manualPriceInclVatCzk?: string | null;
   pricingStatus?: 'NEEDS_INPUT' | 'NEEDS_REVIEW' | 'OK' | 'STALE' | null;
   purchasePricePerGramCzk?: string | null;
+  soldAt?: string | null;
+  priceCalcSnapshot?: unknown;
+  priceCalcSnapshotAt?: string | null;
 }
 
 export default function ItemDetailForm({ item }: { item: ItemData }) {
@@ -369,6 +373,15 @@ export default function ItemDetailForm({ item }: { item: ItemData }) {
           })()}
           orderHref={`/orders`}
         />
+
+        {/* SNAPSHOT VÝPOČTU PŘI PRODEJI — zafixovaný audit, jen pro prodané kameny */}
+        {item.sold && item.priceCalcSnapshot ? (
+          <SaleSnapshotPanel
+            snapshot={item.priceCalcSnapshot as never}
+            capturedAt={item.priceCalcSnapshotAt ?? null}
+            soldAt={item.soldAt ?? null}
+          />
+        ) : null}
 
         {/* Converted prices */}
         {(Number(item.priceEUR) > 0 || Number(item.priceUSD) > 0) ? (

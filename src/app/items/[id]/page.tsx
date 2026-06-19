@@ -142,6 +142,9 @@ export default async function ItemDetailPage({
               manualPriceInclVatCzk: item.manualPriceInclVatCzk ? item.manualPriceInclVatCzk.toString() : null,
               purchasePricePerGramCzk: item.purchasePricePerGramCzk ? item.purchasePricePerGramCzk.toString() : null,
               pricingStatus: item.pricingStatus,
+              soldAt: item.soldAt ? item.soldAt.toISOString() : null,
+              priceCalcSnapshot: item.priceCalcSnapshot ?? null,
+              priceCalcSnapshotAt: item.priceCalcSnapshotAt ? item.priceCalcSnapshotAt.toISOString() : null,
             }}
           />
         </div>

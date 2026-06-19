@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { getSession, logActivity } from '@/lib/auth';
 import { recalcItemPrices } from '@/lib/exchangeRates';
 import { resolvePpg } from '@/lib/pricing/resolve';
+import { captureItemSaleSnapshot } from '@/lib/orders/captureItemSaleSnapshot';
 
 const ALLOWED_FIELDS = [
   'name', 'nameEn', 'description', 'descriptionEn', 'longDescription', 'longDescriptionEn',
@@ -188,10 +189,40 @@ export async function PATCH(
     }
   }
 
-  await prisma.item.update({
-    where: { id: itemId },
-    data,
-  });
+  // Sold transition detection: pokud teď přechází z false na true, po update
+  // zafixujeme `priceCalcSnapshot` pro audit. Snapshot reflektuje hodnoty
+  // PO aplikaci tohoto PATCHe (ne před) — kdyby user současně změnil weight
+  // a označil sold=true, snapshot drží nové weight + ceny z nové konfigurace.
+  let isBecomingSold = false;
+  if (data.sold === true) {
+    const prev = await prisma.item.findUnique({
+      where: { id: itemId },
+      select: { sold: true, soldAt: true },
+    });
+    if (prev && !prev.sold) {
+      isBecomingSold = true;
+      if (!prev.soldAt) data.soldAt = new Date();
+    }
+  }
+
+  if (isBecomingSold) {
+    await prisma.$transaction(async (tx) => {
+      await tx.item.update({ where: { id: itemId }, data });
+      const capturedAt = new Date();
+      const snap = await captureItemSaleSnapshot(tx, itemId, capturedAt);
+      if (snap) {
+        await tx.item.update({
+          where: { id: itemId },
+          data: {
+            priceCalcSnapshot: snap as never,
+            priceCalcSnapshotAt: capturedAt,
+          },
+        });
+      }
+    });
+  } else {
+    await prisma.item.update({ where: { id: itemId }, data });
+  }
 
   // Recalc ct when weight changes (1g = 5ct)
   if (data.weight !== undefined) {
