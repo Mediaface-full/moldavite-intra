@@ -676,12 +676,16 @@ function PriceRow({
             className="w-full bg-card border border-border rounded-lg px-3 h-9 text-sm font-mono text-right text-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
           />
         ) : (
-          // Read-only display — stejný rozměr a tvar jako input, ale bez border
-          // a se subtle background aby bylo zřejmé že je zamčené.
+          // Read-only display — vizuálně jasně odlišený od inputu (silnější
+          // muted background + dashed border + zámek ikona) ale stejný rozměr,
+          // aby řádky byly zarovnané v jedné linii.
           <div
-            className="w-full bg-muted/40 border border-border/40 rounded-lg px-3 h-9 inline-flex items-center justify-end text-sm font-mono text-foreground"
-            title={emptyHint}
+            className="w-full bg-muted border border-dashed border-border rounded-lg px-3 h-9 inline-flex items-center justify-end gap-2 text-sm font-mono text-foreground"
+            title={emptyHint ?? 'Spočítané pole — nelze přímo editovat'}
           >
+            <svg className="w-3 h-3 text-muted-foreground/50 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.75}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+            </svg>
             {displayValue && displayValue !== '—' ? (
               displayValue
             ) : (
