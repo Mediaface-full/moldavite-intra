@@ -108,13 +108,25 @@ export default function OrderDetailClient({
   const needsInputCount = order.items.filter((i) => i.pricingStatus === 'NEEDS_INPUT').length;
   const needsReviewCount = order.items.filter((i) => i.pricingStatus === 'NEEDS_REVIEW').length;
 
+  const [recalculating, setRecalculating] = useState(false);
+  const [recalcDone, setRecalcDone] = useState<{ ok: number; needsInput: number; needsReview: number } | null>(null);
+
   async function handleRecalculate() {
+    if (recalculating) return;
+    setRecalculating(true);
+    setRecalcDone(null);
     const res = await apiFetch(`/api/orders/${order.id}/recalculate`, { method: 'POST' });
-    if (res.ok) router.refresh();
-    else {
+    if (res.ok) {
+      const data = await res.json().catch(() => ({}));
+      const sum = data?.summary;
+      if (sum) setRecalcDone({ ok: sum.stonesOk ?? 0, needsInput: sum.stonesNeedingInput ?? 0, needsReview: sum.stonesNeedingReview ?? 0 });
+      router.refresh();
+      setTimeout(() => setRecalcDone(null), 4000);
+    } else {
       const data = await res.json().catch(() => ({}));
       alert(`Přepočet selhal: ${data.error ?? res.status}`);
     }
+    setRecalculating(false);
   }
 
   async function handleStorno() {
@@ -167,13 +179,24 @@ export default function OrderDetailClient({
             </span>
           )}
           <NewBoxButton orderId={order.id} defaultSellerId={order.sellerId} variant="button" />
+          {recalcDone && (
+            <span
+              className="text-[10px] font-mono uppercase tracking-wider px-2 py-1 rounded inline-flex items-center gap-1.5"
+              style={{ color: 'var(--success)', background: 'color-mix(in srgb, var(--success) 12%, transparent)' }}
+              title={`OK ${recalcDone.ok} · K revizi ${recalcDone.needsReview} · Bez vstupů ${recalcDone.needsInput}`}
+            >
+              <Icon name="check" className="w-3 h-3" />
+              Přepočítáno · {recalcDone.ok}/{recalcDone.ok + recalcDone.needsInput + recalcDone.needsReview} OK
+            </span>
+          )}
           <button
             onClick={handleRecalculate}
-            disabled={order.status === 'CANCELLED'}
-            className="bg-primary hover:bg-primary/90 disabled:opacity-50 text-primary-foreground px-3 py-1.5 rounded-md text-xs font-mono uppercase tracking-wider transition-colors inline-flex items-center gap-1.5"
+            disabled={order.status === 'CANCELLED' || recalculating}
+            className="bg-primary hover:bg-primary/90 disabled:opacity-60 text-primary-foreground px-3 py-1.5 rounded-md text-xs font-mono uppercase tracking-wider transition-colors inline-flex items-center gap-1.5"
+            title={recalculating ? 'Probíhá přepočet…' : 'Spustit přepočet cenotvorby'}
           >
-            <Icon name="recalculate" className="w-3.5 h-3.5" />
-            Přepočítat
+            <Icon name="recalculate" className={`w-3.5 h-3.5 ${recalculating ? 'animate-spin' : ''}`} />
+            {recalculating ? 'Přepočítávám…' : 'Přepočítat'}
           </button>
           {isAdmin && order.status !== 'CANCELLED' && order.status !== 'ARCHIVED' && (
             <button
