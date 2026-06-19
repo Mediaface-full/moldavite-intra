@@ -6,7 +6,7 @@
  * Cíl: aby si Gideon mohl sám sestavit cenotvorbu (jaké bonusy se přidají
  * k nákupní ceně podle váhy / tvaru / barvy / sbírkovosti) bez znalosti JSON.
  */
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Icon from './Icon';
 
 type Bracket = { min: number; max: number | null; marginRate: number };
@@ -71,9 +71,107 @@ function pctToDecimal(pctStr: string): number {
   if (!Number.isFinite(n)) return 0;
   return Math.round(n * 100) / 10000; // 150 → 1.5
 }
-function gramsParse(s: string): number {
-  const n = Number(s.replace(',', '.').trim());
-  return Number.isFinite(n) ? n : 0;
+/**
+ * Controlled input pro desetinná čísla s českou čárkou.
+ *
+ * Drží VLASTNÍ text state aby se nezráca mid-typing pozice (např. „3,"
+ * → parser vrátí 3 → re-render by ukázal „3" → uživatel ztratil čárku).
+ *
+ * Sync s external value jen pokud se parsed text liší od value
+ * (např. po reset / load z DB).
+ */
+function NumberLikeInput({
+  value,
+  onChange,
+  allowNull,
+  className,
+  placeholder,
+}: {
+  value: number | null;
+  onChange: (n: number | null) => void;
+  allowNull?: boolean;
+  className?: string;
+  placeholder?: string;
+}) {
+  const [text, setText] = useState<string>(() =>
+    value === null || value === undefined ? '' : String(value).replace('.', ','),
+  );
+
+  useEffect(() => {
+    const trimmed = text.trim();
+    const parsed = trimmed === '' ? null : Number(trimmed.replace(',', '.'));
+    if (parsed === value) return;
+    // External change (load, reset) → resync text
+    setText(value === null || value === undefined ? '' : String(value).replace('.', ','));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value]);
+
+  return (
+    <input
+      type="text"
+      inputMode="decimal"
+      value={text}
+      placeholder={placeholder}
+      className={className}
+      onChange={(e) => {
+        const t = e.target.value;
+        setText(t);
+        const trimmed = t.trim();
+        if (trimmed === '') {
+          onChange(allowNull ? null : 0);
+          return;
+        }
+        const n = Number(trimmed.replace(',', '.'));
+        if (Number.isFinite(n)) onChange(n);
+        // Mid-typing nevalidní (např. „3,") → nezprávat, text drží sám sebe
+      }}
+    />
+  );
+}
+
+/**
+ * Input pro procentní bonus — schema je decimal multiplikátor (1.5),
+ * UI ukazuje procenta (150). Konverze přes decimalToPct / pctToDecimal.
+ * Drží vlastní text state ze stejného důvodu jako NumberLikeInput.
+ */
+function PercentInput({
+  value,
+  onChange,
+  className,
+  placeholder,
+}: {
+  value: number;
+  onChange: (decimal: number) => void;
+  className?: string;
+  placeholder?: string;
+}) {
+  const [text, setText] = useState<string>(() => decimalToPct(value));
+
+  useEffect(() => {
+    const fromText = pctToDecimal(text);
+    if (Math.abs(fromText - value) < 0.00005) return;
+    setText(decimalToPct(value));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value]);
+
+  return (
+    <input
+      type="text"
+      inputMode="decimal"
+      value={text}
+      placeholder={placeholder}
+      className={className}
+      onChange={(e) => {
+        const t = e.target.value;
+        setText(t);
+        const trimmed = t.trim();
+        if (trimmed === '') { onChange(0); return; }
+        const normalized = trimmed.replace(',', '.');
+        const n = Number(normalized);
+        if (Number.isFinite(n)) onChange(Math.round(n * 100) / 10000);
+      }}
+    />
+  );
 }
 
 // České názvy pro Item atributy — používá se v dropdownech (skryjeme tech jména).
@@ -355,9 +453,24 @@ function BracketBody({ rule, onChange }: { rule: BracketRule; onChange: (patch: 
       </div>
       {rule.brackets.map((b, i) => (
         <div key={i} className="grid grid-cols-[1fr_1fr_1fr_auto] gap-1.5 items-center">
-          <input type="text" inputMode="decimal" value={String(b.min).replace('.', ',')} onChange={(e) => { const x = [...rule.brackets]; x[i] = { ...b, min: gramsParse(e.target.value) }; setBrackets(x); }} className={inpNum} />
-          <input type="text" inputMode="decimal" value={b.max === null ? '' : String(b.max).replace('.', ',')} onChange={(e) => { const x = [...rule.brackets]; x[i] = { ...b, max: e.target.value === '' ? null : gramsParse(e.target.value) }; setBrackets(x); }} placeholder="bez limitu" className={inpNum} />
-          <input type="text" inputMode="decimal" value={decimalToPct(b.marginRate)} onChange={(e) => { const x = [...rule.brackets]; x[i] = { ...b, marginRate: pctToDecimal(e.target.value) }; setBrackets(x); }} placeholder="např. 150" className={inpNum} />
+          <NumberLikeInput
+            value={b.min}
+            onChange={(n) => { const x = [...rule.brackets]; x[i] = { ...b, min: n ?? 0 }; setBrackets(x); }}
+            className={inpNum}
+          />
+          <NumberLikeInput
+            value={b.max}
+            onChange={(n) => { const x = [...rule.brackets]; x[i] = { ...b, max: n }; setBrackets(x); }}
+            allowNull
+            placeholder="bez limitu"
+            className={inpNum}
+          />
+          <PercentInput
+            value={b.marginRate}
+            onChange={(d) => { const x = [...rule.brackets]; x[i] = { ...b, marginRate: d }; setBrackets(x); }}
+            placeholder="např. 150"
+            className={inpNum}
+          />
           <button type="button" onClick={() => setBrackets(rule.brackets.filter((_, j) => j !== i))} title="Smazat tento řádek" className="text-muted-foreground hover:text-destructive">
             <Icon name="x" className="w-4 h-4" />
           </button>
@@ -404,7 +517,12 @@ function CategoryBody({ rule, onChange }: { rule: CategoryRule; onChange: (patch
       {rule.items.map((it, i) => (
         <div key={i} className="grid grid-cols-[2fr_1fr_auto] gap-1.5 items-center">
           <input type="text" value={it.value} onChange={(e) => { const x = [...rule.items]; x[i] = { ...it, value: e.target.value }; setItems(x); }} placeholder={hint || 'hodnota'} className={inp} />
-          <input type="text" inputMode="decimal" value={decimalToPct(it.marginRate)} onChange={(e) => { const x = [...rule.items]; x[i] = { ...it, marginRate: pctToDecimal(e.target.value) }; setItems(x); }} placeholder="např. 70" className={inpNum} />
+          <PercentInput
+            value={it.marginRate}
+            onChange={(d) => { const x = [...rule.items]; x[i] = { ...it, marginRate: d }; setItems(x); }}
+            placeholder="např. 70"
+            className={inpNum}
+          />
           <button type="button" onClick={() => setItems(rule.items.filter((_, j) => j !== i))} title="Smazat hodnotu" className="text-muted-foreground hover:text-destructive">
             <Icon name="x" className="w-4 h-4" />
           </button>
@@ -450,7 +568,12 @@ function MultiCategoryBody({ rule, onChange }: { rule: MultiCategoryRule; onChan
       {rule.items.map((it, i) => (
         <div key={i} className="grid grid-cols-[2fr_1fr_auto] gap-1.5 items-center">
           <input type="text" value={it.value} onChange={(e) => { const x = [...rule.items]; x[i] = { ...it, value: e.target.value }; setItems(x); }} placeholder="např. radioaktivní zelená" className={inp} />
-          <input type="text" inputMode="decimal" value={decimalToPct(it.marginRate)} onChange={(e) => { const x = [...rule.items]; x[i] = { ...it, marginRate: pctToDecimal(e.target.value) }; setItems(x); }} placeholder="např. 50" className={inpNum} />
+          <PercentInput
+            value={it.marginRate}
+            onChange={(d) => { const x = [...rule.items]; x[i] = { ...it, marginRate: d }; setItems(x); }}
+            placeholder="např. 50"
+            className={inpNum}
+          />
           <button type="button" onClick={() => setItems(rule.items.filter((_, j) => j !== i))} title="Smazat barvu" className="text-muted-foreground hover:text-destructive">
             <Icon name="x" className="w-4 h-4" />
           </button>
@@ -477,7 +600,12 @@ function BooleanBody({ rule, onChange }: { rule: BooleanRule; onChange: (patch: 
         </div>
         <div>
           <label className={lbl}>Bonus když Sbírkový = ano (%)</label>
-          <input type="text" inputMode="decimal" value={decimalToPct(rule.marginRate)} onChange={(e) => onChange({ marginRate: pctToDecimal(e.target.value) } as Partial<Rule>)} placeholder="např. 30" className={inpNum} />
+          <PercentInput
+            value={rule.marginRate}
+            onChange={(d) => onChange({ marginRate: d } as Partial<Rule>)}
+            placeholder="např. 30"
+            className={inpNum}
+          />
         </div>
       </div>
     </div>
