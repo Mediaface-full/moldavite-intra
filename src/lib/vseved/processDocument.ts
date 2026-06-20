@@ -78,10 +78,19 @@ export async function processDocument(documentId: number): Promise<void> {
       },
     });
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
+    const raw = err instanceof Error ? err.message : String(err);
+    // Lidsky srozumitelna hlaska pro nejcastejsi pripady — pro UI badge.
+    let friendly = raw;
+    if (raw.includes('429') || raw.includes('RESOURCE_EXHAUSTED')) {
+      friendly = 'Gemini API limit překročen. Počkej minutu nebo upgraduj billing tier. Detail: ' + raw.slice(0, 500);
+    } else if (raw.includes('GEMINI_API_KEY')) {
+      friendly = 'GEMINI_API_KEY není nastaven v env. Doplň ho a restartuj kontejner.';
+    } else if (raw.includes('404') || raw.includes('NOT_FOUND')) {
+      friendly = 'Gemini model nenalezen — pravděpodobně deprecated. Zkontroluj embed.ts EMBEDDING_MODEL.';
+    }
     await prisma.vsevedDocument.update({
       where: { id: documentId },
-      data: { status: 'FAILED', statusError: msg.slice(0, 1000) },
+      data: { status: 'FAILED', statusError: friendly.slice(0, 1000) },
     });
     throw err;
   }

@@ -23,11 +23,12 @@ const GEMINI_KEY = process.env.GEMINI_API_KEY || '';
 const EMBEDDING_MODEL = 'gemini-embedding-001';
 const OUTPUT_DIM = 768;
 const BATCH_URL = `https://generativelanguage.googleapis.com/v1beta/models/${EMBEDDING_MODEL}:batchEmbedContents`;
-// gemini-embedding-001 paid Tier 1: 100 RPM + 30K TPM. Maly batch + delay
-// mezi batches drzi tempo pod limitem. Pro 50-chunk knihu = ~10 batches s
-// 4s delay = 40s celkove, bez 429.
-const MAX_BATCH = 5;
-const BATCH_DELAY_MS = 4000;
+// gemini-embedding-001 paid Tier 1: 100 RPM + 30 000 TPM.
+// 1 chunk per call + 6s delay = 10 RPM × ~1500 tokens = 15K TPM (pod limit).
+// Pro 50-chunk knihu = 50 × 6s = 5 minut ingest. Pomale ale stabilni.
+// Az Gideon hit Tier 2 ($250 spent → 100K TPM), zvedneme MAX_BATCH a snizime delay.
+const MAX_BATCH = 1;
+const BATCH_DELAY_MS = 6000;
 const MAX_RETRIES = 5;
 
 type TaskType = 'RETRIEVAL_DOCUMENT' | 'RETRIEVAL_QUERY';
