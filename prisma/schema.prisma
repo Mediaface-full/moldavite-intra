@@ -409,3 +409,78 @@ model ExportConfig {
   primaryLanguage String  @default("cz")
   updatedAt      DateTime @updatedAt
 }
+
+// ─── Vševěd — znalostní chatbot (Etapa 1) ──────────────────────────────────
+// Interní RAG chatbot nad nahranými dokumenty (PDF, DOCX, TXT).
+// Embedding dimenze 768 = gemini text-embedding-004 native.
+// Tabulka VsevedChunk.embedding používá pgvector typ vector(768)
+// s HNSW indexem pro cosine similarity search.
+
+model VsevedDocument {
+  id           Int      @id @default(autoincrement())
+  title        String
+  author       String   @default("")
+  year         Int?
+  language     String   @default("cs")
+  sourceFile   String
+  format       String
+  fileSize     Int
+  textLength   Int      @default(0)
+  chunkCount   Int      @default(0)
+  status       String   @default("PENDING")
+  statusError  String?
+  tags         String[] @default([])
+  notes        String   @default("")
+  uploadedBy   Int
+  uploadedAt   DateTime @default(now())
+  indexedAt    DateTime?
+
+  chunks       VsevedChunk[]
+
+  @@index([status])
+  @@index([language])
+}
+
+model VsevedChunk {
+  id             Int      @id @default(autoincrement())
+  documentId     Int
+  document       VsevedDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  chunkIndex     Int
+  text           String
+  charStart      Int
+  charEnd        Int
+  pageHint       String?
+  tokenCount     Int
+
+  embedding      Unsupported("vector(768)")?
+
+  @@unique([documentId, chunkIndex])
+  @@index([documentId])
+}
+
+model VsevedConversation {
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  title       String   @default("")
+  archived    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  messages    VsevedMessage[]
+
+  @@index([userId, archived])
+}
+
+model VsevedMessage {
+  id              Int      @id @default(autoincrement())
+  conversationId  Int
+  conversation    VsevedConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  role            String
+  content         String
+  citedChunkIds   Int[]    @default([])
+  promptTokens    Int?
+  responseTokens  Int?
+  modelUsed       String?
+  createdAt       DateTime @default(now())
+
+  @@index([conversationId, createdAt])
+}
