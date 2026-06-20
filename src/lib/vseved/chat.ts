@@ -103,7 +103,11 @@ export async function callGemini(
     contents,
     generationConfig: {
       temperature: 0.7,
-      maxOutputTokens: 4096,
+      // 16K tokens = ~12 000 slov v cestine. Pro vetsinu odpovedi prebytecne,
+      // ale chrani pred usekem uprostred odstavce u dlouhych marketingovych
+      // textu nebo Q&A nad rozsahlymi sources. Gemini Flash 1M context window
+      // umi az 65K output, takze 16K je konzervativni cap.
+      maxOutputTokens: 16384,
     },
   };
 
@@ -119,11 +123,24 @@ export async function callGemini(
   }
 
   type GeminiResponse = {
-    candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
+    candidates?: Array<{
+      content?: { parts?: Array<{ text?: string }> };
+      finishReason?: string;
+    }>;
     usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number };
   };
   const data = (await res.json()) as GeminiResponse;
-  const content = data.candidates?.[0]?.content?.parts?.map((p) => p.text ?? '').join('') ?? '';
+  const candidate = data.candidates?.[0];
+  let content = candidate?.content?.parts?.map((p) => p.text ?? '').join('') ?? '';
+  const finishReason = candidate?.finishReason;
+  // Pokud Gemini hit token cap, pripoj user-friendly upozorneni — typicky
+  // pri dlouhych odpovedich co prekroci 16K tokens. Daje uzivateli signal
+  // ze ma poslat „pokracuj" pro dokonceni mysliky.
+  if (finishReason === 'MAX_TOKENS') {
+    content += '\n\n⚠ *Odpověď byla useknutá kvůli limitu délky. Napiš „pokračuj" pro dokončení.*';
+  } else if (finishReason === 'SAFETY' || finishReason === 'RECITATION') {
+    content += `\n\n⚠ *Odpověď byla useknutá Gemini safety filtrem (${finishReason}). Zkus přeformulovat dotaz.*`;
+  }
   const promptTokens = data.usageMetadata?.promptTokenCount ?? 0;
   const responseTokens = data.usageMetadata?.candidatesTokenCount ?? 0;
 
