@@ -23,8 +23,12 @@ const GEMINI_KEY = process.env.GEMINI_API_KEY || '';
 const EMBEDDING_MODEL = 'gemini-embedding-001';
 const OUTPUT_DIM = 768;
 const BATCH_URL = `https://generativelanguage.googleapis.com/v1beta/models/${EMBEDDING_MODEL}:batchEmbedContents`;
-const MAX_BATCH = 100;
-const MAX_RETRIES = 3;
+// gemini-embedding-001 paid Tier 1: 100 RPM + 30K TPM. Maly batch + delay
+// mezi batches drzi tempo pod limitem. Pro 50-chunk knihu = ~10 batches s
+// 4s delay = 40s celkove, bez 429.
+const MAX_BATCH = 5;
+const BATCH_DELAY_MS = 4000;
+const MAX_RETRIES = 5;
 
 type TaskType = 'RETRIEVAL_DOCUMENT' | 'RETRIEVAL_QUERY';
 
@@ -71,9 +75,11 @@ async function callBatch(batch: string[], taskType: TaskType): Promise<number[][
       return data.embeddings.map((e) => e.values);
     }
 
-    // Retry on 429 (rate limit) and 5xx
+    // Retry on 429 (rate limit) and 5xx. Pro 429 delsi backoff aby quota
+    // staihla reset (Gemini per-minute window).
     if (res.status === 429 || res.status >= 500) {
-      const backoffMs = 1000 * Math.pow(2, attempt);
+      const baseDelay = res.status === 429 ? 15000 : 1000;
+      const backoffMs = baseDelay * Math.pow(2, attempt);
       lastError = new Error(`Gemini ${res.status}: ${await res.text()}`);
       await new Promise((r) => setTimeout(r, backoffMs));
       continue;
@@ -87,12 +93,14 @@ async function callBatch(batch: string[], taskType: TaskType): Promise<number[][
 }
 
 /**
- * Batch embed N texts. Splits do <=100-item batches.
+ * Batch embed N texts. Splits do MAX_BATCH-item batches s delay mezi nimi
+ * aby drzelo tempo pod Gemini Tier 1 limity (100 RPM + 30K TPM).
  */
 export async function embedTexts(texts: string[]): Promise<number[][]> {
   if (texts.length === 0) return [];
   const results: number[][] = [];
   for (let i = 0; i < texts.length; i += MAX_BATCH) {
+    if (i > 0) await new Promise((r) => setTimeout(r, BATCH_DELAY_MS));
     const batch = texts.slice(i, i + MAX_BATCH);
     const embeddings = await callBatch(batch, 'RETRIEVAL_DOCUMENT');
     results.push(...embeddings);
