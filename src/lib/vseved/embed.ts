@@ -1,22 +1,28 @@
 /**
- * Gemini text-embedding-004 wrapper.
+ * Gemini embedding wrapper.
+ *
+ * Model: gemini-embedding-001 (current as of 2026-06; text-embedding-004
+ * byl deprecated 404 on v1beta — fix 20.6.2026).
  *
  * Batch endpoint: POST batchEmbedContents
- *   https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:batchEmbedContents?key=KEY
+ *   https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:batchEmbedContents?key=KEY
+ *
+ * Native output: 3072 dim. Náš pgvector schema je vector(768) → použijeme
+ * `outputDimensionality: 768` parameter (Matryoshka representation —
+ * 768-dim podsekvence z 3072-dim vector zachová sémantiku).
  *
  * - Max 100 requests per batch (Gemini limit)
- * - 768 dimensional output
  * - taskType:
  *     RETRIEVAL_DOCUMENT — pro chunky ulozene do indexu
  *     RETRIEVAL_QUERY    — pro user query u retrieval
  *
  * Retry strategy: 429 → exponential backoff (1s, 2s, 4s, max 3 retries).
- * Tiny per-side rate cap: 60 batches/min (cca 6000 chunks/min) — predejde
- * upstream rate limitu pred tim nez doraz 429.
  */
 
 const GEMINI_KEY = process.env.GEMINI_API_KEY || '';
-const BATCH_URL = 'https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:batchEmbedContents';
+const EMBEDDING_MODEL = 'gemini-embedding-001';
+const OUTPUT_DIM = 768;
+const BATCH_URL = `https://generativelanguage.googleapis.com/v1beta/models/${EMBEDDING_MODEL}:batchEmbedContents`;
 const MAX_BATCH = 100;
 const MAX_RETRIES = 3;
 
@@ -24,9 +30,10 @@ type TaskType = 'RETRIEVAL_DOCUMENT' | 'RETRIEVAL_QUERY';
 
 type BatchRequest = {
   requests: Array<{
-    model: 'models/text-embedding-004';
+    model: string;
     content: { parts: Array<{ text: string }> };
     taskType: TaskType;
+    outputDimensionality: number;
   }>;
 };
 
@@ -40,9 +47,10 @@ async function callBatch(batch: string[], taskType: TaskType): Promise<number[][
 
   const body: BatchRequest = {
     requests: batch.map((text) => ({
-      model: 'models/text-embedding-004',
+      model: `models/${EMBEDDING_MODEL}`,
       content: { parts: [{ text }] },
       taskType,
+      outputDimensionality: OUTPUT_DIM,
     })),
   };
 
