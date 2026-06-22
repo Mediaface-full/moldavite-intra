@@ -781,6 +781,43 @@ function PriceSection({
   const manualBelowRecommended =
     Number.isFinite(manualNum) && manualNum > 0 && Number.isFinite(recommendedNum) && recommendedNum > 0 && manualNum < recommendedNum;
 
+  // Lokalni raw text pro vstup „Cena specialni (bez DPH)" — user pise volne,
+  // hodnota se commituje (a posila do parent / autosave / server) az na BLUR.
+  // Bez tohoto by kazdy keystroke triggernul conversion bez-DPH→s-DPH a zpet
+  // pres formData, coz prepisuje text v inputu (kurzor skace, desetiny se rusi).
+  // Plus „pod doporucenou" warning se ukaze az po blur (ne pri psani „1, 10, 100,
+  // 1000, 10000" kde mezistavy jsou pod doporucenou).
+  const [manualExVatRaw, setManualExVatRaw] = useState<string>(
+    manualExVat > 0 ? manualExVat.toFixed(2) : ''
+  );
+  // Sync raw kdyz manualPrice prijde ze serveru (resync po PATCH/router.refresh).
+  // Jen pokud parsed raw != committed → jinak by se kurzor resetoval pri kazdem typing.
+  useEffect(() => {
+    const committedExVat = manualExVat;
+    const parsedRaw = parseDecimalCs(manualExVatRaw);
+    if (Number.isFinite(parsedRaw) && Math.abs(parsedRaw - committedExVat) < 0.005) return;
+    setManualExVatRaw(committedExVat > 0 ? committedExVat.toFixed(2) : '');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [manualPrice]);
+  // Commit na blur: parse raw + ulozit do formData jako s DPH.
+  function commitManualExVat() {
+    const raw = manualExVatRaw.trim();
+    if (raw === '') {
+      if (manualPrice !== '') setManualPrice('');
+      return;
+    }
+    const n = parseDecimalCs(raw);
+    if (!Number.isFinite(n) || n <= 0) {
+      // Invalid → vrat raw na puvodni committed value
+      setManualExVatRaw(manualExVat > 0 ? manualExVat.toFixed(2) : '');
+      return;
+    }
+    const inclVat = (n * vatMultiplier).toFixed(2);
+    setManualPrice(inclVat);
+    // Pre-format raw na pevne 2 desetiny — konzistentni display
+    setManualExVatRaw(n.toFixed(2));
+  }
+
   return (
     <div className="border border-border rounded-xl overflow-hidden">
       <div className="bg-muted/40 px-4 py-2.5 border-b border-border flex items-center justify-between">
@@ -890,34 +927,38 @@ function PriceSection({
           );
         })()}
 
-        {/* 4. Cena speciální — uzivatel zadava BEZ DPH; ulozi se s DPH (manualPriceInclVatCzk).
-            Pole zobrazi manualExVat (= manualPrice/1.21), na blur se prepocita zpet × 1.21 a posle setManualPrice. */}
-        <PriceRow
-          label="Cena speciální (bez DPH)"
-          hint="Mimořádně vyšší cena pro výjimečně pěkné kameny (override doporučené). Zadáváš bez DPH, s DPH se dopočte níže."
-          editable
-          value={manualExVat > 0 ? manualExVat.toFixed(2) : ''}
-          onChange={(v) => {
-            // Empty = clear manualPrice
-            if (v.trim() === '') {
-              setManualPrice('');
-              return;
-            }
-            const n = parseDecimalCs(v);
-            if (Number.isFinite(n) && n > 0) {
-              const inclVat = (n * vatMultiplier).toFixed(2);
-              setManualPrice(inclVat);
-            }
-          }}
-          placeholder="—"
-          rightExtra={
-            manualBelowRecommended ? (
-              <span className="text-[10px] text-warning font-mono whitespace-nowrap" title="Speciální cena je pod doporučeným minimem — kámen bude označen NEEDS_REVIEW">
+        {/* 4. Cena speciální — uzivatel zadava BEZ DPH; ulozi se s DPH.
+            Vlastni inline input (ne PriceRow) kvuli lokalnimu raw state — bez nej
+            kazdy keystroke prepisuje text pres conversion-roundtrip a kurzor skace.
+            Commit (a warning „pod doporucenou") az na BLUR. */}
+        <div className="grid grid-cols-[1fr_10rem] items-center gap-3 px-4 py-2.5 hover:bg-muted/20 transition-colors">
+          <div className="min-w-0">
+            <p className="text-sm font-medium text-foreground">Cena speciální (bez DPH)</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5 line-clamp-2">
+              Mimořádně vyšší cena pro výjimečně pěkné kameny (override doporučené). Zadáváš bez DPH, s DPH se dopočte níže.
+            </p>
+            {manualBelowRecommended && (
+              <p
+                className="text-[10px] text-warning font-mono whitespace-nowrap mt-0.5"
+                title="Speciální cena je pod doporučeným minimem — kámen bude označen NEEDS_REVIEW"
+              >
                 ⚠ pod doporučenou
-              </span>
-            ) : null
-          }
-        />
+              </p>
+            )}
+          </div>
+          <div className="w-full">
+            <input
+              type="text"
+              inputMode="decimal"
+              value={manualExVatRaw}
+              onChange={(e) => setManualExVatRaw(e.target.value)}
+              onBlur={commitManualExVat}
+              onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+              placeholder="—"
+              className="w-full bg-card border border-border rounded-lg px-3 h-9 text-sm font-mono text-right text-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
+            />
+          </div>
+        </div>
 
         {/* 4b. Cena specialni s DPH — READONLY, automaticky dopocita z bez-DPH × (1 + vatRate/100). */}
         <PriceRow
