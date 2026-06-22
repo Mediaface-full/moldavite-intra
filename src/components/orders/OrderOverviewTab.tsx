@@ -26,6 +26,13 @@ export default function OrderOverviewTab({ order }: { order: SerializedOrder }) 
   const totalCosts = order.costs.reduce((s, c) => s + Number(c.amountCzk ?? 0), 0);
   const totalPurchase = Number(order.totalPurchaseAmountCzk ?? 0);
 
+  // Skutecne soucty napric kazetami — porovnani vs deklarace prodejce
+  // (rozdil signalizuje ze prodejce nadhodnotil nebo nektere kameny chybi).
+  const actualPieces = order.items.length;
+  const actualWeight = order.items.reduce((s, i) => s + Number(i.weight ?? 0), 0);
+  const declaredPieces = order.declaredPieces ?? 0;
+  const declaredWeight = Number(order.declaredWeight ?? 0);
+
   return (
     <div className="space-y-6">
       {/* KPI tiles */}
@@ -61,8 +68,21 @@ export default function OrderOverviewTab({ order }: { order: SerializedOrder }) 
               <Item label="Kontakt" value={order.sellerContact || '—'} />
               <Item label="Datum nákupu" value={fmtDate(order.purchaseDate)} />
               <Item label="Lokalita původu" value={order.originLocality || '—'} />
-              <Item label="Deklarovaný počet prodejcem" value={String(order.declaredPieces)} />
-              <Item label="Deklarovaná váha prodejcem" value={order.declaredWeight ? `${Number(order.declaredWeight).toFixed(2)} g` : '—'} mono />
+              <ItemWithDiff
+                label="Deklarovaný počet prodejcem"
+                value={String(declaredPieces)}
+                actualLabel={`Skutečně v evidenci: ${actualPieces}`}
+                diff={actualPieces - declaredPieces}
+                fmt={(n) => `${n > 0 ? '+' : ''}${n}`}
+              />
+              <ItemWithDiff
+                label="Deklarovaná váha prodejcem"
+                value={declaredWeight > 0 ? `${declaredWeight.toFixed(2)} g` : '—'}
+                actualLabel={`Skutečně v evidenci: ${actualWeight.toFixed(2)} g`}
+                diff={actualWeight - declaredWeight}
+                fmt={(n) => `${n > 0 ? '+' : ''}${n.toFixed(2)} g`}
+                mono
+              />
               <Item label="Cena za gram" value={order.defaultPurchasePricePerGramCzk ? `${Number(order.defaultPurchasePricePerGramCzk).toFixed(2)} Kč/g` : '—'} mono />
               <Item label="Měna nákupu" value={order.sourceCurrency} mono />
               <Item label="Poslední přepočet" value={fmtDate(order.lastCalculatedAt)} mono />
@@ -104,6 +124,37 @@ function Item({ label, value, mono }: { label: string; value: string; mono?: boo
     <div>
       <dt className="text-[10px] text-muted-foreground uppercase tracking-wider font-mono mb-1">{label}</dt>
       <dd className={`text-sm text-foreground ${mono ? 'font-mono' : ''}`}>{value}</dd>
+    </div>
+  );
+}
+
+/**
+ * Item s 2. radkem zobrazujicim skutecne soucty + diff vs deklarace.
+ * Diff barevne: zelene OK (|diff| < 0.5), oranzove warning (vetsi rozdil).
+ */
+function ItemWithDiff({
+  label, value, actualLabel, diff, fmt, mono,
+}: {
+  label: string;
+  value: string;
+  actualLabel: string;
+  diff: number;
+  fmt: (n: number) => string;
+  mono?: boolean;
+}) {
+  const hasDiff = Math.abs(diff) >= 0.5;
+  const diffColor = hasDiff ? 'var(--warning)' : 'var(--success)';
+  const diffSymbol = hasDiff ? '⚠' : '✓';
+  return (
+    <div>
+      <dt className="text-[10px] text-muted-foreground uppercase tracking-wider font-mono mb-1">{label}</dt>
+      <dd className={`text-sm text-foreground ${mono ? 'font-mono' : ''}`}>{value}</dd>
+      <dd className="text-[11px] font-mono mt-1 flex items-center gap-2">
+        <span className="text-muted-foreground">{actualLabel}</span>
+        <span style={{ color: diffColor }}>
+          {diffSymbol} {fmt(diff)}
+        </span>
+      </dd>
     </div>
   );
 }
