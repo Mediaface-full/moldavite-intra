@@ -578,19 +578,19 @@ function PriceSection({
         />
 
         {/* 1b. Cena nákupní za gram (override) — pro výjimečné kameny */}
+        {/* Placeholder ukazuje zděděnou PPG (kazeta → zakázka) jako tlumený text v poli. */}
+        {/* Když user napíše vlastní hodnotu, override; smaže-li, zase dědí. */}
         <PriceRow
           label="Cena nákupní za gram"
           hint={
             ppgOverride && Number(ppgOverride) > 0
               ? 'Override jen pro tento kámen — přebije PPG kazety i zakázky.'
-              : usedPpgHint
-                ? `Aktuálně použito: ${usedPpgHint} Kč/g (zděděno z kazety / zakázky). Override nech prázdné nebo zadej vlastní.`
-                : 'Override jen pro tento kámen. Nech prázdné — kámen zdědí PPG kazety nebo zakázky.'
+              : 'Zděděno z kazety / zakázky (tlumeně v poli). Přepiš pro override jen tohoto kamene.'
           }
           editable
           value={ppgOverride}
           onChange={setPpgOverride}
-          placeholder="—"
+          placeholder={usedPpgHint ?? '—'}
           rightExtra={
             <span className="text-[10px] font-mono whitespace-nowrap" style={{ color: ppgOverride && Number(ppgOverride) > 0 ? 'var(--warning)' : 'var(--muted-foreground)' }}>
               {ppgOverride && Number(ppgOverride) > 0 ? '⚠ override aktivní' : 'dědí (kazeta → zakázka)'}
