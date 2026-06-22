@@ -818,43 +818,59 @@ function PriceSection({
           }
         />
 
-        {/* 3. Cena prodejní — READONLY (vypocet z cenotvorby). */}
-        {/* Pro mimoradnou cenu (vetsi nez doporucena) viz „Cena speciální" niz. */}
-        <PriceRow
-          label="Cena prodejní"
-          hint={'Spočítáno cenotvorbou — pro eshop / Etsy. Pro vlastní cenu nad doporučenou použij pole „Cena speciální" níže.'}
-          editable={false}
-          displayValue={fmt(salePrice)}
-          emptyHint="Spočítá se po přepočtu cenotvorby zakázky."
-          rightExtra={
-            recommendedPriceInclVatCzk && Number(recommendedPriceInclVatCzk) > 0 ? (
-              (() => {
-                const sale = Number(salePrice);
-                const rec = Number(recommendedPriceInclVatCzk);
-                const matches = sale > 0 && Math.abs(sale - rec) < 0.5;
-                // DPH rozpis: bez DPH (computedMinPriceExVatCzk) + DPH (rec − exVat) = s DPH (rec).
-                // Pokud computedMinPriceExVatCzk chybi (legacy data pred prvnim Prepocitat),
-                // odhadneme z rec / 1.21 — vzdy lepsi nez nic ukazat.
-                const exVatStored = computedMinPriceExVatCzk ? Number(computedMinPriceExVatCzk) : null;
-                const exVat = exVatStored && exVatStored > 0 ? exVatStored : rec / 1.21;
-                const vat = rec - exVat;
-                return (
-                  <div className="flex flex-col gap-0.5">
-                    <span className="inline-flex items-center gap-1.5">
-                      <span className="text-[10px] font-mono whitespace-nowrap" style={{ color: matches ? 'var(--success)' : 'var(--muted-foreground)' }}>
-                        {matches ? `✓ odpovídá doporučené (${fmt(recommendedPriceInclVatCzk)})` : `doporučená: ${fmt(recommendedPriceInclVatCzk)}`}
-                      </span>
-                      <BreakdownTooltip breakdown={priceCalcBreakdown} />
-                    </span>
+        {/* 3a. Cena prodejní bez DPH — READONLY (computedMinPriceExVatCzk).
+            Samostatny radek pro lepsi prehlednost; finalni s DPH je na dalsim radku. */}
+        {(() => {
+          const rec = Number(recommendedPriceInclVatCzk ?? 0);
+          const exVatStored = computedMinPriceExVatCzk ? Number(computedMinPriceExVatCzk) : null;
+          const exVat = exVatStored && exVatStored > 0
+            ? exVatStored
+            : rec > 0 ? rec / 1.21 : 0;
+          const vat = rec - exVat;
+          return (
+            <>
+              <PriceRow
+                label="Cena prodejní bez DPH"
+                hint="Doporučená cena před přidáním DPH — pro účetnictví / fakturaci."
+                editable={false}
+                displayValue={exVat > 0 ? fmt(String(exVat)) : '—'}
+                emptyHint="Spočítá se po přepočtu cenotvorby zakázky."
+                rightExtra={
+                  vat > 0 ? (
                     <span className="text-[10px] font-mono text-muted-foreground whitespace-nowrap">
-                      {fmt(String(exVat))} bez DPH + {fmt(String(vat))} DPH = {fmt(String(rec))} s DPH
+                      + {fmt(String(vat))} DPH = {fmt(String(rec))} s DPH (viz níže)
                     </span>
-                  </div>
-                );
-              })()
-            ) : null
-          }
-        />
+                  ) : null
+                }
+              />
+
+              {/* 3b. Cena prodejní s DPH — READONLY. To je co user vidi v eshopu. */}
+              <PriceRow
+                label="Cena prodejní s DPH"
+                hint={'Spočítáno cenotvorbou — pro eshop / Etsy. Pro vlastní cenu nad doporučenou použij pole „Cena speciální" níže.'}
+                editable={false}
+                displayValue={fmt(salePrice)}
+                emptyHint="Spočítá se po přepočtu cenotvorby zakázky."
+                rightExtra={
+                  recommendedPriceInclVatCzk && rec > 0 ? (
+                    (() => {
+                      const sale = Number(salePrice);
+                      const matches = sale > 0 && Math.abs(sale - rec) < 0.5;
+                      return (
+                        <span className="inline-flex items-center gap-1.5">
+                          <span className="text-[10px] font-mono whitespace-nowrap" style={{ color: matches ? 'var(--success)' : 'var(--muted-foreground)' }}>
+                            {matches ? `✓ odpovídá doporučené (${fmt(recommendedPriceInclVatCzk)})` : `doporučená: ${fmt(recommendedPriceInclVatCzk)}`}
+                          </span>
+                          <BreakdownTooltip breakdown={priceCalcBreakdown} />
+                        </span>
+                      );
+                    })()
+                  ) : null
+                }
+              />
+            </>
+          );
+        })()}
 
         {/* 4. Cena speciální */}
         <PriceRow
