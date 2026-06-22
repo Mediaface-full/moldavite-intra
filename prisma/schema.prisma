@@ -230,6 +230,9 @@ model Item {
   /// Cena s náklady = purchasePriceCzk + allocatedOrderCostCzk (řádek "Cena s náklady" v UI)
   costBasisCzk                 Decimal?      @db.Decimal(10, 2)
   computedMarginRate           Decimal?      @db.Decimal(6, 4)  // decimální multiplikátor (1.5 = 150%)
+  /// Per-rule rozpis marže z posledního Přepočítat — pro UI tooltip „jaké koeficienty cenotvorby byly použity".
+  /// Format: { marginBreakdown: Array<{ ruleKey, matched, marginRate }>, totalMarginRate: string }
+  priceCalcBreakdown           Json?
   computedMinPriceExVatCzk     Decimal?      @db.Decimal(10, 2)
   computedMinPriceInclVatCzk   Decimal?      @db.Decimal(10, 2)
   recommendedPriceInclVatCzk   Decimal?      @db.Decimal(10, 2) // po roundingStep, vč. DPH

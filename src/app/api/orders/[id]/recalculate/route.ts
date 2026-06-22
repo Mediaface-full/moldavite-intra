@@ -135,6 +135,15 @@ export async function POST(
         : 0;
       const shouldAutoFillSale = newRecommended > 0;
 
+      // Audit breakdown — per-rule co se aplikovalo. Pro UI tooltip „jake koeficienty".
+      // Necitelne pro NEEDS_INPUT (steps=null); pak null, tooltip se neukaze.
+      const breakdown = r.steps
+        ? {
+            marginBreakdown: r.steps.marginBreakdown,
+            totalMarginRate: r.steps.totalMarginRate,
+          }
+        : null;
+
       await tx.item.update({
         where: { id: r.stoneId },
         data: {
@@ -151,6 +160,7 @@ export async function POST(
           recommendedPriceInclVatCzk: r.steps?.recommendedPriceInclVatCzk ?? null,
           finalInternalPriceInclVatCzk: r.finalInternalPriceInclVatCzk,
           pricingStatus: r.status,
+          priceCalcBreakdown: breakdown as never,
           lastCalculatedAt: now,
         },
       });

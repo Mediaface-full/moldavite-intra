@@ -46,6 +46,7 @@ interface ItemData {
   soldAt?: string | null;
   priceCalcSnapshot?: unknown;
   priceCalcSnapshotAt?: string | null;
+  priceCalcBreakdown?: unknown;
 }
 
 export default function ItemDetailForm({ item }: { item: ItemData }) {
@@ -420,6 +421,7 @@ export default function ItemDetailForm({ item }: { item: ItemData }) {
           costBasisCzk={item.costBasisCzk}
           recommendedPriceInclVatCzk={item.recommendedPriceInclVatCzk}
           pricingStatus={item.pricingStatus}
+          priceCalcBreakdown={item.priceCalcBreakdown}
           usedPpgHint={(() => {
             // Derivuje použité PPG z aktuální purchasePrice / weight (po recalculate).
             const w = Number(formData.weight);
@@ -618,6 +620,7 @@ function PriceSection({
   costBasisCzk,
   recommendedPriceInclVatCzk,
   pricingStatus,
+  priceCalcBreakdown,
   usedPpgHint,
 }: {
   purchasePrice: string;
@@ -631,6 +634,7 @@ function PriceSection({
   costBasisCzk: string | null | undefined;
   recommendedPriceInclVatCzk: string | null | undefined;
   pricingStatus: 'NEEDS_INPUT' | 'NEEDS_REVIEW' | 'OK' | 'STALE' | null | undefined;
+  priceCalcBreakdown?: unknown;
   usedPpgHint: string | null;
   orderHref: string;
 }) {
@@ -710,8 +714,11 @@ function PriceSection({
                 const rec = Number(recommendedPriceInclVatCzk);
                 const matches = sale > 0 && Math.abs(sale - rec) < 0.5;
                 return (
-                  <span className="text-[10px] font-mono whitespace-nowrap" style={{ color: matches ? 'var(--success)' : 'var(--muted-foreground)' }}>
-                    {matches ? `✓ odpovídá doporučené (${fmt(recommendedPriceInclVatCzk)})` : `doporučená: ${fmt(recommendedPriceInclVatCzk)}`}
+                  <span className="inline-flex items-center gap-1.5">
+                    <span className="text-[10px] font-mono whitespace-nowrap" style={{ color: matches ? 'var(--success)' : 'var(--muted-foreground)' }}>
+                      {matches ? `✓ odpovídá doporučené (${fmt(recommendedPriceInclVatCzk)})` : `doporučená: ${fmt(recommendedPriceInclVatCzk)}`}
+                    </span>
+                    <BreakdownTooltip breakdown={priceCalcBreakdown} />
                   </span>
                 );
               })()
@@ -823,6 +830,49 @@ function PricingStatusBadge({ status }: { status: 'NEEDS_INPUT' | 'NEEDS_REVIEW'
     >
       <Icon name={status === 'OK' ? 'ok' : status === 'NEEDS_REVIEW' || status === 'STALE' ? 'warning' : 'pending'} className="w-3 h-3" />
       {m.label}
+    </span>
+  );
+}
+
+/**
+ * Info ikona vedle „doporučená cena" — po najetí ukáže rozpis pravidel cenotvorby
+ * (per-rule margin) co bylo aplikováno v posledním Přepočítat. Tichá pokud breakdown chybí.
+ */
+function BreakdownTooltip({ breakdown }: { breakdown: unknown }) {
+  if (!breakdown || typeof breakdown !== 'object') return null;
+  const b = breakdown as { marginBreakdown?: Array<{ ruleKey: string; matched: string | null; marginRate: string }>, totalMarginRate?: string };
+  const rules = Array.isArray(b.marginBreakdown) ? b.marginBreakdown : [];
+  if (rules.length === 0) return null;
+
+  const fmtPct = (rate: string) => {
+    const n = Number(rate);
+    if (!Number.isFinite(n)) return rate;
+    const pct = n * 100;
+    const sign = pct >= 0 ? '+' : '';
+    return `${sign}${pct.toFixed(0)}%`;
+  };
+
+  // Plain-text tooltip (browser native title). Pro full hover popover bychom potrebovali
+  // Radix Tooltip — title staci pro „kdyz potrebuji vedet".
+  const lines: string[] = ['Použité koeficienty cenotvorby:'];
+  for (const r of rules) {
+    const matched = r.matched ? `(${r.matched})` : '(bez shody)';
+    lines.push(`  • ${r.ruleKey} ${matched} → ${fmtPct(r.marginRate)}`);
+  }
+  if (b.totalMarginRate) {
+    lines.push(`Celková marže: ${fmtPct(b.totalMarginRate)}`);
+  }
+  const title = lines.join('\n');
+
+  return (
+    <span
+      title={title}
+      className="inline-flex items-center justify-center w-4 h-4 rounded-full cursor-help text-muted-foreground hover:text-foreground transition-colors"
+      aria-label="Použité koeficienty cenotvorby"
+    >
+      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" />
+      </svg>
     </span>
   );
 }
