@@ -63,13 +63,38 @@ export default async function BoxDetailPage({
   // jedinou kazetu (jasna mapace; pri vice kazetach by deleni bylo nejednoznacne).
   const actualItemsCount = box.items.length;
   const isSoleBoxInOrder = !!box.order && box.order._count.boxes === 1;
+
+  // Soucty z kamenu — vyuzitelne i pro Box bez vlastnich totals.
+  // Vaha = suma vsech item.weight. Nakupni cena = suma vsech item.purchasePrice
+  // (po PPG x weight z fallback retezce, kalkulovano pri Prepocitat).
+  const itemsWeightSum = box.items.reduce(
+    (sum, it) => sum + (it.weight ? Number(it.weight) : 0),
+    0,
+  );
+  const itemsPurchaseSum = box.items.reduce(
+    (sum, it) => sum + (it.purchasePrice ? Number(it.purchasePrice) : 0),
+    0,
+  );
+
+  // Priorita placeholder: 1) skutecny soucet z items (nejpresnejsi),
+  // 2) zakazka (pokud 1 kazeta, jasna mapace), 3) null. Tooltip vysvetli zdroj.
   const inheritedFromOrder = {
-    purchaseAmount: isSoleBoxInOrder && box.order?.totalPurchaseAmountCzk
-      ? box.order.totalPurchaseAmountCzk.toString()
-      : null,
-    declaredWeight: isSoleBoxInOrder && box.order?.declaredWeight
-      ? box.order.declaredWeight.toString()
-      : null,
+    purchaseAmount: itemsPurchaseSum > 0
+      ? itemsPurchaseSum.toFixed(2)
+      : (isSoleBoxInOrder && box.order?.totalPurchaseAmountCzk
+          ? box.order.totalPurchaseAmountCzk.toString()
+          : null),
+    purchaseAmountSource: itemsPurchaseSum > 0
+      ? `Σ z ${actualItemsCount} kamenů (kupní = váha × Kč/g)`
+      : 'Hodnota převzata ze zakázky (1 kazeta v zakázce)',
+    declaredWeight: itemsWeightSum > 0
+      ? itemsWeightSum.toFixed(2)
+      : (isSoleBoxInOrder && box.order?.declaredWeight
+          ? box.order.declaredWeight.toString()
+          : null),
+    declaredWeightSource: itemsWeightSum > 0
+      ? `Σ z ${actualItemsCount} kamenů (skutečná naměřená)`
+      : 'Hodnota převzata ze zakázky (1 kazeta v zakázce)',
   };
   // PPG ze zakazky (default explicit nebo dopocet z totalPurchase/declaredWeight).
   // Tahle hodnota se pouzije na vsechny kazety v zakazce pres calculate.ts fallback
@@ -191,7 +216,7 @@ export default async function BoxDetailPage({
               min={0}
               suffix="Kč"
               inheritedHint={inheritedFromOrder.purchaseAmount}
-              inheritedHintTitle="Hodnota převzata ze zakázky (1 kazeta v zakázce)"
+              inheritedHintTitle={inheritedFromOrder.purchaseAmountSource}
             />
           </PropRow>
           <PropRow label="Váha celkem">
@@ -204,7 +229,7 @@ export default async function BoxDetailPage({
               min={0}
               suffix="g"
               inheritedHint={inheritedFromOrder.declaredWeight}
-              inheritedHintTitle="Hodnota převzata ze zakázky (1 kazeta v zakázce)"
+              inheritedHintTitle={inheritedFromOrder.declaredWeightSource}
             />
           </PropRow>
         </div>

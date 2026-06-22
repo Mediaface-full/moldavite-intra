@@ -7,6 +7,8 @@ import ItemPhotoUploadModal from '@/components/ItemPhotoUploadModal';
 import MediaToggle from '@/components/MediaToggle';
 import AiButton from '@/components/AiButton';
 import { getSession } from '@/lib/auth';
+import { resolveMargin } from '@/lib/pricing/margin';
+import type { PricingConfigSnapshot, StoneInput } from '@/lib/pricing/types';
 
 export default async function ItemDetailPage({
   params,
@@ -21,7 +23,13 @@ export default async function ItemDetailPage({
       box: {
         include: {
           // Pro breadcrumb segment „Zakázka {code}" pokud kazeta patri do zakazky.
-          order: { select: { id: true, code: true, title: true } },
+          order: {
+            select: {
+              id: true, code: true, title: true,
+              // PricingConfig snapshot pro on-the-fly breakdown fallback (vis nize)
+              pricingConfig: { select: { rules: true } },
+            },
+          },
         },
       },
     },
@@ -32,6 +40,38 @@ export default async function ItemDetailPage({
   const catalogNumber = `${item.box.code}-${item.evidNumber}`;
   const session = await getSession();
   const isAdmin = session?.role === 'ADMIN';
+
+  // Breakdown — bud z DB (ulozene posledni Prepocitat), nebo on-the-fly z aktualniho
+  // PricingConfig + item attrs. Fallback resi pripady kdy Prepocitat probehlo PRED
+  // pridanim sloupce priceCalcBreakdown — bez nej by tooltip „pouzite koeficienty"
+  // mlcel a Gideon by musel slepe klikat Prepocitat.
+  let effectiveBreakdown: unknown = item.priceCalcBreakdown ?? null;
+  if (!effectiveBreakdown && item.box.order?.pricingConfig?.rules) {
+    const rules = item.box.order.pricingConfig.rules as unknown as PricingConfigSnapshot;
+    const stoneInput: StoneInput = {
+      id: item.id,
+      weightGrams: item.weight ? item.weight.toString() : null,
+      purchasePricePerGramCzk: item.purchasePricePerGramCzk?.toString() ?? null,
+      manualPriceInclVatCzk: item.manualPriceInclVatCzk?.toString() ?? null,
+      attrs: {
+        pasShape: item.pasShape || null,
+        location: item.location || null,
+        attrDamage: item.attrDamage || null,
+        attrColor: item.attrColor ?? [],
+        attrCollectible: item.attrCollectible,
+      },
+    };
+    const margin = resolveMargin(stoneInput, rules);
+    effectiveBreakdown = {
+      marginBreakdown: margin.breakdown.map((b) => ({
+        ruleKey: b.ruleKey,
+        matched: b.matched,
+        marginRate: b.marginRate.toString(),
+      })),
+      totalMarginRate: margin.totalRate.toString(),
+      computedOnDemand: true,
+    };
+  }
 
   return (
     <div>
@@ -173,7 +213,7 @@ export default async function ItemDetailPage({
               soldAt: item.soldAt ? item.soldAt.toISOString() : null,
               priceCalcSnapshot: item.priceCalcSnapshot ?? null,
               priceCalcSnapshotAt: item.priceCalcSnapshotAt ? item.priceCalcSnapshotAt.toISOString() : null,
-              priceCalcBreakdown: item.priceCalcBreakdown ?? null,
+              priceCalcBreakdown: effectiveBreakdown,
             }}
           />
         </div>
