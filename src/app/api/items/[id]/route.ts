@@ -4,6 +4,7 @@ import { getSession, logActivity } from '@/lib/auth';
 import { recalcItemPrices } from '@/lib/exchangeRates';
 import { resolvePpg } from '@/lib/pricing/resolve';
 import { captureItemSaleSnapshot } from '@/lib/orders/captureItemSaleSnapshot';
+import { recalcOrder } from '@/lib/orders/recalcOrder';
 
 // Pole co user smi PATCHovat z UI.
 // ZAMERNE VYPUSTENE: purchasePrice, salePrice, purchasePricePerGramCzk
@@ -312,6 +313,35 @@ export async function PATCH(
   // Recalc EUR/USD when sale price changes
   if (data.salePrice !== undefined) {
     await recalcItemPrices(itemId);
+  }
+
+  // Auto plný order recalc — propíše změnu váhy/atributu do recommended cen
+  // všech kamenů v zakázce (alokace nákladů + marže se přepočítají). Bez
+  // tohoto by Gideon musel klikat „Přepočítat" v zakázce po každém uložení.
+  // Spouštíme jen pro pole co ovlivňují cenu; pro pouhý popis/název ne.
+  const affectsPricing =
+    data.weight !== undefined ||
+    data.pasShape !== undefined ||
+    data.attrDamage !== undefined ||
+    data.attrColor !== undefined ||
+    data.attrCollectible !== undefined ||
+    data.location !== undefined ||
+    data.manualPriceInclVatCzk !== undefined;
+
+  if (affectsPricing) {
+    const itemRow = await prisma.item.findUnique({
+      where: { id: itemId },
+      select: { orderId: true },
+    });
+    if (itemRow?.orderId) {
+      try {
+        await recalcOrder(itemRow.orderId);
+      } catch (err) {
+        // Recalc selhal — log, ale neblokuj save (item save uz probehl).
+        // User vidi stary status; muze rucne spustit Prepocitat v zakazce.
+        console.error('Auto-recalc order failed after item PATCH:', err);
+      }
+    }
   }
 
   await logActivity(session.id, 'item.update', `${id}`, JSON.stringify(data));

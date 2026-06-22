@@ -26,6 +26,8 @@ export type MarginResult = {
   totalRate: Decimal;
   breakdown: Array<{
     ruleKey: string;
+    ruleLabel: string | null;     // lidsky popis pravidla z PricingConfig (pokud zadan)
+    ruleType: Rule['type'];       // pro lokalizaci „bez shody" vs „nevybráno" v UI
     matched: string | null;
     marginRate: Decimal;
   }>;
@@ -43,6 +45,8 @@ export function resolveMargin(stone: StoneInput, config: PricingConfigSnapshot):
 
     breakdown.push({
       ruleKey: rule.key,
+      ruleLabel: rule.label ?? null,
+      ruleType: rule.type,
       matched: r.matched,
       marginRate: r.rate,
     });

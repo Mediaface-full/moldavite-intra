@@ -65,6 +65,8 @@ export default async function ItemDetailPage({
     effectiveBreakdown = {
       marginBreakdown: margin.breakdown.map((b) => ({
         ruleKey: b.ruleKey,
+        ruleLabel: b.ruleLabel,
+        ruleType: b.ruleType,
         matched: b.matched,
         marginRate: b.marginRate.toString(),
       })),

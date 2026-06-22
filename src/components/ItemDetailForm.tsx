@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { formatPrice, parseDecimalCs } from '@/lib/utils';
 import { getPasShape } from '@/lib/pasShapes';
 import { computeSizeCategory, SIZE_CATEGORY_COLOR } from '@/lib/sizeCategory';
@@ -50,6 +51,7 @@ interface ItemData {
 }
 
 export default function ItemDetailForm({ item }: { item: ItemData }) {
+  const router = useRouter();
   const [lang, setLang] = useState<'cz' | 'en'>('cz');
   const [formData, setFormData] = useState({
     name: item.name,
@@ -108,6 +110,10 @@ export default function ItemDetailForm({ item }: { item: ItemData }) {
       if (res.ok) {
         setSaved(true);
         setTimeout(() => setSaved(false), 2000);
+        // Refresh server-rendered data — server po PATCH spustil order recalc
+        // (pokud změna ovlivnila cenu), takže fresh data potřeba pro update
+        // recommendedPrice / breakdown / status v UI bez page reload.
+        router.refresh();
       }
     } catch (err) {
       console.error('Failed to save:', err);
@@ -876,7 +882,13 @@ function PricingStatusBadge({ status }: { status: 'NEEDS_INPUT' | 'NEEDS_REVIEW'
 function BreakdownTooltip({ breakdown }: { breakdown: unknown }) {
   if (!breakdown || typeof breakdown !== 'object') return null;
   const b = breakdown as {
-    marginBreakdown?: Array<{ ruleKey: string; matched: string | null; marginRate: string }>;
+    marginBreakdown?: Array<{
+      ruleKey: string;
+      ruleLabel?: string | null;
+      ruleType?: 'bracket' | 'category' | 'multi-category' | 'boolean';
+      matched: string | null;
+      marginRate: string;
+    }>;
     totalMarginRate?: string;
     computedOnDemand?: boolean;
   };
@@ -891,6 +903,32 @@ function BreakdownTooltip({ breakdown }: { breakdown: unknown }) {
     return `${sign}${pct.toFixed(0)}%`;
   };
 
+  // Lidsky popisek pravidla — preferuj label z PricingConfig, fallback na
+  // překlad technického klíče.
+  const FRIENDLY_KEY: Record<string, string> = {
+    weightBracket: 'Hmotnost',
+    pasShape: 'Tvar',
+    location: 'Místo nálezu',
+    attrDamage: 'Poškození',
+    attrColor: 'Barva',
+    attrCollectible: 'Sbírkový kámen',
+  };
+  const labelFor = (r: { ruleKey: string; ruleLabel?: string | null }) =>
+    r.ruleLabel || FRIENDLY_KEY[r.ruleKey] || r.ruleKey;
+
+  // Lidsky popisek matched value podle typu pravidla.
+  const matchedLabel = (r: { ruleType?: string; matched: string | null }): string => {
+    if (r.matched === null || r.matched === '') {
+      if (r.ruleType === 'boolean') return 'ne';
+      if (r.ruleType === 'multi-category') return 'nevybráno';
+      return 'nevyplněno';
+    }
+    if (r.ruleType === 'boolean') {
+      return r.matched === 'true' ? 'ano' : 'ne';
+    }
+    return r.matched;
+  };
+
   return (
     <span className="relative inline-flex group">
       <span
@@ -901,39 +939,40 @@ function BreakdownTooltip({ breakdown }: { breakdown: unknown }) {
           <path strokeLinecap="round" strokeLinejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" />
         </svg>
       </span>
-      {/* CSS-only popover — opacity transition na hover. pointer-events-none aby
-          neblokoval kliky vedle ikony, ale sam tooltip neni clickable (nevadi). */}
       <div
         role="tooltip"
         className="pointer-events-none absolute left-1/2 -translate-x-1/2 bottom-full mb-2 z-50 opacity-0 group-hover:opacity-100 transition-opacity duration-150"
       >
-        <div className="bg-foreground text-background rounded-lg shadow-lg px-3 py-2 min-w-[240px] text-left">
+        <div className="bg-foreground text-background rounded-lg shadow-lg px-3 py-2 min-w-[260px] text-left">
           <p className="text-[10px] font-mono uppercase tracking-wider opacity-70 mb-1.5">
             Použité koeficienty cenotvorby
           </p>
           <ul className="space-y-0.5 text-xs">
-            {rules.map((r, i) => (
-              <li key={i} className="flex items-baseline justify-between gap-3 font-mono">
-                <span>
-                  {r.ruleKey}
-                  {r.matched ? <span className="opacity-60"> ({r.matched})</span> : <span className="opacity-40 italic"> (bez shody)</span>}
-                </span>
-                <span className="font-semibold whitespace-nowrap">{fmtPct(r.marginRate)}</span>
-              </li>
-            ))}
+            {rules.map((r, i) => {
+              const matched = matchedLabel(r);
+              const noMatch = r.matched === null || r.matched === '';
+              return (
+                <li key={i} className="flex items-baseline justify-between gap-3">
+                  <span>
+                    <span>{labelFor(r)}: </span>
+                    <span className={noMatch ? 'opacity-60 italic' : 'font-medium'}>{matched}</span>
+                  </span>
+                  <span className="font-mono font-semibold whitespace-nowrap">{fmtPct(r.marginRate)}</span>
+                </li>
+              );
+            })}
           </ul>
           {b.totalMarginRate && (
-            <div className="mt-1.5 pt-1.5 border-t border-background/20 flex items-baseline justify-between gap-3 text-xs font-mono">
+            <div className="mt-1.5 pt-1.5 border-t border-background/20 flex items-baseline justify-between gap-3 text-xs">
               <span className="opacity-80">Celková marže:</span>
-              <span className="font-bold">{fmtPct(b.totalMarginRate)}</span>
+              <span className="font-mono font-bold">{fmtPct(b.totalMarginRate)}</span>
             </div>
           )}
           {b.computedOnDemand && (
             <p className="mt-1.5 text-[9px] opacity-60 italic">
-              Spočítáno z aktuální cenotvorby — pro definitivní uložení spusť „Přepočítat".
+              Spočítáno z aktuální cenotvorby — pro uložení do historie spusť „Přepočítat".
             </p>
           )}
-          {/* Sipka dolu */}
           <div className="absolute left-1/2 -translate-x-1/2 top-full w-2 h-2 bg-foreground rotate-45 -mt-1" />
         </div>
       </div>

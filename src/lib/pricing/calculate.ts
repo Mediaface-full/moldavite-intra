@@ -243,6 +243,8 @@ function computeStone(
     costBasisCzk: moneyString(costBasis),
     marginBreakdown: marginResult.breakdown.map((b) => ({
       ruleKey: b.ruleKey,
+      ruleLabel: b.ruleLabel,
+      ruleType: b.ruleType,
       matched: b.matched,
       marginRate: rateString(b.marginRate),
     })),

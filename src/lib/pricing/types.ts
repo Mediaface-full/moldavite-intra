@@ -167,6 +167,8 @@ export type StonePricingSteps = {
   costBasisCzk: string;                   // = purchase + allocated
   marginBreakdown: Array<{
     ruleKey: string;
+    ruleLabel: string | null;             // lidsky popis pravidla z PricingConfig
+    ruleType: 'bracket' | 'category' | 'multi-category' | 'boolean';
     matched: string | null;               // jakou hodnotu pravidlo matchlo, NULL = nematchlo
     marginRate: string;                   // decimální (.toFixed(4))
   }>;
