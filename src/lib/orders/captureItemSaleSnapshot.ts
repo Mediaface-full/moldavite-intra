@@ -96,6 +96,8 @@ export async function captureItemSaleSnapshot(
     order: {
       id: order.id,
       defaultPurchasePricePerGramCzk: order.defaultPurchasePricePerGramCzk?.toString() ?? null,
+      totalPurchaseAmountCzk: order.totalPurchaseAmountCzk?.toString() ?? null,
+      declaredWeight: order.declaredWeight?.toString() ?? null,
       allocationMethod: order.allocationMethod,
       vatRatePct: order.vatRatePct.toString(),
       roundingStep: order.roundingStep,

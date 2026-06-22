@@ -355,16 +355,21 @@ function BoxesSummaryCard({ order }: { order: SerializedOrder }) {
           //   1. explicit Box.purchasePricePerGramCzk
           //   2. dopočet Box.purchaseAmountCzk / Box.declaredWeight
           //   3. fallback na Order default (zobrazeno jen pro transparentnost)
+          //   4. dopočet Order.totalPurchaseAmountCzk / Order.declaredWeight (5. úroveň resolve.ts)
           const boxAmount = Number(b.purchaseAmountCzk ?? 0);
           const boxDeclWeight = Number(b.declaredWeight ?? 0);
+          const orderTotalAmount = Number(order.totalPurchaseAmountCzk ?? 0);
+          const orderDeclWeight = Number(order.declaredWeight ?? 0);
           let effectivePpg: number | null = null;
-          let ppgSource: 'box' | 'compute' | 'order' = 'order';
+          let ppgSource: 'box' | 'compute' | 'order' | 'order-compute' = 'order';
           if (b.purchasePricePerGramCzk && Number(b.purchasePricePerGramCzk) > 0) {
             effectivePpg = Number(b.purchasePricePerGramCzk); ppgSource = 'box';
           } else if (boxAmount > 0 && boxDeclWeight > 0) {
             effectivePpg = boxAmount / boxDeclWeight; ppgSource = 'compute';
           } else if (order.defaultPurchasePricePerGramCzk && Number(order.defaultPurchasePricePerGramCzk) > 0) {
             effectivePpg = Number(order.defaultPurchasePricePerGramCzk); ppgSource = 'order';
+          } else if (orderTotalAmount > 0 && orderDeclWeight > 0) {
+            effectivePpg = orderTotalAmount / orderDeclWeight; ppgSource = 'order-compute';
           }
           const mix = order.sellerId != null && b.sellerId != null && b.sellerId !== order.sellerId;
           const declaredVsActual = b.declaredPieces != null && b.declaredPieces > 0 && b.declaredPieces !== itemCount;
@@ -409,13 +414,19 @@ function BoxesSummaryCard({ order }: { order: SerializedOrder }) {
                 <p className="text-[10px] text-muted-foreground font-mono uppercase tracking-wider">PPG</p>
                 <p
                   className="text-sm font-mono"
-                  style={{ color: effectivePpg === null ? 'var(--muted-foreground)' : ppgSource === 'order' ? 'var(--muted-foreground)' : 'var(--foreground)' }}
-                  title={effectivePpg === null ? 'Žádný PPG zdroj — kámen půjde do NEEDS_INPUT' : ppgSource === 'box' ? 'Explicit PPG kazety' : ppgSource === 'compute' ? `Dopočet z ${boxAmount.toFixed(0)} ÷ ${boxDeclWeight.toFixed(2)}` : 'Fallback na PPG zakázky'}
+                  style={{ color: effectivePpg === null ? 'var(--muted-foreground)' : (ppgSource === 'order' || ppgSource === 'order-compute') ? 'var(--muted-foreground)' : 'var(--foreground)' }}
+                  title={
+                    effectivePpg === null ? 'Žádný PPG zdroj — kámen půjde do NEEDS_INPUT'
+                    : ppgSource === 'box' ? 'Explicit PPG kazety'
+                    : ppgSource === 'compute' ? `Dopočet z ${boxAmount.toFixed(0)} ÷ ${boxDeclWeight.toFixed(2)}`
+                    : ppgSource === 'order' ? 'Explicit defaultPPG zakázky'
+                    : `Dopočet z ${orderTotalAmount.toFixed(0)} ÷ ${orderDeclWeight.toFixed(2)} (zakázka)`
+                  }
                 >
                   {effectivePpg !== null ? `${effectivePpg.toFixed(2)}` : '—'}
                 </p>
                 <p className="text-[9px] text-muted-foreground font-mono uppercase tracking-wider">
-                  {ppgSource === 'box' ? 'override' : ppgSource === 'compute' ? 'auto' : 'order'}
+                  {ppgSource === 'box' ? 'override' : ppgSource === 'compute' ? 'auto' : ppgSource === 'order' ? 'order' : 'order auto'}
                 </p>
               </div>
               <div className="text-right min-w-24">

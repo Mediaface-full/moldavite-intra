@@ -78,6 +78,10 @@ export async function POST(
     order: {
       id: order.id,
       defaultPurchasePricePerGramCzk: order.defaultPurchasePricePerGramCzk?.toString() ?? null,
+      // Pro PPG fallback úroveň 5 (Order.totalPurchase / declaredWeight) když
+      // defaultPPG je NULL a kazety nemají vlastní PPG ani amount/weight.
+      totalPurchaseAmountCzk: order.totalPurchaseAmountCzk?.toString() ?? null,
+      declaredWeight: order.declaredWeight?.toString() ?? null,
       allocationMethod: order.allocationMethod,
       vatRatePct: order.vatRatePct.toString(),
       roundingStep: order.roundingStep,

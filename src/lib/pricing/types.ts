@@ -117,8 +117,12 @@ export type StoneInput = {
 /** Vstupní data zakázky. */
 export type OrderInput = {
   id: number;
-  /** Cena za gram v CZK použitá pro stones bez vlastní PPG. NULL = nepoužitelná, stones bez PPG → NEEDS_INPUT. */
+  /** Cena za gram v CZK použitá pro stones bez vlastní PPG. NULL = fallback na dopočet z totalPurchase/declaredWeight. */
   defaultPurchasePricePerGramCzk: string | null;
+  /** Celková nákupní cena zakázky v CZK — pro dopočet PPG když defaultPPG je NULL. */
+  totalPurchaseAmountCzk?: string | null;
+  /** Deklarovaná váha zakázky v g — jmenovatel pro dopočet PPG z totalPurchase. */
+  declaredWeight?: string | null;
   allocationMethod: AllocationMethod;
   /** Sazba DPH v procentech (21.00 = 21%). */
   vatRatePct: string;
