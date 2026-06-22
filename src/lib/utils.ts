@@ -76,3 +76,32 @@ export function formatWeightStrict(
 export function getCatalogNumber(boxCode: string, evidNumber: string): string {
   return `${boxCode}-${evidNumber}`;
 }
+
+/**
+ * Parse number z user inputu — akceptuje českou desetinnou čárku i tečku.
+ * „3,5" → 3.5
+ * „3.5" → 3.5
+ * „abc" → NaN
+ *
+ * Per Gideon konvence: české vstupy jsou s čárkou („50,5" je přirozenější
+ * než „50.5"). Tento helper unifikuje parsing — odkazuj z onChange handlerů
+ * číselných polí ve váze, ceně, procentech.
+ */
+export function parseDecimalCs(input: string | number | null | undefined): number {
+  if (input === null || input === undefined || input === '') return NaN;
+  if (typeof input === 'number') return input;
+  return Number(input.trim().replace(',', '.'));
+}
+
+/**
+ * Normalizuj user input pro display — pokud user píše „3,5" a my chceme
+ * uložit ale zachovat ve formuláři jeho preferovaný formát, použij toto.
+ * Vrací string s tečkou pro DB / API, ale UI input může držet originál
+ * (controlled inputs s vlastním text bufferem — viz NumberLikeInput v
+ * PricingRulesEditor.tsx).
+ */
+export function normalizeDecimalCs(input: string | number | null | undefined): string {
+  if (input === null || input === undefined || input === '') return '';
+  if (typeof input === 'number') return String(input);
+  return input.trim().replace(',', '.');
+}

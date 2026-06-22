@@ -4,11 +4,12 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { apiFetch } from '@/lib/apiFetch';
-import { formatWeight, formatWeightStrict } from '@/lib/utils';
+import { formatWeight, formatWeightStrict, parseDecimalCs } from '@/lib/utils';
 import type { SerializedOrder } from './OrderDetailClient';
 import Icon from '../Icon';
 import SellerPicker from '../SellerPicker';
 import NewBoxButton from '../NewBoxButton';
+import DecimalInput from '../DecimalInput';
 
 function fmtMoney(n: unknown): string {
   const v = Number(n ?? 0);
@@ -84,7 +85,31 @@ export default function OrderOverviewTab({ order }: { order: SerializedOrder }) 
                 fmt={(n) => `${n > 0 ? '+' : ''}${n.toFixed(2)} g`}
                 mono
               />
-              <Item label="Cena za gram" value={order.defaultPurchasePricePerGramCzk ? `${Number(order.defaultPurchasePricePerGramCzk).toFixed(2)} Kč/g` : '—'} mono />
+              {(() => {
+                // Deklarovaná cena za gram = explicitní defaultPPG nebo dopočet z totalPurchase / declaredWeight.
+                // Pokud uživatel nezadal defaultPPG ale máme nákup + váhu, ukážeme „auto" výpočet.
+                const explicit = Number(order.defaultPurchasePricePerGramCzk ?? 0);
+                const totalPurchase = Number(order.totalPurchaseAmountCzk ?? 0);
+                const decW = Number(order.declaredWeight ?? 0);
+                const computed = totalPurchase > 0 && decW > 0 ? totalPurchase / decW : 0;
+                const effective = explicit > 0 ? explicit : computed;
+                const source = explicit > 0 ? 'explicit' : computed > 0 ? 'auto' : 'none';
+                const display = effective > 0 ? `${effective.toFixed(2)} Kč/g` : '—';
+                const hint = source === 'auto'
+                  ? `Dopočet: ${totalPurchase.toFixed(0)} Kč ÷ ${decW.toFixed(2)} g`
+                  : source === 'explicit' && computed > 0 && Math.abs(computed - explicit) >= 0.5
+                    ? `Dopočet by byl ${computed.toFixed(2)} Kč/g (rozdíl ${(explicit - computed).toFixed(2)})`
+                    : null;
+                return (
+                  <div>
+                    <dt className="text-[10px] text-muted-foreground uppercase tracking-wider font-mono mb-1">Deklarovaná cena za gram</dt>
+                    <dd className="text-sm text-foreground font-mono">{display}</dd>
+                    {hint && (
+                      <dd className="text-[11px] font-mono mt-1 text-muted-foreground">{hint}</dd>
+                    )}
+                  </div>
+                );
+              })()}
               <Item label="Měna nákupu" value={order.sourceCurrency} mono />
               <Item label="Poslední přepočet" value={fmtDate(order.lastCalculatedAt)} mono />
             </dl>
@@ -150,9 +175,9 @@ function ItemWithDiff({
     <div>
       <dt className="text-[10px] text-muted-foreground uppercase tracking-wider font-mono mb-1">{label}</dt>
       <dd className={`text-sm text-foreground ${mono ? 'font-mono' : ''}`}>{value}</dd>
-      <dd className="text-[11px] font-mono mt-1 flex items-center gap-2">
+      <dd className="text-sm font-mono mt-1.5 flex items-center gap-2 flex-wrap">
         <span className="text-muted-foreground">{actualLabel}</span>
-        <span style={{ color: diffColor }}>
+        <span style={{ color: diffColor }} className="font-semibold">
           {diffSymbol} {fmt(diff)}
         </span>
       </dd>
@@ -197,11 +222,11 @@ function MetaForm({ order, onSaved }: { order: SerializedOrder; onSaved: () => v
         purchaseDate: purchaseDate || null,
         originLocality,
         declaredPieces: parseInt(declaredPieces, 10) || 0,
-        declaredWeight: declaredWeight === '' ? null : Number(declaredWeight),
-        totalPurchaseAmountCzk: Number(totalPurchase) || 0,
-        totalPurchaseAmountSource: Number(totalPurchase) || 0,
-        defaultPurchasePricePerGramCzk: defaultPPG === '' ? null : Number(defaultPPG),
-        defaultPurchasePricePerGramSource: defaultPPG === '' ? null : Number(defaultPPG),
+        declaredWeight: declaredWeight === '' ? null : parseDecimalCs(String(declaredWeight)),
+        totalPurchaseAmountCzk: parseDecimalCs(String(totalPurchase)) || 0,
+        totalPurchaseAmountSource: parseDecimalCs(String(totalPurchase)) || 0,
+        defaultPurchasePricePerGramCzk: defaultPPG === '' ? null : parseDecimalCs(String(defaultPPG)),
+        defaultPurchasePricePerGramSource: defaultPPG === '' ? null : parseDecimalCs(String(defaultPPG)),
         notes,
       }),
     });
@@ -233,21 +258,33 @@ function MetaForm({ order, onSaved }: { order: SerializedOrder; onSaved: () => v
       <div><label className={labelCls}>Deklarovaný počet prodejcem</label><input type="number" min={0} value={declaredPieces} onChange={(e) => setDeclaredPieces(e.target.value)} className={inputCls} /></div>
       <div>
         <label className={labelCls}>Deklarovaná váha prodejcem (g)</label>
-        <input type="number" min={0} step="0.01" value={String(declaredWeight)} onChange={(e) => setDeclaredWeight(e.target.value)} className={inputCls} placeholder="—" />
-      </div>
-      <div><label className={labelCls}>Celková nákupní cena (CZK)</label><input type="number" step="0.01" value={String(totalPurchase)} onChange={(e) => setTotalPurchase(e.target.value)} className={inputCls} /></div>
-      <div>
-        <label className={labelCls}>Cena za gram (Kč/g)</label>
-        <input
-          type="number" min={0} step="0.01"
-          value={String(defaultPPG)}
-          onChange={(e) => setDefaultPPG(e.target.value)}
+        <DecimalInput
+          value={declaredWeight === '' || declaredWeight === null || declaredWeight === undefined ? null : Number(declaredWeight)}
+          onChange={(n) => setDeclaredWeight(n === null ? '' : String(n))}
+          placeholder="—"
           className={inputCls}
+        />
+      </div>
+      <div>
+        <label className={labelCls}>Celková nákupní cena (CZK)</label>
+        <DecimalInput
+          value={totalPurchase === '' || totalPurchase === null ? null : Number(totalPurchase)}
+          onChange={(n) => setTotalPurchase(n === null ? '0' : String(n))}
+          placeholder="0"
+          className={inputCls}
+        />
+      </div>
+      <div>
+        <label className={labelCls}>Deklarovaná cena za gram (Kč/g)</label>
+        <DecimalInput
+          value={defaultPPG === '' || defaultPPG === null || defaultPPG === undefined ? null : Number(defaultPPG)}
+          onChange={(n) => setDefaultPPG(n === null ? '' : String(n))}
           placeholder={computedPPG ? `auto: ${computedPPG}` : '—'}
+          className={inputCls}
         />
         {computedPPG && (
           <p className="text-[10px] text-muted-foreground font-mono mt-1">
-            Vypočítáno z celkové ceny a váhy: <strong className="text-foreground">{computedPPG} Kč/g</strong>
+            Vypočítáno z celkové ceny a deklarované váhy: <strong className="text-foreground">{computedPPG} Kč/g</strong>
             {defaultPPG === '' && ' (použije se pokud necháš pole prázdné)'}
           </p>
         )}

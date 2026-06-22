@@ -661,7 +661,7 @@ function ZeroInput({ initial, onSave, step, width }: {
   initial: number; onSave: (v: number) => void; step?: string; width?: string;
 }) {
   // Pro step="0.01" (váha, cena) formátuj na 2 desetiny při unfocused stavu.
-  // Při focusu nech raw text (uživatel může mid-typing měnit počet desetin).
+  // Akceptuje českou desetinnou čárku I tečku (type="text" + inputMode="decimal").
   const fmt = (n: number): string => {
     if (n === 0) return '';
     return step === '0.01' ? n.toFixed(2) : String(n);
@@ -673,15 +673,17 @@ function ZeroInput({ initial, onSave, step, width }: {
 
   return (
     <input
-      type="number"
-      step={step}
+      type="text"
+      inputMode="decimal"
       value={shown}
       placeholder="0"
       onChange={(e) => setDisplay(e.target.value)}
       onFocus={() => setFocused(true)}
       onBlur={(e) => {
         setFocused(false);
-        const num = parseFloat(e.target.value) || 0;
+        // Parse s podporou české desetinné čárky („3,5" → 3.5)
+        const raw = e.target.value.trim().replace(',', '.');
+        const num = parseFloat(raw) || 0;
         setDisplay(fmt(num));
         onSave(num);
       }}
