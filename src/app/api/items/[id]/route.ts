@@ -207,6 +207,60 @@ export async function PATCH(
     }
   }
 
+  // Auto re-evaluate pricingStatus po update povinnych evidencnich poli
+  // (pasShape / attrDamage / attrColor / location). Bez nej by status zustal
+  // NEEDS_REVIEW dokud user nespusti „Prepocitat zakazku" — i kdyz uz neni proc.
+  // Toto je „light" re-evaluation per kamen — bez alokace nakladů a marže
+  // (ty potrebuji vsechny items zakazky). Tj. recommendedPrice se zde neprepocita,
+  // jen overime ze povinna pole jsou kompletni + manualPrice neni pod recommended.
+  const affectsRequiredField =
+    data.pasShape !== undefined ||
+    data.attrDamage !== undefined ||
+    data.attrColor !== undefined ||
+    data.location !== undefined;
+
+  if (affectsRequiredField && data.pricingStatus === undefined && !affectsPurchase) {
+    const ctx2 = await prisma.item.findUnique({
+      where: { id: itemId },
+      select: {
+        pasShape: true, attrDamage: true, attrColor: true, location: true,
+        weight: true, recommendedPriceInclVatCzk: true, manualPriceInclVatCzk: true,
+        pricingStatus: true,
+      },
+    });
+    if (ctx2) {
+      // Merge nove (data.*) s aktualnimi DB (ctx2.*) hodnotami
+      const nextPas = (data.pasShape !== undefined ? data.pasShape : ctx2.pasShape) as string | null;
+      const nextDmg = (data.attrDamage !== undefined ? data.attrDamage : ctx2.attrDamage) as string | null;
+      const nextColor = (data.attrColor !== undefined ? data.attrColor : ctx2.attrColor) as string[] | null;
+      const nextLoc = (data.location !== undefined ? data.location : ctx2.location) as string | null;
+
+      const stillMissing = !nextPas || !nextDmg || !nextColor || !Array.isArray(nextColor) || nextColor.length === 0 || !nextLoc;
+      const weight = ctx2.weight ? Number(ctx2.weight) : 0;
+      const recommended = ctx2.recommendedPriceInclVatCzk ? Number(ctx2.recommendedPriceInclVatCzk) : 0;
+      const manual = ctx2.manualPriceInclVatCzk ? Number(ctx2.manualPriceInclVatCzk) : null;
+
+      // Pravidla pro update:
+      // - STALE necháme (signál „spusť Přepočítat" pro alokace/marže)
+      // - NEEDS_INPUT necháme (chybí váha/PPG → priorita nad NEEDS_REVIEW)
+      // - Pokud weight nebo recommended = 0, status flow nezasahujeme (nemáme bezpečně co spočítat)
+      if (
+        ctx2.pricingStatus !== 'STALE' &&
+        ctx2.pricingStatus !== 'NEEDS_INPUT' &&
+        weight > 0 &&
+        recommended > 0
+      ) {
+        if (stillMissing) {
+          data.pricingStatus = 'NEEDS_REVIEW';
+        } else if (manual !== null && manual < recommended) {
+          data.pricingStatus = 'NEEDS_REVIEW';
+        } else {
+          data.pricingStatus = 'OK';
+        }
+      }
+    }
+  }
+
   // Sold transition detection: pokud teď přechází z false na true, po update
   // zafixujeme `priceCalcSnapshot` pro audit. Snapshot reflektuje hodnoty
   // PO aplikaci tohoto PATCHe (ne před) — kdyby user současně změnil weight
