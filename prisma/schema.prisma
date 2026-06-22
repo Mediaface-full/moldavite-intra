@@ -164,6 +164,9 @@ model AttrOption {
   attrKey   String   // 'pasShape' | 'attrDamage' | 'attrColor' | 'location'
   value     String   // čitelná hodnota, ukládá se přímo do Item.{pasShape,attrDamage,attrColor[],location}
   label     String?  // volitelný display label (pokud chybí, použije se `value`)
+  /// Anglický překlad — použije se v EN katalogu (eshop/Etsy export, EN locale UI).
+  /// Pokud null, fallback na `value`.
+  labelEn   String?
   sortOrder Int      @default(0)
   active    Boolean  @default(true)
   createdAt DateTime @default(now())

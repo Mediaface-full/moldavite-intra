@@ -10,6 +10,7 @@ type AttrOption = {
   attrKey: string;
   value: string;
   label: string | null;
+  labelEn: string | null;
   sortOrder: number;
   active: boolean;
 };
@@ -147,17 +148,55 @@ function SectionBlock({
 
   async function updateValue(opt: AttrOption, newVal: string) {
     if (newVal.trim() === opt.value || newVal.trim().length === 0) return;
-    await apiFetch(`/api/attr-options/${opt.id}`, {
+    const res = await apiFetch(`/api/attr-options/${opt.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ value: newVal.trim() }),
+    });
+    if (res.ok) {
+      const data = await res.json().catch(() => ({}));
+      const cascade = data?._meta?.cascadeCount ?? 0;
+      if (cascade > 0) {
+        alert(`Přejmenováno na "${newVal.trim()}". Cascade update na ${cascade} záznamech (kameny / kazety).`);
+      }
+    } else {
+      const data = await res.json().catch(() => ({}));
+      alert(`Přejmenování selhalo: ${data.error ?? res.status}`);
+    }
+    onChange();
+  }
+
+  async function updateLabelEn(opt: AttrOption, newLabelEn: string) {
+    const trimmed = newLabelEn.trim();
+    if (trimmed === (opt.labelEn ?? '')) return;
+    await apiFetch(`/api/attr-options/${opt.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ labelEn: trimmed || null }),
     });
     onChange();
   }
 
   async function remove(opt: AttrOption) {
-    if (!confirm(`Smazat hodnotu "${opt.value}"? Existující kameny si ji ponechají, ale v nových dropdownech se neobjeví.`)) return;
-    await apiFetch(`/api/attr-options/${opt.id}`, { method: 'DELETE' });
+    if (!confirm(`Smazat hodnotu "${opt.value}"?`)) return;
+    let res = await apiFetch(`/api/attr-options/${opt.id}`, { method: 'DELETE' });
+    if (res.status === 409) {
+      // Hodnotu drží X kamenů — vyžádaj explicit force
+      const data = await res.json().catch(() => ({}));
+      const usages = data.usages ?? '?';
+      const forceMsg = `⚠ ${data.error}\n\nDoporučená alternativa: jen schovej přes Active toggle — kameny si hodnotu nechají.\n\nOpravdu smazat i přesto?`;
+      if (!confirm(forceMsg)) { onChange(); return; }
+      res = await apiFetch(`/api/attr-options/${opt.id}?force=1`, { method: 'DELETE' });
+      if (res.ok) {
+        alert(`Smazáno. ${usages} záznamů zůstává s orphan hodnotou „${opt.value}".`);
+      } else {
+        const data2 = await res.json().catch(() => ({}));
+        alert(`Smazání selhalo: ${data2.error ?? res.status}`);
+      }
+    } else if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      alert(`Smazání selhalo: ${data.error ?? res.status}`);
+    }
     onChange();
   }
 
@@ -292,6 +331,11 @@ function SectionBlock({
                 </button>
               </div>
               <InlineEditValue value={opt.value} onSave={(v) => updateValue(opt, v)} />
+              <InlineEditLabelEn
+                value={opt.labelEn ?? ''}
+                placeholder="EN překlad"
+                onSave={(v) => updateLabelEn(opt, v)}
+              />
               <span className="text-[10px] text-muted-foreground font-mono ml-auto flex-shrink-0">
                 sort: {opt.sortOrder}
               </span>
@@ -355,6 +399,44 @@ function InlineEditValue({ value, onSave }: { value: string; onSave: (v: string)
     >
       <span className="group-hover:underline">{value}</span>
       <Icon name="edit" className="w-3 h-3 text-muted-foreground/60 group-hover:text-primary transition-colors" />
+    </button>
+  );
+}
+
+/**
+ * Inline editor pro EN překlad — kompaktnější, no edit button, focus-on-click.
+ * Prázdný stav: muted placeholder „EN překlad" → kliknout pro psaní.
+ */
+function InlineEditLabelEn({
+  value, onSave, placeholder,
+}: { value: string; onSave: (v: string) => void | Promise<void>; placeholder: string }) {
+  const [editing, setEditing] = useState(false);
+  const [val, setVal] = useState(value);
+
+  if (editing) {
+    return (
+      <input
+        type="text"
+        value={val}
+        autoFocus
+        placeholder={placeholder}
+        onChange={(e) => setVal(e.target.value)}
+        onBlur={() => { setEditing(false); onSave(val); }}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') { (e.target as HTMLInputElement).blur(); }
+          if (e.key === 'Escape') { setVal(value); setEditing(false); }
+        }}
+        className="w-32 bg-card border border-ring rounded-md px-2 py-1 text-xs text-foreground font-mono focus:outline-none focus:ring-2 focus:ring-ring/20"
+      />
+    );
+  }
+  return (
+    <button
+      onClick={() => setEditing(true)}
+      className="text-xs font-mono text-muted-foreground hover:text-primary transition-colors flex-shrink-0 w-32 text-left truncate"
+      title="Anglický překlad pro EN export / katalog"
+    >
+      {value || <span className="italic opacity-60">{placeholder}</span>}
     </button>
   );
 }
