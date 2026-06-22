@@ -282,6 +282,19 @@ export async function PATCH(
     }
   }
 
+  // onShop/onEtsy transition false→true: zaznamenat datum vystaveni.
+  // Pri true→false nezahazujeme historicky datum (uzitecne pro audit „kdy byl naposled").
+  if (data.onShop === true || data.onEtsy === true) {
+    const prev = await prisma.item.findUnique({
+      where: { id: itemId },
+      select: { onShop: true, onEtsy: true },
+    });
+    if (prev) {
+      if (data.onShop === true && !prev.onShop) data.onShopAt = new Date();
+      if (data.onEtsy === true && !prev.onEtsy) data.onEtsyAt = new Date();
+    }
+  }
+
   if (isBecomingSold) {
     await prisma.$transaction(async (tx) => {
       await tx.item.update({ where: { id: itemId }, data });

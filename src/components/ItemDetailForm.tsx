@@ -50,6 +50,8 @@ interface ItemData {
   priceCalcSnapshot?: unknown;
   priceCalcSnapshotAt?: string | null;
   priceCalcBreakdown?: unknown;
+  onShopAt?: string | null;
+  onEtsyAt?: string | null;
 }
 
 export default function ItemDetailForm({ item }: { item: ItemData }) {
@@ -558,122 +560,205 @@ export default function ItemDetailForm({ item }: { item: ItemData }) {
           </div>
         ) : null}
 
-        {/* Sold + Toggles */}
-        <div className="space-y-3 pt-2">
-          <div
-            className="flex items-center justify-between p-3 rounded-lg border transition-colors"
-            style={formData.sold ? {
-              background: 'color-mix(in srgb, var(--destructive) 12%, transparent)',
-              borderColor: 'color-mix(in srgb, var(--destructive) 30%, transparent)',
-            } : {
-              background: 'color-mix(in srgb, var(--muted) 50%, transparent)',
-              borderColor: 'var(--border)',
-            }}
-          >
-            <div>
-              <label className="block text-[10px] text-muted-foreground uppercase tracking-wider font-mono">Status</label>
-              <p className="text-sm mt-1">
-                {formData.sold ? (
-                  <span
-                    style={{ color: 'var(--destructive)' }}
-                    className="font-mono font-semibold uppercase tracking-wider text-xs"
-                  >
-                    Prodáno
-                  </span>
-                ) : (
-                  <span className="text-muted-foreground">Neprodáno</span>
-                )}
-              </p>
-            </div>
-            {formData.sold ? (
-              <button
-                onClick={() => setFormData((f) => ({ ...f, sold: !f.sold }))}
-                className="bg-transparent border border-border hover:border-foreground/40 text-muted-foreground hover:text-foreground px-3 py-1.5 rounded-md text-xs font-mono uppercase tracking-wider transition-colors"
-              >
-                Zrušit prodej
-              </button>
-            ) : (
-              <button
-                onClick={() => setFormData((f) => ({ ...f, sold: !f.sold }))}
-                style={{
-                  color: 'var(--destructive)',
-                  borderColor: 'color-mix(in srgb, var(--destructive) 30%, transparent)',
-                }}
-                className="bg-transparent border hover:bg-[color-mix(in_srgb,var(--destructive)_10%,transparent)] px-3 py-1.5 rounded-md text-xs font-mono uppercase tracking-wider transition-colors"
-              >
-                Označit jako prodané
-              </button>
-            )}
+        {/* PRODEJ A VYSTAVENI — vlastni karta s rámečkem, vetsí badge stavu, datum vystavení */}
+        <div className="border border-border rounded-xl overflow-hidden">
+          <div className="bg-muted/40 px-4 py-2.5 border-b border-border">
+            <h3 className="text-xs font-mono uppercase tracking-wider text-foreground inline-flex items-center gap-1.5">
+              <Icon name="cash" className="w-3.5 h-3.5" />
+              Prodej a vystavení
+            </h3>
           </div>
 
-          {/* Gating: dokud neni cena v poradku (OK nebo STALE), nelze vystavit. */}
-          {/* Server-side PATCH item endpoint odmita totez (defense-in-depth). */}
-          {(() => {
-            const publishBlocked = item.pricingStatus
-              && item.pricingStatus !== 'OK'
-              && item.pricingStatus !== 'STALE';
-            const blockedTitle = publishBlocked
-              ? 'Dopiš chybějící údaje a spusť „Přepočítat" v zakázce — kámen ve stavu '
-                + (item.pricingStatus === 'NEEDS_INPUT' ? 'BEZ VSTUPŮ' : 'K REVIZI')
-                + ' nelze vystavit.'
-              : undefined;
-            return (
-              <>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <label className="block text-[10px] text-muted-foreground mb-0.5 uppercase tracking-wider font-mono">Vystavit na Eshop</label>
-                    <p className="text-xs text-muted-foreground">Prodejní cena: {formatPrice(formData.salePrice)}</p>
-                  </div>
-                  <button
-                    onClick={() => {
-                      if (publishBlocked) {
-                        alert(blockedTitle);
-                        return;
-                      }
-                      setFormData((f) => ({ ...f, onShop: !f.onShop }));
-                    }}
-                    disabled={!!publishBlocked}
-                    title={blockedTitle}
-                    style={formData.onShop && !publishBlocked ? { background: 'var(--success)' } : undefined}
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ring-1 ring-inset ${
-                      publishBlocked ? 'bg-muted ring-border opacity-50 cursor-not-allowed' :
-                      formData.onShop ? 'ring-transparent' : 'bg-muted ring-border'
-                    }`}
-                    aria-label="Vystavit na Eshop"
-                  >
-                    <span className={`inline-block h-4 w-4 transform rounded-full bg-card shadow-sm transition-transform ${
-                      formData.onShop && !publishBlocked ? 'translate-x-[22px]' : 'translate-x-0.5'
-                    }`} />
-                  </button>
-                </div>
+          <div className="p-4 space-y-3">
+            {/* Status prodeje */}
+            <div
+              className="flex items-center justify-between p-3 rounded-lg border transition-colors"
+              style={formData.sold ? {
+                background: 'color-mix(in srgb, var(--destructive) 12%, transparent)',
+                borderColor: 'color-mix(in srgb, var(--destructive) 30%, transparent)',
+              } : {
+                background: 'color-mix(in srgb, var(--muted) 50%, transparent)',
+                borderColor: 'var(--border)',
+              }}
+            >
+              <div>
+                <label className="block text-[10px] text-muted-foreground uppercase tracking-wider font-mono">Status</label>
+                <p className="text-sm mt-1">
+                  {formData.sold ? (
+                    <span
+                      style={{ color: 'var(--destructive)' }}
+                      className="font-mono font-semibold uppercase tracking-wider text-xs"
+                    >
+                      Prodáno
+                    </span>
+                  ) : (
+                    <span className="text-muted-foreground">Neprodáno</span>
+                  )}
+                </p>
+              </div>
+              {formData.sold ? (
+                <button
+                  onClick={() => setFormData((f) => ({ ...f, sold: !f.sold }))}
+                  className="bg-transparent border border-border hover:border-foreground/40 text-muted-foreground hover:text-foreground px-3 py-1.5 rounded-md text-xs font-mono uppercase tracking-wider transition-colors"
+                >
+                  Zrušit prodej
+                </button>
+              ) : (
+                <button
+                  onClick={() => setFormData((f) => ({ ...f, sold: !f.sold }))}
+                  style={{
+                    color: 'var(--destructive)',
+                    borderColor: 'color-mix(in srgb, var(--destructive) 30%, transparent)',
+                  }}
+                  className="bg-transparent border hover:bg-[color-mix(in_srgb,var(--destructive)_10%,transparent)] px-3 py-1.5 rounded-md text-xs font-mono uppercase tracking-wider transition-colors"
+                >
+                  Označit jako prodané
+                </button>
+              )}
+            </div>
 
-                <div className="flex items-center justify-between">
-                  <label className="block text-[10px] text-muted-foreground uppercase tracking-wider font-mono">Vystavit na Etsy</label>
-                  <button
-                    onClick={() => {
-                      if (publishBlocked) {
-                        alert(blockedTitle);
-                        return;
-                      }
-                      setFormData((f) => ({ ...f, onEtsy: !f.onEtsy }));
+            {/* Gating: dokud neni cena v poradku (OK nebo STALE), nelze vystavit. */}
+            {/* Server-side PATCH item endpoint odmita totez (defense-in-depth). */}
+            {(() => {
+              const publishBlocked = item.pricingStatus
+                && item.pricingStatus !== 'OK'
+                && item.pricingStatus !== 'STALE';
+              const blockedTitle = publishBlocked
+                ? 'Dopiš chybějící údaje a spusť „Přepočítat" v zakázce — kámen ve stavu '
+                  + (item.pricingStatus === 'NEEDS_INPUT' ? 'BEZ VSTUPŮ' : 'K REVIZI')
+                  + ' nelze vystavit.'
+                : undefined;
+
+              // Prepocet cen pro Vystavit panel
+              const saleVat = item.vatRatePct && Number(item.vatRatePct) > 0 ? Number(item.vatRatePct) : 21;
+              const saleVatMul = 1 + saleVat / 100;
+              const saleInclVat = Number(formData.salePrice ?? 0);
+              const saleExVat = saleInclVat > 0 ? saleInclVat / saleVatMul : 0;
+              const fmtCzk = (n: number) => n > 0 ? `${Math.round(n).toLocaleString('cs-CZ')} Kč` : '—';
+              const fmtDate = (iso?: string | null) => {
+                if (!iso) return null;
+                try {
+                  return new Date(iso).toLocaleDateString('cs-CZ', { day: 'numeric', month: 'numeric', year: 'numeric' });
+                } catch { return null; }
+              };
+              const shopAt = fmtDate(item.onShopAt);
+              const etsyAt = fmtDate(item.onEtsyAt);
+
+              return (
+                <>
+                  {/* Vystavit na Eshop */}
+                  <div
+                    className="rounded-lg border p-3 transition-colors"
+                    style={formData.onShop && !publishBlocked ? {
+                      background: 'color-mix(in srgb, var(--success) 10%, transparent)',
+                      borderColor: 'color-mix(in srgb, var(--success) 45%, transparent)',
+                    } : {
+                      background: 'color-mix(in srgb, var(--muted) 50%, transparent)',
+                      borderColor: 'var(--border)',
                     }}
-                    disabled={!!publishBlocked}
-                    title={blockedTitle}
-                    style={formData.onEtsy && !publishBlocked ? { background: 'var(--warning)' } : undefined}
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ring-1 ring-inset ${
-                      publishBlocked ? 'bg-muted ring-border opacity-50 cursor-not-allowed' :
-                      formData.onEtsy ? 'ring-transparent' : 'bg-muted ring-border'
-                    }`}
-                    aria-label="Vystavit na Etsy"
                   >
-                    <span className={`inline-block h-4 w-4 transform rounded-full bg-card shadow-sm transition-transform ${
-                      formData.onEtsy && !publishBlocked ? 'translate-x-[22px]' : 'translate-x-0.5'
-                    }`} />
-                  </button>
-                </div>
-              </>
-            );
-          })()}
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <label className="text-[10px] text-muted-foreground uppercase tracking-wider font-mono">Vystavit na Eshop</label>
+                          {formData.onShop && !publishBlocked && (
+                            <span
+                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold font-mono uppercase tracking-wider"
+                              style={{ color: '#FFFFFF', background: 'var(--success)' }}
+                            >
+                              <Icon name="ok" className="w-3 h-3" />
+                              VYSTAVENO
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1 font-mono">
+                          {fmtCzk(saleExVat)} bez DPH · {fmtCzk(saleInclVat)} s DPH
+                        </p>
+                        {formData.onShop && shopAt && (
+                          <p className="text-[10px] text-muted-foreground mt-0.5 font-mono">
+                            vystaveno: {shopAt}
+                          </p>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => {
+                          if (publishBlocked) { alert(blockedTitle); return; }
+                          setFormData((f) => ({ ...f, onShop: !f.onShop }));
+                        }}
+                        disabled={!!publishBlocked}
+                        title={blockedTitle}
+                        style={formData.onShop && !publishBlocked ? { background: 'var(--success)' } : undefined}
+                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ring-1 ring-inset flex-shrink-0 ${
+                          publishBlocked ? 'bg-muted ring-border opacity-50 cursor-not-allowed' :
+                          formData.onShop ? 'ring-transparent' : 'bg-muted ring-border'
+                        }`}
+                        aria-label="Vystavit na Eshop"
+                      >
+                        <span className={`inline-block h-4 w-4 transform rounded-full bg-card shadow-sm transition-transform ${
+                          formData.onShop && !publishBlocked ? 'translate-x-[22px]' : 'translate-x-0.5'
+                        }`} />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Vystavit na Etsy */}
+                  <div
+                    className="rounded-lg border p-3 transition-colors"
+                    style={formData.onEtsy && !publishBlocked ? {
+                      background: 'color-mix(in srgb, var(--warning) 10%, transparent)',
+                      borderColor: 'color-mix(in srgb, var(--warning) 45%, transparent)',
+                    } : {
+                      background: 'color-mix(in srgb, var(--muted) 50%, transparent)',
+                      borderColor: 'var(--border)',
+                    }}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <label className="text-[10px] text-muted-foreground uppercase tracking-wider font-mono">Vystavit na Etsy</label>
+                          {formData.onEtsy && !publishBlocked && (
+                            <span
+                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold font-mono uppercase tracking-wider"
+                              style={{ color: '#FFFFFF', background: 'var(--warning)' }}
+                            >
+                              <Icon name="ok" className="w-3 h-3" />
+                              VYSTAVENO
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1 font-mono">
+                          {fmtCzk(saleExVat)} bez DPH · {fmtCzk(saleInclVat)} s DPH
+                        </p>
+                        {formData.onEtsy && etsyAt && (
+                          <p className="text-[10px] text-muted-foreground mt-0.5 font-mono">
+                            vystaveno: {etsyAt}
+                          </p>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => {
+                          if (publishBlocked) { alert(blockedTitle); return; }
+                          setFormData((f) => ({ ...f, onEtsy: !f.onEtsy }));
+                        }}
+                        disabled={!!publishBlocked}
+                        title={blockedTitle}
+                        style={formData.onEtsy && !publishBlocked ? { background: 'var(--warning)' } : undefined}
+                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ring-1 ring-inset flex-shrink-0 ${
+                          publishBlocked ? 'bg-muted ring-border opacity-50 cursor-not-allowed' :
+                          formData.onEtsy ? 'ring-transparent' : 'bg-muted ring-border'
+                        }`}
+                        aria-label="Vystavit na Etsy"
+                      >
+                        <span className={`inline-block h-4 w-4 transform rounded-full bg-card shadow-sm transition-transform ${
+                          formData.onEtsy && !publishBlocked ? 'translate-x-[22px]' : 'translate-x-0.5'
+                        }`} />
+                      </button>
+                    </div>
+                  </div>
+                </>
+              );
+            })()}
+          </div>
         </div>
       </div>
 
@@ -885,7 +970,7 @@ function PriceSection({
           return (
             <>
               <PriceRow
-                label="Cena prodejní bez DPH"
+                label="Cena prodejní (bez DPH)"
                 hint="Doporučená cena před přidáním DPH — pro účetnictví / fakturaci."
                 editable={false}
                 displayValue={exVat > 0 ? fmt(String(exVat)) : '—'}
@@ -894,7 +979,7 @@ function PriceSection({
 
               {/* 3b. Cena prodejní s DPH — READONLY. To je co user vidi v eshopu. */}
               <PriceRow
-                label="Cena prodejní s DPH"
+                label="Cena prodejní (s DPH)"
                 hint={'Spočítáno cenotvorbou — pro eshop / Etsy. Pro vlastní cenu nad doporučenou použij pole „Cena speciální" níže.'}
                 editable={false}
                 displayValue={fmt(salePrice)}

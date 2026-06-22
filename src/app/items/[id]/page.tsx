@@ -219,6 +219,8 @@ export default async function ItemDetailPage({
               priceCalcSnapshot: item.priceCalcSnapshot ?? null,
               priceCalcSnapshotAt: item.priceCalcSnapshotAt ? item.priceCalcSnapshotAt.toISOString() : null,
               priceCalcBreakdown: effectiveBreakdown,
+              onShopAt: item.onShopAt ? item.onShopAt.toISOString() : null,
+              onEtsyAt: item.onEtsyAt ? item.onEtsyAt.toISOString() : null,
             }}
           />
         </div>

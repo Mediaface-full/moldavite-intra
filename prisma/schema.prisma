@@ -197,7 +197,9 @@ model Item {
   weightCt      Decimal  @default(0) @db.Decimal(8, 2) // karáty (1g = 5ct)
   sold          Boolean  @default(false) // prodáno
   onShop        Boolean  @default(false) // Upgates eshop
+  onShopAt      DateTime? // datum vystavení na eshopu (nastaveno při false→true)
   onEtsy        Boolean  @default(false) // Etsy
+  onEtsyAt      DateTime? // datum vystavení na Etsy (nastaveno při false→true)
   upgatesId     String   @default("") // ID pro Upgates export
   etsyId        String   @default("") // ID pro Etsy export
   certHash      String   @default("") // hash pro verifikační stránku
