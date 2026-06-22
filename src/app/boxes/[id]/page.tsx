@@ -31,6 +31,11 @@ export default async function BoxDetailPage({
       items: {
         orderBy: { evidNumber: 'asc' },
       },
+      // Order info pro breadcrumb + back link — kazeta může (ale nemusí)
+      // patřit zakázce. Pokud orderId NULL, kazeta je skladová (legacy).
+      order: {
+        select: { id: true, code: true, title: true },
+      },
     },
   });
 
@@ -43,12 +48,24 @@ export default async function BoxDetailPage({
 
   return (
     <div>
-      {/* Breadcrumb */}
-      <div className="flex items-center gap-2 text-sm text-muted-foreground mb-6">
+      {/* Breadcrumb — pokud kazeta patří zakázce, vlož link na ni mezi „Kazety" a kód */}
+      <div className="flex items-center gap-2 text-sm text-muted-foreground mb-6 flex-wrap">
         <Link href="/boxes" className="hover:text-foreground transition-colors">
           Kazety
         </Link>
         <span>/</span>
+        {box.order && (
+          <>
+            <Link
+              href={`/orders/${box.order.id}`}
+              className="hover:text-foreground transition-colors"
+              title="Zpět na zakázku"
+            >
+              {box.order.code}{box.order.title ? ` — ${box.order.title}` : ''}
+            </Link>
+            <span>/</span>
+          </>
+        )}
         <span className="text-foreground">{box.code}</span>
       </div>
 
@@ -56,6 +73,18 @@ export default async function BoxDetailPage({
       <div className="flex items-start justify-between gap-4 mb-5 flex-wrap">
         <div className="min-w-0">
           <h1 className="text-3xl font-bold tracking-tight font-mono">{box.code}</h1>
+          {box.order && (
+            <Link
+              href={`/orders/${box.order.id}`}
+              className="inline-flex items-center gap-1.5 mt-1.5 text-sm text-primary hover:underline group"
+              title="Otevřít zakázku"
+            >
+              <span className="text-muted-foreground text-xs font-mono uppercase tracking-wider">Zakázka:</span>
+              <span className="font-mono font-medium">{box.order.code}</span>
+              {box.order.title && <span className="text-muted-foreground">— {box.order.title}</span>}
+              <span className="text-muted-foreground/60 group-hover:text-primary transition-colors">↗</span>
+            </Link>
+          )}
           <BoxNameInline
             boxId={box.id}
             initial={isDefaultBoxName(box.name ?? '', box.code) ? '' : (box.name ?? '')}
