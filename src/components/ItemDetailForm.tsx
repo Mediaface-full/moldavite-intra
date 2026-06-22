@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { formatPrice, parseDecimalCs } from '@/lib/utils';
 import { getPasShape } from '@/lib/pasShapes';
@@ -121,6 +121,27 @@ export default function ItemDetailForm({ item }: { item: ItemData }) {
       setSaving(false);
     }
   };
+
+  // Autosave — po kazdy zmene formData (debounce 800ms) spustime save.
+  // Server po PATCH spousti auto-recalc Order, takze recommended cena +
+  // breakdown se propisuji rovnou bez „Ulozit" tlacitka.
+  // Skipni initial mount (formData == item) aby autosave nebezel pri otevreni karty.
+  const autoSaveTimer = useRef<NodeJS.Timeout | null>(null);
+  const skipNextAutoSave = useRef(true);
+  useEffect(() => {
+    if (skipNextAutoSave.current) {
+      skipNextAutoSave.current = false;
+      return;
+    }
+    if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
+    autoSaveTimer.current = setTimeout(() => {
+      handleSave();
+    }, 800);
+    return () => {
+      if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formData]);
 
   const catalogNumber = `${item.box.code}-${item.evidNumber}`;
 
@@ -621,20 +642,38 @@ export default function ItemDetailForm({ item }: { item: ItemData }) {
         </div>
       </div>
 
-      {/* Save */}
-      <div className="mt-6 flex items-center gap-3">
+      {/* Autosave status — bez tlacitka. Save bezi automaticky 800ms po posledni
+          zmene, server hned spousti recalc Order. „Ulozit hned" tlacitko nuti
+          okamzity save (force flush) pred tim nez user opusti stranku. */}
+      <div className="mt-6 flex items-center justify-between gap-3">
+        <div className="text-xs font-mono text-muted-foreground inline-flex items-center gap-2">
+          {saving ? (
+            <>
+              <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+              </svg>
+              <span>Ukládám…</span>
+            </>
+          ) : saved ? (
+            <span style={{ color: 'var(--success)' }} className="inline-flex items-center gap-1.5">
+              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={3}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+              </svg>
+              Uloženo
+            </span>
+          ) : (
+            <span className="opacity-60">Změny se ukládají automaticky.</span>
+          )}
+        </div>
         <button
           onClick={handleSave}
           disabled={saving}
-          className="bg-primary hover:bg-primary/90 disabled:opacity-50 text-primary-foreground px-6 py-2.5 rounded-lg text-sm font-medium transition-colors"
+          className="text-xs font-mono uppercase tracking-wider text-muted-foreground hover:text-foreground disabled:opacity-50 transition-colors"
+          title="Uložit hned bez čekání na auto-save"
         >
-          {saving ? 'Ukládám…' : 'Uložit změny'}
+          Uložit hned
         </button>
-        {saved && (
-          <span style={{ color: 'var(--success)' }} className="text-sm font-mono uppercase tracking-wider text-xs">
-            ✓ Uloženo
-          </span>
-        )}
       </div>
     </div>
   );
