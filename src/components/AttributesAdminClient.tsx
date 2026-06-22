@@ -162,22 +162,45 @@ function SectionBlock({
   }
 
   async function move(opt: AttrOption, direction: -1 | 1) {
-    const sorted = [...options].sort((a, b) => a.sortOrder - b.sortOrder);
+    // Sort dle (sortOrder ASC, value ASC) — fallback pro legacy data kde
+    // víc řádků má stejný sortOrder (často 0 po starém seedu) → tabilní
+    // sekundární klíč zachová deterministic order.
+    const sorted = [...options].sort((a, b) => {
+      const so = a.sortOrder - b.sortOrder;
+      if (so !== 0) return so;
+      return a.value.localeCompare(b.value);
+    });
     const idx = sorted.findIndex((o) => o.id === opt.id);
     const swap = sorted[idx + direction];
     if (!swap) return;
-    await Promise.all([
-      apiFetch(`/api/attr-options/${opt.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sortOrder: swap.sortOrder }),
-      }),
-      apiFetch(`/api/attr-options/${swap.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sortOrder: opt.sortOrder }),
-      }),
-    ]);
+
+    // Pokud mají oba stejný sortOrder (legacy default 0), prostý swap by
+    // nic neudělal. Místo toho renumber CELÉ pole na 0,10,20,...,N*10
+    // se swapnutými pozicemi opt a swap. Atomic, deterministic.
+    const newOrder = sorted.slice();
+    newOrder[idx] = swap;
+    newOrder[idx + direction] = opt;
+
+    // Sequenčně (ne Promise.all) — pokud něco selže, vidíme to v alertu
+    // a refresh zobrazí aktuální stav místo polorozhozeného.
+    try {
+      for (let i = 0; i < newOrder.length; i++) {
+        const target = newOrder[i];
+        const newSort = i * 10;
+        if (target.sortOrder === newSort) continue; // skip no-op
+        const res = await apiFetch(`/api/attr-options/${target.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sortOrder: newSort }),
+        });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data.error ?? `${res.status}`);
+        }
+      }
+    } catch (err) {
+      alert(`Posun selhal: ${err instanceof Error ? err.message : String(err)}`);
+    }
     onChange();
   }
 
