@@ -33,8 +33,19 @@ export default async function BoxDetailPage({
       },
       // Order info pro breadcrumb + back link — kazeta může (ale nemusí)
       // patřit zakázce. Pokud orderId NULL, kazeta je skladová (legacy).
+      // totalPurchase / declaredWeight / defaultPpg + _count.boxes nám umoznuji
+      // ukazat zdedene hodnoty jako placeholder v inputech kazety (kdyz zakazka
+      // ma jen 1 kazetu, deleni je triviální = celá hodnota patří této kazete).
       order: {
-        select: { id: true, code: true, title: true },
+        select: {
+          id: true,
+          code: true,
+          title: true,
+          totalPurchaseAmountCzk: true,
+          declaredWeight: true,
+          defaultPurchasePricePerGramCzk: true,
+          _count: { select: { boxes: true } },
+        },
       },
     },
   });
@@ -45,6 +56,31 @@ export default async function BoxDetailPage({
   const etsyCount = box.items.filter((i) => i.onEtsy).length;
   const session = await getSession();
   const isAdmin = session?.role === 'ADMIN';
+
+  // Zdedene hodnoty pro placeholder inputu v hlavicce kazety.
+  // Skutecny pocet kamenu uz mame (vzdy), takze ho ukazeme jako default i kdyz
+  // user nezadal declaredPieces. Penize a vahu dedime jen pokud zakazka ma
+  // jedinou kazetu (jasna mapace; pri vice kazetach by deleni bylo nejednoznacne).
+  const actualItemsCount = box.items.length;
+  const isSoleBoxInOrder = !!box.order && box.order._count.boxes === 1;
+  const inheritedFromOrder = {
+    purchaseAmount: isSoleBoxInOrder && box.order?.totalPurchaseAmountCzk
+      ? box.order.totalPurchaseAmountCzk.toString()
+      : null,
+    declaredWeight: isSoleBoxInOrder && box.order?.declaredWeight
+      ? box.order.declaredWeight.toString()
+      : null,
+  };
+  // PPG ze zakazky (default explicit nebo dopocet z totalPurchase/declaredWeight).
+  // Tahle hodnota se pouzije na vsechny kazety v zakazce pres calculate.ts fallback
+  // chain, takze ji zobrazit i tady jako placeholder davat smysl bez ohledu na pocet kazet.
+  let orderInheritedPpg: { value: string; source: 'default' | 'compute' } | null = null;
+  if (box.order?.defaultPurchasePricePerGramCzk) {
+    orderInheritedPpg = { value: box.order.defaultPurchasePricePerGramCzk.toString(), source: 'default' };
+  } else if (box.order?.totalPurchaseAmountCzk && box.order.declaredWeight && Number(box.order.declaredWeight) > 0) {
+    const computed = Number(box.order.totalPurchaseAmountCzk) / Number(box.order.declaredWeight);
+    orderInheritedPpg = { value: computed.toFixed(2), source: 'compute' };
+  }
 
   return (
     <div>
@@ -141,7 +177,8 @@ export default async function BoxDetailPage({
               min={0}
               max={9999}
               suffix="ks"
-              placeholder="—"
+              inheritedHint={actualItemsCount > 0 ? String(actualItemsCount) : null}
+              inheritedHintTitle={`Skutečně v kazetě: ${actualItemsCount} ks`}
             />
           </PropRow>
           <PropRow label="Nákupní cena">
@@ -153,7 +190,8 @@ export default async function BoxDetailPage({
               step="0.01"
               min={0}
               suffix="Kč"
-              placeholder="—"
+              inheritedHint={inheritedFromOrder.purchaseAmount}
+              inheritedHintTitle="Hodnota převzata ze zakázky (1 kazeta v zakázce)"
             />
           </PropRow>
           <PropRow label="Váha celkem">
@@ -165,7 +203,8 @@ export default async function BoxDetailPage({
               step="0.01"
               min={0}
               suffix="g"
-              placeholder="—"
+              inheritedHint={inheritedFromOrder.declaredWeight}
+              inheritedHintTitle="Hodnota převzata ze zakázky (1 kazeta v zakázce)"
             />
           </PropRow>
         </div>
@@ -179,6 +218,8 @@ export default async function BoxDetailPage({
                   ? (Number(box.purchaseAmountCzk) / Number(box.declaredWeight)).toFixed(2)
                   : null
               }
+              orderInherited={orderInheritedPpg?.value ?? null}
+              orderInheritedSource={orderInheritedPpg?.source ?? null}
             />
           </PropRow>
         </div>

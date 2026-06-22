@@ -13,10 +13,16 @@ export default function BoxPpgField({
   boxId,
   initial,
   computedFrom,
+  orderInherited,
+  orderInheritedSource,
 }: {
   boxId: number;
   initial: string | null;
   computedFrom: string | null;
+  /** PPG zdedene ze zakazky (default nebo dopocet) — fallback kdyz Box nema vlastni data. */
+  orderInherited?: string | null;
+  /** „default" | „compute" — pro hint text */
+  orderInheritedSource?: 'default' | 'compute' | null;
 }) {
   const router = useRouter();
   const [value, setValue] = useState(initial ?? '');
@@ -53,7 +59,12 @@ export default function BoxPpgField({
   }
 
   const isOverride = value.trim() !== '';
-  const placeholder = computedFrom ? `auto: ${computedFrom}` : '—';
+  // Placeholder priorita: 1) box-level compute (cena/váha) 2) order-level inherited 3) —
+  const placeholder = computedFrom
+    ? `auto: ${computedFrom}`
+    : orderInherited
+      ? `${orderInherited} (ze zakázky)`
+      : '—';
 
   return (
     <div className="flex flex-col gap-1 w-full">
@@ -77,7 +88,9 @@ export default function BoxPpgField({
         {isOverride ? (
           <>Override: {value} Kč/g se použije pro všechny kameny v této kazetě.</>
         ) : computedFrom ? (
-          <>Vypočítáno z nákupu/váhy: <span className="text-foreground">{computedFrom} Kč/g</span>. Pokud necháš pole prázdné, použije se tato hodnota.</>
+          <>Vypočítáno z nákupu/váhy kazety: <span className="text-foreground">{computedFrom} Kč/g</span>. Necháš-li prázdné, použije se tato hodnota.</>
+        ) : orderInherited ? (
+          <>Zděděno ze zakázky ({orderInheritedSource === 'compute' ? 'dopočet z celku' : 'default'}): <span className="text-foreground">{orderInherited} Kč/g</span>. Necháš-li prázdné, použije se tato hodnota.</>
         ) : (
           <>Necháš-li prázdné, použije se hodnota ze zakázky (Order default).</>
         )}

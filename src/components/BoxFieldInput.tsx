@@ -21,6 +21,8 @@ export default function BoxFieldInput({
   min = 0,
   max,
   suffix,
+  inheritedHint,
+  inheritedHintTitle,
 }: {
   boxId: number;
   field: string;
@@ -31,6 +33,10 @@ export default function BoxFieldInput({
   min?: number;
   max?: number;
   suffix?: string;
+  /** Zdedena hodnota co se ukaze v poli jako tlumeny placeholder kdyz user nic nezadal. */
+  inheritedHint?: string | null;
+  /** Tooltip k inherited placeholder vysvětluje odkud hodnota pochází. */
+  inheritedHintTitle?: string;
 }) {
   const router = useRouter();
   const [value, setValue] = useState<string>(initial == null ? '' : String(initial));
@@ -79,6 +85,12 @@ export default function BoxFieldInput({
     }
   }
 
+  // Pokud user nezadal nic a mame inheritedHint, ukaz ho jako placeholder
+  // (sedy text v poli). Vlastni `placeholder` prop ma prednost.
+  const effectivePlaceholder = (placeholder !== undefined && placeholder !== '—' && placeholder !== '')
+    ? placeholder
+    : (inheritedHint ?? '—');
+
   return (
     <div className="flex items-center gap-2 w-full">
       <input
@@ -87,7 +99,8 @@ export default function BoxFieldInput({
         step={step}
         min={type === 'number' ? min : undefined}
         max={max}
-        placeholder={placeholder ?? '—'}
+        placeholder={effectivePlaceholder}
+        title={value === '' && inheritedHint ? (inheritedHintTitle ?? 'Zděděno ze zakázky') : undefined}
         onChange={(e) => setValue(e.target.value)}
         onBlur={save}
         onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
