@@ -37,7 +37,7 @@
   --primary-foreground:   #FFFFFF;
   --success:              #1FAE84;
   --info:                 #2D9C9C;
-  --warning:              #C99A3F;
+  --warning:              #E96A1B;  /* vyrazna oranzova (rodina primary coral) — upozorneni v UI musi byt videt */
   --destructive:          #E0492C;
   --destructive-foreground:#FFFFFF;
   --violet:               #6E5BD6;

@@ -241,7 +241,7 @@ function ItemRow({ item, boxCode, order, onSaveManual }: { item: SerializedItem;
           style={
             showReasonList
               ? {
-                  color: 'var(--background)',
+                  color: '#FFFFFF',
                   background: color,
                   borderColor: color,
                   boxShadow: `0 0 0 1px color-mix(in srgb, ${color} 40%, transparent)`,

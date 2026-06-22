@@ -28,7 +28,12 @@ export default async function OrdersPage() {
   if (!session) redirect('/login');
 
   const orders = await prisma.order.findMany({
-    include: { _count: { select: { items: true, costs: true } } },
+    include: {
+      _count: { select: { items: true, costs: true } },
+      // Pricing status per kamen — pro varovny chip „K revizi / bez vstupu"
+      // ve sloupci Kameny. Light select, bez relations.
+      items: { select: { pricingStatus: true } },
+    },
     orderBy: [{ purchaseDate: 'desc' }, { createdAt: 'desc' }],
   });
 
@@ -70,6 +75,9 @@ export default async function OrdersPage() {
             <tbody>
               {orders.map((o) => {
                 const s = STATUS_LABEL[o.status] ?? { label: o.status, color: 'var(--muted-foreground)', icon: 'info' as IconName };
+                const needsReview = o.items.filter((i) => i.pricingStatus === 'NEEDS_REVIEW').length;
+                const needsInput = o.items.filter((i) => i.pricingStatus === 'NEEDS_INPUT').length;
+                const totalAttention = needsReview + needsInput;
                 return (
                   <ClickableRow
                     key={o.id}
@@ -83,7 +91,32 @@ export default async function OrdersPage() {
                     <td className="px-4 py-3 text-muted-foreground">{o.sellerName || '—'}</td>
                     <td className="px-4 py-3 text-muted-foreground font-mono text-xs">{fmtDate(o.purchaseDate)}</td>
                     <td className="px-4 py-3 text-right font-mono">{fmtMoney(o.totalPurchaseAmountCzk)}</td>
-                    <td className="px-4 py-3 text-right font-mono">{o._count.items}</td>
+                    <td className="px-4 py-3 text-right font-mono">
+                      <div className="inline-flex items-center gap-2 justify-end">
+                        <span>{o._count.items}</span>
+                        {totalAttention > 0 && (
+                          <span
+                            title={
+                              needsInput > 0 && needsReview > 0
+                                ? `${needsInput} kamenů bez vstupů + ${needsReview} kamenů k revizi`
+                                : needsInput > 0
+                                  ? `${needsInput} kamenů bez vstupů pro cenu`
+                                  : `${needsReview} kamenů k revizi (chybí povinná pole)`
+                            }
+                            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-bold font-mono uppercase tracking-wider cursor-help"
+                            style={{
+                              color: '#FFFFFF',
+                              background: 'var(--warning)',
+                            }}
+                          >
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                            </svg>
+                            {totalAttention}
+                          </span>
+                        )}
+                      </div>
+                    </td>
                     <td className="px-4 py-3 text-right font-mono">{o._count.costs}</td>
                     <td className="px-4 py-3">
                       <span
