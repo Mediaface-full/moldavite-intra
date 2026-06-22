@@ -27,6 +27,12 @@ export default function OrderOverviewTab({ order }: { order: SerializedOrder }) 
   const totalRecommended = order.items.reduce((s, i) => s + Number(i.finalInternalPriceInclVatCzk ?? 0), 0);
   const totalCosts = order.costs.reduce((s, c) => s + Number(c.amountCzk ?? 0), 0);
   const totalPurchase = Number(order.totalPurchaseAmountCzk ?? 0);
+  // Bez-DPH varianta — pouzij item.computedMinPriceExVatCzk pokud existuje (presnejsi
+  // — odpovida cenotvorbe pred zaokrouhlenim), jinak fallback totalRecommended / vatMultiplier.
+  const vatRate = Number(order.vatRatePct ?? 21);
+  const vatMultiplier = 1 + vatRate / 100;
+  const totalExVatStored = order.items.reduce((s, i) => s + Number(i.computedMinPriceExVatCzk ?? 0), 0);
+  const totalRecommendedExVat = totalExVatStored > 0 ? totalExVatStored : totalRecommended / vatMultiplier;
 
   // Skutecne soucty napric kazetami — porovnani vs deklarace prodejce
   // (rozdil signalizuje ze prodejce nadhodnotil nebo nektere kameny chybi).
@@ -38,10 +44,11 @@ export default function OrderOverviewTab({ order }: { order: SerializedOrder }) 
   return (
     <div className="space-y-6">
       {/* KPI tiles */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <KpiTile label="Nákup celkem" value={fmtMoney(totalPurchase)} color="var(--muted-foreground)" />
         <KpiTile label="Společné náklady" value={fmtMoney(totalCosts)} color="var(--info)" />
-        <KpiTile label="Doporučená tržba (vč. DPH)" value={fmtMoney(totalRecommended)} color="var(--success)" />
+        <KpiTile label="Doporučená tržba (bez DPH)" value={fmtMoney(totalRecommendedExVat)} color="var(--muted-foreground)" />
+        <KpiTile label="Doporučená tržba (s DPH)" value={fmtMoney(totalRecommended)} color="var(--success)" />
       </div>
 
       {/* Metadata */}

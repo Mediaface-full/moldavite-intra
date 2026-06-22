@@ -72,6 +72,7 @@ export type SerializedItem = {
   purchasePricePerGramCzk: string | null;
   manualPriceInclVatCzk: string | null;
   recommendedPriceInclVatCzk: string | null;
+  computedMinPriceExVatCzk: string | null;
   finalInternalPriceInclVatCzk: string | null;
   allocatedOrderCostCzk: string | null;
   pricingStatus: 'NEEDS_INPUT' | 'NEEDS_REVIEW' | 'OK' | 'STALE';

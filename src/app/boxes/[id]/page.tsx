@@ -44,6 +44,7 @@ export default async function BoxDetailPage({
           totalPurchaseAmountCzk: true,
           declaredWeight: true,
           defaultPurchasePricePerGramCzk: true,
+          vatRatePct: true,
           _count: { select: { boxes: true } },
         },
       },
@@ -106,6 +107,25 @@ export default async function BoxDetailPage({
     const computed = Number(box.order.totalPurchaseAmountCzk) / Number(box.order.declaredWeight);
     orderInheritedPpg = { value: computed.toFixed(2), source: 'compute' };
   }
+
+  // KPI sums pro kazetu (stejny pattern jako Order Overview).
+  const sumRecommendedInclVat = box.items.reduce((s, it) => s + Number(it.finalInternalPriceInclVatCzk ?? 0), 0);
+  const sumRecommendedExVatStored = box.items.reduce((s, it) => s + Number(it.computedMinPriceExVatCzk ?? 0), 0);
+  const vatRate = Number(box.order?.vatRatePct ?? 21);
+  const vatMultiplier = 1 + vatRate / 100;
+  const sumRecommendedExVat = sumRecommendedExVatStored > 0
+    ? sumRecommendedExVatStored
+    : sumRecommendedInclVat / vatMultiplier;
+  // Nakup celkem kazety: skutecna suma z kamenu (po Prepocitat) NEBO declared
+  // (purchaseAmountCzk pole na Box). Suma z kamenu je nejpresnejsi pokud Prepocitat probehl.
+  const boxPurchaseTotal = itemsPurchaseSum > 0
+    ? itemsPurchaseSum
+    : Number(box.purchaseAmountCzk ?? 0);
+
+  const fmtMoney = (n: number): string => {
+    if (!Number.isFinite(n) || n === 0) return '—';
+    return `${Math.round(n).toLocaleString('cs-CZ')} Kč`;
+  };
 
   return (
     <div>
@@ -176,6 +196,13 @@ export default async function BoxDetailPage({
             />
           )}
         </div>
+      </div>
+
+      {/* KPI tiles — stejny pattern jako Order Overview, ale per kazeta */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+        <KpiTile label="Nákup kazety" value={fmtMoney(boxPurchaseTotal)} color="var(--muted-foreground)" />
+        <KpiTile label="Doporučená tržba (bez DPH)" value={fmtMoney(sumRecommendedExVat)} color="var(--muted-foreground)" />
+        <KpiTile label="Doporučená tržba (s DPH)" value={fmtMoney(sumRecommendedInclVat)} color="var(--success)" />
       </div>
 
       {/* Properties — 2 řádky × 3 sloupce */}
@@ -337,6 +364,15 @@ function PropRow({ label, children }: { label: string; children: React.ReactNode
       <div className="flex-1 min-w-0">
         {children}
       </div>
+    </div>
+  );
+}
+
+function KpiTile({ label, value, color }: { label: string; value: string; color: string }) {
+  return (
+    <div className="bg-card border border-border rounded-xl p-5 shadow-sm">
+      <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-mono mb-2">{label}</p>
+      <p className="text-2xl font-bold tracking-tight" style={{ color }}>{value}</p>
     </div>
   );
 }

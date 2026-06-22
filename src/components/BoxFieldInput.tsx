@@ -39,19 +39,27 @@ export default function BoxFieldInput({
   inheritedHintTitle?: string;
 }) {
   const router = useRouter();
-  const [value, setValue] = useState<string>(initial == null ? '' : String(initial));
+  // Treat numeric 0 as „nezadáno" — zobrazí se inherited placeholder místo zavádějícího „0".
+  // Pro type='number' s min=0 nikdy nedává smysl uchovávat „0" jako reálnou hodnotu
+  // (nula nákupní ceny / nula váhy = chybí data). Pro type='text' 0 nepřichází.
+  const initialDisplay = (type === 'number' && (initial === 0 || initial === '0'))
+    ? ''
+    : (initial == null ? '' : String(initial));
+  const [value, setValue] = useState<string>(initialDisplay);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
-  const lastSaved = useRef<string>(initial == null ? '' : String(initial));
+  const lastSaved = useRef<string>(initialDisplay);
 
   // Sync s parent re-render (router.refresh přinese nový initial z DB).
   // Bez tohoto by lastSaved ref držel starou hodnotu a další save by mohl
   // re-uložit hodnotu kterou jsme již uložili → spam PATCH requests / rollback bug.
   useEffect(() => {
-    const next = initial == null ? '' : String(initial);
+    const next = (type === 'number' && (initial === 0 || initial === '0'))
+      ? ''
+      : (initial == null ? '' : String(initial));
     lastSaved.current = next;
     setValue((cur) => (cur === '' || cur === lastSaved.current ? next : cur));
-  }, [initial]);
+  }, [initial, type]);
 
   async function save() {
     if (value === lastSaved.current) return;
