@@ -511,15 +511,15 @@ function BoxesSummaryFooter({ order }: { order: SerializedOrder }) {
   return (
     <div className="border-t border-border bg-muted/20 px-5 py-3 flex items-center justify-between gap-3 flex-wrap">
       <div className="flex items-center gap-x-5 gap-y-1 text-xs font-mono flex-wrap">
-        <span className="text-muted-foreground uppercase tracking-wider text-[10px]">Σ z kazet:</span>
-        <span className={diffPieces ? 'text-warning' : 'text-foreground'}>
-          {sumPieces} ks{diffPieces && ` (Order ${orderPieces})`}
+        <span className="text-muted-foreground uppercase tracking-wider text-[10px]">Součet z kazet:</span>
+        <span className={diffPieces ? 'text-warning' : 'text-foreground'} title={diffPieces ? `V zakázce zadáno ${orderPieces} ks` : undefined}>
+          {sumPieces} ks{diffPieces && ` (v zakázce ${orderPieces})`}
         </span>
-        <span className={diffWeight ? 'text-warning' : 'text-foreground'}>
-          {sumWeight.toFixed(2)} g{diffWeight && orderWeight > 0 && ` (Order ${orderWeight})`}
+        <span className={diffWeight ? 'text-warning' : 'text-foreground'} title={diffWeight && orderWeight > 0 ? `V zakázce zadáno ${orderWeight} g` : undefined}>
+          {sumWeight.toFixed(2)} g{diffWeight && orderWeight > 0 && ` (v zakázce ${orderWeight} g)`}
         </span>
-        <span className={diffPurchase ? 'text-warning' : 'text-foreground'}>
-          {fmtMoney(sumPurchase)}{diffPurchase && orderPurchase > 0 && ` (Order ${fmtMoney(orderPurchase)})`}
+        <span className={diffPurchase ? 'text-warning' : 'text-foreground'} title={diffPurchase && orderPurchase > 0 ? `V zakázce zadáno ${fmtMoney(orderPurchase)}` : undefined}>
+          {fmtMoney(sumPurchase)}{diffPurchase && orderPurchase > 0 && ` (v zakázce ${fmtMoney(orderPurchase)})`}
         </span>
       </div>
       {hasDiff && sumPieces + sumWeight + sumPurchase > 0 && (
