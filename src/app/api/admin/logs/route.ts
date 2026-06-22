@@ -13,10 +13,70 @@ export async function GET(request: NextRequest) {
   const limit = parseBoundedInt(sp.get('limit'), 1, 500, 100);
   const offset = parseBoundedInt(sp.get('offset'), 0, 1_000_000, 0);
   const actionFilter = sp.get('action') || '';
+  const itemCodeRaw = (sp.get('itemCode') || '').trim();
 
-  const where = actionFilter
-    ? { action: { startsWith: actionFilter } }
-    : {};
+  // Search podle katalogového čísla kamene (K0001-0005, K0001 0005, k0001-5, …).
+  // Parse → najdi item podle box.code + evidNumber → filter target = item.id (+ box.code = filter box.* logy).
+  let itemIdFilter: number | null = null;
+  let boxCodeFilter: string | null = null;
+  if (itemCodeRaw) {
+    // Akceptuje různé separátory: „K0001-0005", „K0001 0005", „K0001/0005"
+    const m = itemCodeRaw.match(/^([A-Za-z]\d+)\s*[-_/\s]\s*(\d+)$/);
+    if (m) {
+      const boxCode = m[1].toUpperCase();
+      const evidNumber = m[2].padStart(4, '0');
+      const found = await prisma.item.findFirst({
+        where: { box: { code: boxCode }, evidNumber },
+        select: { id: true, box: { select: { code: true } } },
+      });
+      if (found) {
+        itemIdFilter = found.id;
+        boxCodeFilter = found.box.code;
+      } else {
+        // Item nenalezen → vrat prazdny vysledek
+        return NextResponse.json({ logs: [], total: 0, notFound: `Kámen ${itemCodeRaw} nenalezen` });
+      }
+    } else if (/^[A-Za-z]\d+$/.test(itemCodeRaw)) {
+      // Jen kód kazety bez evidNumber — vrať VŠECHNY logy té kazety + jejích kamenů
+      boxCodeFilter = itemCodeRaw.toUpperCase();
+      const box = await prisma.box.findFirst({ where: { code: boxCodeFilter }, select: { id: true } });
+      if (!box) {
+        return NextResponse.json({ logs: [], total: 0, notFound: `Kazeta ${itemCodeRaw} nenalezena` });
+      }
+    } else {
+      return NextResponse.json({ logs: [], total: 0, notFound: `Neplatný kód „${itemCodeRaw}" — použij např. K0001-0005 nebo K0001` });
+    }
+  }
+
+  // Compose WHERE clause
+  const whereParts: Array<Record<string, unknown>> = [];
+  if (actionFilter) {
+    whereParts.push({ action: { startsWith: actionFilter } });
+  }
+  if (itemIdFilter !== null) {
+    // Konkrétní kámen: jeho logy (target = id) + jeho kazety (target = boxCode).
+    whereParts.push({
+      OR: [
+        { AND: [{ action: { startsWith: 'item.' } }, { target: String(itemIdFilter) }] },
+        ...(boxCodeFilter ? [{ AND: [{ action: { startsWith: 'box.' } }, { target: boxCodeFilter }] }] : []),
+      ],
+    });
+  } else if (boxCodeFilter) {
+    // Jen kazeta — pro všechny její kameny musíme dohledat IDs
+    const items = await prisma.item.findMany({
+      where: { box: { code: boxCodeFilter } },
+      select: { id: true },
+    });
+    const itemIds = items.map((it) => String(it.id));
+    whereParts.push({
+      OR: [
+        { AND: [{ action: { startsWith: 'box.' } }, { target: boxCodeFilter }] },
+        ...(itemIds.length > 0 ? [{ AND: [{ action: { startsWith: 'item.' } }, { target: { in: itemIds } }] }] : []),
+      ],
+    });
+  }
+
+  const where = whereParts.length === 0 ? {} : whereParts.length === 1 ? whereParts[0] : { AND: whereParts };
 
   const [logs, total] = await Promise.all([
     prisma.activityLog.findMany({

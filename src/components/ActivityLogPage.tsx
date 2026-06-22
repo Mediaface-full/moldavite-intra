@@ -37,29 +37,68 @@ export default function ActivityLogPage() {
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(0);
   const [actionFilter, setActionFilter] = useState('');
+  const [itemCodeInput, setItemCodeInput] = useState('');
+  const [itemCodeQuery, setItemCodeQuery] = useState('');
+  const [notFound, setNotFound] = useState<string | null>(null);
   const limit = 50;
 
   useEffect(() => {
     (async () => {
       const params = new URLSearchParams({ limit: String(limit), offset: String(page * limit) });
       if (actionFilter) params.set('action', actionFilter);
+      if (itemCodeQuery) params.set('itemCode', itemCodeQuery);
       const res = await apiFetch(`/api/admin/logs?${params}`);
       if (res.ok) {
         const data = await res.json();
         setLogs(data.logs);
         setTotal(data.total);
+        setNotFound(data.notFound ?? null);
       }
     })();
-  }, [page, actionFilter]);
+  }, [page, actionFilter, itemCodeQuery]);
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex items-center justify-between mb-8 gap-4 flex-wrap">
         <div>
           <h1 className="text-3xl font-bold">Activity Log</h1>
           <p className="text-muted-foreground mt-1">Přehled aktivit v systému ({total} záznamů)</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
+          {/* Hledání podle kódu kamene / kazety */}
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              setPage(0);
+              setItemCodeQuery(itemCodeInput.trim());
+            }}
+            className="inline-flex items-center gap-1.5"
+          >
+            <input
+              type="text"
+              value={itemCodeInput}
+              onChange={(e) => setItemCodeInput(e.target.value)}
+              placeholder="K0001-0005 nebo K0001"
+              className="bg-muted border border-border rounded-lg px-3 py-2 text-sm font-mono w-44 focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
+            />
+            <button
+              type="submit"
+              className="bg-primary text-primary-foreground hover:bg-primary/90 px-3 py-2 rounded-lg text-xs font-mono uppercase tracking-wider transition-colors"
+              title="Hledat logy kamene / kazety"
+            >
+              Hledat
+            </button>
+            {itemCodeQuery && (
+              <button
+                type="button"
+                onClick={() => { setItemCodeInput(''); setItemCodeQuery(''); setPage(0); }}
+                className="text-xs font-mono uppercase tracking-wider text-muted-foreground hover:text-foreground px-2 py-1"
+                title="Zrušit filtr"
+              >
+                ✕
+              </button>
+            )}
+          </form>
           <select
             value={actionFilter}
             onChange={(e) => { setActionFilter(e.target.value); setPage(0); }}
@@ -69,9 +108,23 @@ export default function ActivityLogPage() {
               <option key={f.value} value={f.value}>{f.label}</option>
             ))}
           </select>
-          <CleanupButton onDone={() => { setPage(0); setActionFilter(''); }} />
+          <CleanupButton onDone={() => { setPage(0); setActionFilter(''); setItemCodeInput(''); setItemCodeQuery(''); }} />
         </div>
       </div>
+
+      {notFound && (
+        <div className="mb-4 px-4 py-3 rounded-lg border border-destructive/30 bg-destructive/5 text-sm text-destructive">
+          {notFound}
+        </div>
+      )}
+
+      {itemCodeQuery && !notFound && (
+        <div className="mb-4 px-4 py-2 rounded-lg border border-primary/30 bg-primary/5 text-sm inline-flex items-center gap-2">
+          <span className="text-muted-foreground">Filtr:</span>
+          <span className="font-mono font-semibold">{itemCodeQuery}</span>
+          <span className="text-muted-foreground">({total} záznamů)</span>
+        </div>
+      )}
 
       <div className="overflow-x-auto rounded-xl border border-border">
         <table className="w-full text-sm">
