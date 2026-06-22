@@ -798,6 +798,20 @@ function PriceSection({
           editable={false}
           displayValue={fmt(costBasisCzk)}
           emptyHint="Spočítá se po přepočtu cenotvorby zakázky."
+          rightExtra={
+            costBasisCzk && Number(costBasisCzk) > 0 && purchasePrice && Number(purchasePrice) > 0 ? (
+              (() => {
+                const cb = Number(costBasisCzk);
+                const pp = Number(purchasePrice);
+                const alloc = Math.max(cb - pp, 0);
+                return (
+                  <span className="text-[10px] font-mono whitespace-nowrap" style={{ color: 'var(--muted-foreground)' }}>
+                    {fmt(String(pp))} nákupní {alloc > 0 ? `+ ${fmt(String(alloc))} alokace nákladů` : '· bez alokace'}
+                  </span>
+                );
+              })()
+            ) : null
+          }
         />
 
         {/* 3. Cena prodejní — READONLY (vypocet z cenotvorby). */}
