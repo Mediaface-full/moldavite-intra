@@ -172,11 +172,31 @@ export default function OrderDetailClient({
           )}
         </div>
         <div className="flex items-center gap-2">
-          {staleCount + needsInputCount + needsReviewCount > 0 && (
-            <span className="text-[10px] font-mono uppercase tracking-wider text-warning">
-              {staleCount > 0 && `${staleCount} STALE `}
-              {needsInputCount > 0 && `${needsInputCount} bez vstupů `}
-              {needsReviewCount > 0 && `${needsReviewCount} k revizi`}
+          {(needsInputCount + needsReviewCount) > 0 && (
+            <span
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold font-mono uppercase tracking-wider"
+              title={
+                needsInputCount > 0 && needsReviewCount > 0
+                  ? `${needsInputCount} kamenů bez vstupů + ${needsReviewCount} k revizi`
+                  : needsInputCount > 0
+                    ? `${needsInputCount} kamenů bez vstupů pro cenu`
+                    : `${needsReviewCount} kamenů k revizi (chybí povinná pole)`
+              }
+              style={{ color: '#FFFFFF', background: 'var(--warning)' }}
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+              </svg>
+              {needsInputCount + needsReviewCount} k revizi
+            </span>
+          )}
+          {staleCount > 0 && (
+            <span
+              className="text-[10px] font-mono uppercase tracking-wider px-2 py-0.5 rounded"
+              style={{ color: 'var(--info)', background: 'color-mix(in srgb, var(--info) 12%, transparent)', borderColor: 'color-mix(in srgb, var(--info) 30%, transparent)' }}
+              title="Cenotvorba se změnila — spusť Přepočítat pro aktualizaci"
+            >
+              {staleCount} stale
             </span>
           )}
           <NewBoxButton orderId={order.id} defaultSellerId={order.sellerId} variant="button" />
