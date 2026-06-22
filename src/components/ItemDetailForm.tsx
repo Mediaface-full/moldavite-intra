@@ -40,6 +40,7 @@ interface ItemData {
   priceEUR?: number;
   priceUSD?: number;
   costBasisCzk?: string | null;
+  computedMinPriceExVatCzk?: string | null;
   recommendedPriceInclVatCzk?: string | null;
   manualPriceInclVatCzk?: string | null;
   pricingStatus?: 'NEEDS_INPUT' | 'NEEDS_REVIEW' | 'OK' | 'STALE' | null;
@@ -512,6 +513,7 @@ export default function ItemDetailForm({ item }: { item: ItemData }) {
           ppgOverride={formData.purchasePricePerGramCzk}
           setPpgOverride={(v) => setFormData((f) => ({ ...f, purchasePricePerGramCzk: v }))}
           costBasisCzk={item.costBasisCzk}
+          computedMinPriceExVatCzk={item.computedMinPriceExVatCzk}
           recommendedPriceInclVatCzk={item.recommendedPriceInclVatCzk}
           pricingStatus={item.pricingStatus}
           priceCalcBreakdown={item.priceCalcBreakdown}
@@ -729,6 +731,7 @@ function PriceSection({
   ppgOverride,
   setPpgOverride,
   costBasisCzk,
+  computedMinPriceExVatCzk,
   recommendedPriceInclVatCzk,
   pricingStatus,
   priceCalcBreakdown,
@@ -743,6 +746,7 @@ function PriceSection({
   ppgOverride: string;
   setPpgOverride: (v: string) => void;
   costBasisCzk: string | null | undefined;
+  computedMinPriceExVatCzk: string | null | undefined;
   recommendedPriceInclVatCzk: string | null | undefined;
   pricingStatus: 'NEEDS_INPUT' | 'NEEDS_REVIEW' | 'OK' | 'STALE' | null | undefined;
   priceCalcBreakdown?: unknown;
@@ -828,13 +832,24 @@ function PriceSection({
                 const sale = Number(salePrice);
                 const rec = Number(recommendedPriceInclVatCzk);
                 const matches = sale > 0 && Math.abs(sale - rec) < 0.5;
+                // DPH rozpis: bez DPH (computedMinPriceExVatCzk) + DPH (rec − exVat) = s DPH (rec).
+                // Pokud computedMinPriceExVatCzk chybi (legacy data pred prvnim Prepocitat),
+                // odhadneme z rec / 1.21 — vzdy lepsi nez nic ukazat.
+                const exVatStored = computedMinPriceExVatCzk ? Number(computedMinPriceExVatCzk) : null;
+                const exVat = exVatStored && exVatStored > 0 ? exVatStored : rec / 1.21;
+                const vat = rec - exVat;
                 return (
-                  <span className="inline-flex items-center gap-1.5">
-                    <span className="text-[10px] font-mono whitespace-nowrap" style={{ color: matches ? 'var(--success)' : 'var(--muted-foreground)' }}>
-                      {matches ? `✓ odpovídá doporučené (${fmt(recommendedPriceInclVatCzk)})` : `doporučená: ${fmt(recommendedPriceInclVatCzk)}`}
+                  <div className="flex flex-col gap-0.5">
+                    <span className="inline-flex items-center gap-1.5">
+                      <span className="text-[10px] font-mono whitespace-nowrap" style={{ color: matches ? 'var(--success)' : 'var(--muted-foreground)' }}>
+                        {matches ? `✓ odpovídá doporučené (${fmt(recommendedPriceInclVatCzk)})` : `doporučená: ${fmt(recommendedPriceInclVatCzk)}`}
+                      </span>
+                      <BreakdownTooltip breakdown={priceCalcBreakdown} />
                     </span>
-                    <BreakdownTooltip breakdown={priceCalcBreakdown} />
-                  </span>
+                    <span className="text-[10px] font-mono text-muted-foreground whitespace-nowrap">
+                      {fmt(String(exVat))} bez DPH + {fmt(String(vat))} DPH = {fmt(String(rec))} s DPH
+                    </span>
+                  </div>
                 );
               })()
             ) : null
