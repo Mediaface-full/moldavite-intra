@@ -61,8 +61,8 @@ export default function OrderOverviewTab({ order }: { order: SerializedOrder }) 
               <Item label="Kontakt" value={order.sellerContact || '—'} />
               <Item label="Datum nákupu" value={fmtDate(order.purchaseDate)} />
               <Item label="Lokalita původu" value={order.originLocality || '—'} />
-              <Item label="Deklarovaný počet" value={String(order.declaredPieces)} />
-              <Item label="Deklarovaná váha" value={order.declaredWeight ? `${Number(order.declaredWeight).toFixed(2)} g` : '—'} mono />
+              <Item label="Deklarovaný počet prodejcem" value={String(order.declaredPieces)} />
+              <Item label="Deklarovaná váha prodejcem" value={order.declaredWeight ? `${Number(order.declaredWeight).toFixed(2)} g` : '—'} mono />
               <Item label="Cena za gram" value={order.defaultPurchasePricePerGramCzk ? `${Number(order.defaultPurchasePricePerGramCzk).toFixed(2)} Kč/g` : '—'} mono />
               <Item label="Měna nákupu" value={order.sourceCurrency} mono />
               <Item label="Poslední přepočet" value={fmtDate(order.lastCalculatedAt)} mono />
@@ -178,9 +178,9 @@ function MetaForm({ order, onSaved }: { order: SerializedOrder; onSaved: () => v
       )}
       <div><label className={labelCls}>Datum nákupu</label><input type="date" value={purchaseDate} onChange={(e) => setPurchaseDate(e.target.value)} className={inputCls} /></div>
       <div><label className={labelCls}>Lokalita</label><input type="text" value={originLocality} onChange={(e) => setOriginLocality(e.target.value)} className={inputCls} /></div>
-      <div><label className={labelCls}>Deklarovaný počet</label><input type="number" min={0} value={declaredPieces} onChange={(e) => setDeclaredPieces(e.target.value)} className={inputCls} /></div>
+      <div><label className={labelCls}>Deklarovaný počet prodejcem</label><input type="number" min={0} value={declaredPieces} onChange={(e) => setDeclaredPieces(e.target.value)} className={inputCls} /></div>
       <div>
-        <label className={labelCls}>Deklarovaná váha (g)</label>
+        <label className={labelCls}>Deklarovaná váha prodejcem (g)</label>
         <input type="number" min={0} step="0.01" value={String(declaredWeight)} onChange={(e) => setDeclaredWeight(e.target.value)} className={inputCls} placeholder="—" />
       </div>
       <div><label className={labelCls}>Celková nákupní cena (CZK)</label><input type="number" step="0.01" value={String(totalPurchase)} onChange={(e) => setTotalPurchase(e.target.value)} className={inputCls} /></div>
