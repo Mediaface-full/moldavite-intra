@@ -881,10 +881,15 @@ function PricingStatusBadge({ status }: { status: 'NEEDS_INPUT' | 'NEEDS_REVIEW'
 /**
  * Info ikona vedle „doporučená cena" — po najetí ukáže rozpis pravidel cenotvorby
  * (per-rule margin) co bylo aplikováno v posledním Přepočítat. Tichá pokud breakdown chybí.
+ * CSS-only popover (group-hover) — instant zobrazeni, bez React state.
  */
 function BreakdownTooltip({ breakdown }: { breakdown: unknown }) {
   if (!breakdown || typeof breakdown !== 'object') return null;
-  const b = breakdown as { marginBreakdown?: Array<{ ruleKey: string; matched: string | null; marginRate: string }>, totalMarginRate?: string };
+  const b = breakdown as {
+    marginBreakdown?: Array<{ ruleKey: string; matched: string | null; marginRate: string }>;
+    totalMarginRate?: string;
+    computedOnDemand?: boolean;
+  };
   const rules = Array.isArray(b.marginBreakdown) ? b.marginBreakdown : [];
   if (rules.length === 0) return null;
 
@@ -896,27 +901,52 @@ function BreakdownTooltip({ breakdown }: { breakdown: unknown }) {
     return `${sign}${pct.toFixed(0)}%`;
   };
 
-  // Plain-text tooltip (browser native title). Pro full hover popover bychom potrebovali
-  // Radix Tooltip — title staci pro „kdyz potrebuji vedet".
-  const lines: string[] = ['Použité koeficienty cenotvorby:'];
-  for (const r of rules) {
-    const matched = r.matched ? `(${r.matched})` : '(bez shody)';
-    lines.push(`  • ${r.ruleKey} ${matched} → ${fmtPct(r.marginRate)}`);
-  }
-  if (b.totalMarginRate) {
-    lines.push(`Celková marže: ${fmtPct(b.totalMarginRate)}`);
-  }
-  const title = lines.join('\n');
-
   return (
-    <span
-      title={title}
-      className="inline-flex items-center justify-center w-4 h-4 rounded-full cursor-help text-muted-foreground hover:text-foreground transition-colors"
-      aria-label="Použité koeficienty cenotvorby"
-    >
-      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" />
-      </svg>
+    <span className="relative inline-flex group">
+      <span
+        className="inline-flex items-center justify-center w-4 h-4 rounded-full cursor-help text-muted-foreground group-hover:text-foreground transition-colors"
+        aria-label="Použité koeficienty cenotvorby"
+      >
+        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" />
+        </svg>
+      </span>
+      {/* CSS-only popover — opacity transition na hover. pointer-events-none aby
+          neblokoval kliky vedle ikony, ale sam tooltip neni clickable (nevadi). */}
+      <div
+        role="tooltip"
+        className="pointer-events-none absolute left-1/2 -translate-x-1/2 bottom-full mb-2 z-50 opacity-0 group-hover:opacity-100 transition-opacity duration-150"
+      >
+        <div className="bg-foreground text-background rounded-lg shadow-lg px-3 py-2 min-w-[240px] text-left">
+          <p className="text-[10px] font-mono uppercase tracking-wider opacity-70 mb-1.5">
+            Použité koeficienty cenotvorby
+          </p>
+          <ul className="space-y-0.5 text-xs">
+            {rules.map((r, i) => (
+              <li key={i} className="flex items-baseline justify-between gap-3 font-mono">
+                <span>
+                  {r.ruleKey}
+                  {r.matched ? <span className="opacity-60"> ({r.matched})</span> : <span className="opacity-40 italic"> (bez shody)</span>}
+                </span>
+                <span className="font-semibold whitespace-nowrap">{fmtPct(r.marginRate)}</span>
+              </li>
+            ))}
+          </ul>
+          {b.totalMarginRate && (
+            <div className="mt-1.5 pt-1.5 border-t border-background/20 flex items-baseline justify-between gap-3 text-xs font-mono">
+              <span className="opacity-80">Celková marže:</span>
+              <span className="font-bold">{fmtPct(b.totalMarginRate)}</span>
+            </div>
+          )}
+          {b.computedOnDemand && (
+            <p className="mt-1.5 text-[9px] opacity-60 italic">
+              Spočítáno z aktuální cenotvorby — pro definitivní uložení spusť „Přepočítat".
+            </p>
+          )}
+          {/* Sipka dolu */}
+          <div className="absolute left-1/2 -translate-x-1/2 top-full w-2 h-2 bg-foreground rotate-45 -mt-1" />
+        </div>
+      </div>
     </span>
   );
 }
