@@ -5,13 +5,17 @@ import { recalcItemPrices } from '@/lib/exchangeRates';
 import { resolvePpg } from '@/lib/pricing/resolve';
 import { captureItemSaleSnapshot } from '@/lib/orders/captureItemSaleSnapshot';
 
+// Pole co user smi PATCHovat z UI.
+// ZAMERNE VYPUSTENE: purchasePrice, salePrice, purchasePricePerGramCzk
+//   - Tyto se vypocitavaji z cenotvorby (zakazka -> kazeta -> kamen fallback).
+//   - User chce upravit cenu? → Cena speciální (manualPriceInclVatCzk).
+//   - Recalc endpoint je pise primo do DB, ne pres tento PATCH.
 const ALLOWED_FIELDS = [
   'name', 'nameEn', 'description', 'descriptionEn', 'longDescription', 'longDescriptionEn',
-  'location', 'storage', 'purchasePrice', 'salePrice',
+  'location', 'storage',
   'weight', 'onShop', 'onEtsy', 'sold', 'mainPhoto', 'upgatesId', 'etsyId',
   'pasShape',
-  // Etapa 2/3 — cenotvorba per-item:
-  'orderId', 'purchasePricePerGramCzk', 'purchasePricePerGramSource',
+  'orderId',
   'manualPriceInclVatCzk',
   'attrDamage', 'attrColor', 'attrCollectible',
 ];

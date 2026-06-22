@@ -448,24 +448,32 @@ export default function ItemsTable({ items: initialItems, boxCode, isAdmin = tru
                   />
                 </td>
 
-                {/* Purchase Price */}
+                {/* Purchase Price — READONLY (vypocet z cenotvorby zakazky/kazety) */}
                 {isAdmin && (
-                  <td className="px-3 py-2 text-right" onClick={stopRowClick}>
-                    <ZeroInput
-                      width="w-24"
-                      initial={typeof item.purchasePrice === 'string' ? parseFloat(item.purchasePrice) : item.purchasePrice}
-                      onSave={(v) => autoSave(item.id, 'purchasePrice', v)}
-                    />
+                  <td className="px-3 py-2 text-right">
+                    <span
+                      className="inline-block w-24 px-2 py-1 font-mono text-xs text-foreground text-right"
+                      title="Spočítáno z cenotvorby — nelze editovat. Pro vlastní cenu použij Cenu speciální na detailu kamene."
+                    >
+                      {(() => {
+                        const v = typeof item.purchasePrice === 'string' ? parseFloat(item.purchasePrice) : item.purchasePrice;
+                        return v > 0 ? Math.round(v).toLocaleString('cs-CZ') : '—';
+                      })()}
+                    </span>
                   </td>
                 )}
 
-                {/* Sale Price */}
-                <td className="px-3 py-2 text-right" onClick={stopRowClick}>
-                  <ZeroInput
-                    width="w-24"
-                    initial={typeof item.salePrice === 'string' ? parseFloat(item.salePrice) : item.salePrice}
-                    onSave={(v) => autoSave(item.id, 'salePrice', v)}
-                  />
+                {/* Sale Price — READONLY (vypocet z cenotvorby) */}
+                <td className="px-3 py-2 text-right">
+                  <span
+                    className="inline-block w-24 px-2 py-1 font-mono text-xs text-foreground text-right"
+                    title="Spočítáno z cenotvorby — nelze editovat. Pro vlastní cenu použij Cenu speciální na detailu kamene."
+                  >
+                    {(() => {
+                      const v = typeof item.salePrice === 'string' ? parseFloat(item.salePrice) : item.salePrice;
+                      return v > 0 ? Math.round(v).toLocaleString('cs-CZ') : '—';
+                    })()}
+                  </span>
                 </td>
 
                 {/* Eshop Toggle - disabled if sold, prodáno nebo kámen není OK */}

@@ -696,34 +696,23 @@ function PriceSection({
       </div>
 
       <div className="divide-y divide-border">
-        {/* 1. Cena nákupní */}
+        {/* 1. Cena nákupní — READONLY (vypocet z cenotvorby zakazky/kazety). */}
+        {/* Editovatelne je jen „Cena speciální" niz. */}
         <PriceRow
           label="Cena nákupní"
-          hint="Co stál kámen při nákupu od dodavatele."
-          editable
-          value={purchasePrice}
-          onChange={setPurchasePrice}
+          hint={'Spočítáno z cenotvorby zakázky/kazety (váha × Kč/g). Pro vlastní cenu použij pole „Cena speciální" níže.'}
+          editable={false}
+          displayValue={fmt(purchasePrice)}
+          emptyHint="Spočítá se po přepočtu cenotvorby zakázky."
         />
 
-        {/* 1b. Cena nákupní za gram (override) — pro výjimečné kameny */}
-        {/* Placeholder ukazuje zděděnou PPG (kazeta → zakázka) jako tlumený text v poli. */}
-        {/* Když user napíše vlastní hodnotu, override; smaže-li, zase dědí. */}
+        {/* 1b. Cena nákupní za gram — READONLY (zděděno z kazety/zakázky). */}
         <PriceRow
           label="Cena nákupní za gram"
-          hint={
-            ppgOverride && Number(ppgOverride) > 0
-              ? 'Override jen pro tento kámen — přebije PPG kazety i zakázky.'
-              : 'Zděděno z kazety / zakázky (tlumeně v poli). Přepiš pro override jen tohoto kamene.'
-          }
-          editable
-          value={ppgOverride}
-          onChange={setPpgOverride}
-          placeholder={usedPpgHint ?? '—'}
-          rightExtra={
-            <span className="text-[10px] font-mono whitespace-nowrap" style={{ color: ppgOverride && Number(ppgOverride) > 0 ? 'var(--warning)' : 'var(--muted-foreground)' }}>
-              {ppgOverride && Number(ppgOverride) > 0 ? '⚠ override aktivní' : 'dědí (kazeta → zakázka)'}
-            </span>
-          }
+          hint="Dědí se z kazety nebo zakázky. Mění se v Cenotvorbě zakázky, ne tady."
+          editable={false}
+          displayValue={ppgOverride && Number(ppgOverride) > 0 ? `${ppgOverride} Kč/g` : (usedPpgHint ? `${usedPpgHint} Kč/g` : '—')}
+          emptyHint="Spočítá se po přepočtu cenotvorby zakázky."
         />
 
         {/* 2. Cena s náklady */}
@@ -735,13 +724,14 @@ function PriceSection({
           emptyHint="Spočítá se po přepočtu cenotvorby zakázky."
         />
 
-        {/* 3. Cena prodejní */}
+        {/* 3. Cena prodejní — READONLY (vypocet z cenotvorby). */}
+        {/* Pro mimoradnou cenu (vetsi nez doporucena) viz „Cena speciální" niz. */}
         <PriceRow
           label="Cena prodejní"
-          hint={'Cena pro eshop / Etsy. Při každém přepočtu zakázky se přepíše na doporučenou. Pro speciální cenu mimo cenotvorbu použij pole „Cena speciální" níže.'}
-          editable
-          value={salePrice}
-          onChange={setSalePrice}
+          hint={'Spočítáno cenotvorbou — pro eshop / Etsy. Pro vlastní cenu nad doporučenou použij pole „Cena speciální" níže.'}
+          editable={false}
+          displayValue={fmt(salePrice)}
+          emptyHint="Spočítá se po přepočtu cenotvorby zakázky."
           rightExtra={
             recommendedPriceInclVatCzk && Number(recommendedPriceInclVatCzk) > 0 ? (
               (() => {
