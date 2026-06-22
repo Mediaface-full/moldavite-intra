@@ -233,20 +233,31 @@ function ItemRow({ item, boxCode, order, onSaveManual }: { item: SerializedItem;
         )}
       </td>
       <td className="px-3 py-2">
+        {/* Vyrazne badge pro NEEDS_INPUT/NEEDS_REVIEW — solid pozadi, vetsi font, bold. */}
+        {/* OK/STALE zustavaji jako tlumene chip. */}
         <span
           title={tooltipTitle}
-          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono uppercase tracking-wider border ${showReasonList ? 'cursor-help' : ''}`}
-          style={{
-            color,
-            background: `color-mix(in srgb, ${color} 12%, transparent)`,
-            borderColor: `color-mix(in srgb, ${color} 30%, transparent)`,
-          }}
+          className={`inline-flex items-center gap-1.5 rounded font-mono uppercase tracking-wider border ${showReasonList ? 'cursor-help font-bold px-2.5 py-1 text-xs' : 'px-2 py-0.5 text-[10px]'}`}
+          style={
+            showReasonList
+              ? {
+                  color: 'var(--background)',
+                  background: color,
+                  borderColor: color,
+                  boxShadow: `0 0 0 1px color-mix(in srgb, ${color} 40%, transparent)`,
+                }
+              : {
+                  color,
+                  background: `color-mix(in srgb, ${color} 12%, transparent)`,
+                  borderColor: `color-mix(in srgb, ${color} 30%, transparent)`,
+                }
+          }
         >
-          <Icon name={STATUS_ICON[status]} className="w-3 h-3" />
+          <Icon name={STATUS_ICON[status]} className={showReasonList ? 'w-3.5 h-3.5' : 'w-3 h-3'} />
           {STATUS_LABEL[status]}
         </span>
         {showReasonList && (
-          <div className="text-[10px] font-mono text-muted-foreground mt-1 leading-snug max-w-[200px]">
+          <div className="text-[10px] font-mono mt-1 leading-snug max-w-[200px]" style={{ color }}>
             {missingReasons.map((r, i) => (
               <div key={i}>• {r}</div>
             ))}

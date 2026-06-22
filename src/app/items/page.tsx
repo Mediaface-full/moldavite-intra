@@ -32,6 +32,9 @@ export default async function ItemsPage() {
           mainPhoto: item.mainPhoto,
           photoPath: item.photoPath,
           pasShape: item.pasShape,
+          pricingStatus: item.pricingStatus,
+          attrDamage: item.attrDamage,
+          attrColor: item.attrColor,
           box: item.box,
         }))}
       />

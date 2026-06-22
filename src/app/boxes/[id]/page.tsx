@@ -241,6 +241,10 @@ export default async function BoxDetailPage({
           mainPhoto: item.mainPhoto,
           photoPath: item.photoPath,
           pasShape: item.pasShape,
+          // Pro warning trojuhelnik ve sloupci „Stav".
+          pricingStatus: item.pricingStatus,
+          attrDamage: item.attrDamage,
+          attrColor: item.attrColor,
         }))}
       />
     </div>

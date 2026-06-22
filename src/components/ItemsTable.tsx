@@ -32,7 +32,25 @@ interface Item {
   mainPhoto: number;
   photoPath: string;
   pasShape?: string;
+  // Pricing status + povinna evidencni pole — pro „Stav" sloupec s warning trojuhelnikem.
+  // Volitelne (optional) kvuli zpetne kompatibilite legacy mist (Boxes index, atd.)
+  // ktera ItemsTable pouzivaji bez tehle dat.
+  pricingStatus?: 'NEEDS_INPUT' | 'NEEDS_REVIEW' | 'OK' | 'STALE';
+  attrDamage?: string;
+  attrColor?: string[];
   box?: { code: string };
+}
+
+/** Vyjmenuje povinna evidencni pole co kameni chybi pro stav K REVIZI. */
+function listMissingRequired(item: Item): string[] {
+  const missing: string[] = [];
+  if (!item.pasShape) missing.push('tvar');
+  if (item.attrDamage !== undefined && !item.attrDamage) missing.push('poškození');
+  if (item.attrColor !== undefined && (!item.attrColor || item.attrColor.length === 0)) missing.push('barva');
+  if (!item.location) missing.push('místo nálezu');
+  const weight = typeof item.weight === 'string' ? parseFloat(item.weight) : item.weight;
+  if (!Number.isFinite(weight) || weight <= 0) missing.push('váha');
+  return missing;
 }
 
 interface ItemsTableProps {
@@ -289,6 +307,7 @@ export default function ItemsTable({ items: initialItems, boxCode, isAdmin = tru
         <table className="w-full text-sm">
           <thead>
             <tr className="bg-muted/40 border-b border-border">
+              <th className="text-center px-2 py-3 text-muted-foreground font-mono text-[10px] uppercase tracking-wider w-8" title="Stav cenotvorby">⚠</th>
               <th className="text-left px-3 py-3 text-muted-foreground font-mono text-[10px] uppercase tracking-wider w-14">Foto</th>
               <th className="text-left px-3 py-3 text-muted-foreground font-mono text-[10px] uppercase tracking-wider">Kat. č.</th>
               <th className="text-left px-3 py-3 text-muted-foreground font-mono text-[10px] uppercase tracking-wider">Místo nálezu</th>
@@ -311,6 +330,35 @@ export default function ItemsTable({ items: initialItems, boxCode, isAdmin = tru
                 onClick={() => router.push(`/items/${item.id}`)}
                 className={`border-b border-border hover:bg-muted/40 transition-colors cursor-pointer ${item.sold ? 'opacity-50' : ''}`}
               >
+                {/* Stav cenotvorby — varovny trojuhelnik pro NEEDS_INPUT/NEEDS_REVIEW */}
+                <td className="px-2 py-2 text-center" onClick={stopRowClick}>
+                  {(() => {
+                    const status = item.pricingStatus;
+                    if (!status || status === 'OK' || status === 'STALE') return null;
+                    const missing = listMissingRequired(item);
+                    const tooltip = missing.length > 0
+                      ? `${status === 'NEEDS_INPUT' ? 'Chybí' : 'K revizi'}: ${missing.join(', ')}`
+                      : status === 'NEEDS_INPUT' ? 'Chybí vstupy pro cenu' : 'K revizi';
+                    const color = status === 'NEEDS_INPUT' ? 'var(--muted-foreground)' : 'var(--warning)';
+                    return (
+                      <Link
+                        href={`/items/${item.id}`}
+                        title={tooltip}
+                        className="inline-flex items-center justify-center w-7 h-7 rounded-full cursor-help hover:opacity-80 transition-opacity"
+                        style={{
+                          background: `color-mix(in srgb, ${color} 18%, transparent)`,
+                          border: `1.5px solid ${color}`,
+                          color,
+                        }}
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                        </svg>
+                      </Link>
+                    );
+                  })()}
+                </td>
+
                 {/* Thumbnail */}
                 <td className="px-3 py-2">
                   <div className="w-11 h-11 rounded-lg overflow-hidden bg-white border border-border">

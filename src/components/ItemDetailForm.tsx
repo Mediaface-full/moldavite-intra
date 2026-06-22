@@ -117,8 +117,63 @@ export default function ItemDetailForm({ item }: { item: ItemData }) {
 
   const catalogNumber = `${item.box.code}-${item.evidNumber}`;
 
+  // Banner „K revizi" — viditelne nahore detail karte. Vyjmenuje povinna
+  // pole co kameni chybi, plus pripadnou manualPrice anomalii. Skryje se
+  // pouze pro status OK; pro NEEDS_INPUT/NEEDS_REVIEW/STALE je viditelny.
+  const reviewBanner = (() => {
+    const status = item.pricingStatus;
+    if (!status || status === 'OK') return null;
+    const missing: string[] = [];
+    if (!formData.pasShape) missing.push('tvar');
+    if (!formData.attrDamage) missing.push('poškození');
+    if (!formData.attrColor || formData.attrColor.length === 0) missing.push('barva');
+    if (!formData.location) missing.push('místo nálezu');
+    const weight = parseFloat(formData.weight);
+    if (!Number.isFinite(weight) || weight <= 0) missing.push('váha');
+    const manualBelow = formData.manualPriceInclVatCzk
+      && item.recommendedPriceInclVatCzk
+      && Number(formData.manualPriceInclVatCzk) < Number(item.recommendedPriceInclVatCzk);
+    const label = status === 'NEEDS_INPUT' ? 'CHYBÍ VSTUPY' : status === 'NEEDS_REVIEW' ? 'K REVIZI' : 'ZASTARALÉ';
+    const color = status === 'NEEDS_INPUT' ? 'var(--destructive)' : status === 'NEEDS_REVIEW' ? 'var(--warning)' : 'var(--info)';
+    return (
+      <div
+        className="mb-4 rounded-lg border-2 p-4 flex items-start gap-3"
+        style={{ borderColor: color, background: `color-mix(in srgb, ${color} 10%, transparent)` }}
+      >
+        <svg className="w-6 h-6 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5} style={{ color }}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+        </svg>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-bold font-mono tracking-wider uppercase" style={{ color }}>{label}</p>
+          {missing.length > 0 && (
+            <div className="mt-1.5">
+              <p className="text-xs text-foreground">Chybí povinná evidenční pole:</p>
+              <ul className="mt-1 text-sm font-medium text-foreground space-y-0.5">
+                {missing.map((m) => (
+                  <li key={m} className="flex items-center gap-2">
+                    <span className="inline-block w-1 h-1 rounded-full bg-foreground/50" />
+                    {m}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {manualBelow && (
+            <p className="mt-2 text-xs text-foreground">
+              <span className="font-semibold">Speciální cena</span> {formData.manualPriceInclVatCzk} Kč je pod doporučenou {item.recommendedPriceInclVatCzk} Kč.
+            </p>
+          )}
+          {missing.length === 0 && !manualBelow && status === 'STALE' && (
+            <p className="mt-1 text-xs text-foreground">Cenotvorba byla od posledního výpočtu změněna — spusť „Přepočítat" v zakázce.</p>
+          )}
+        </div>
+      </div>
+    );
+  })();
+
   return (
     <div className="bg-card border border-border rounded-xl p-6 shadow-sm">
+      {reviewBanner}
       <div className="flex items-center justify-between mb-5">
         <h2 className="text-lg font-semibold">Detail kamene</h2>
         {/* CZ/EN switcher */}
