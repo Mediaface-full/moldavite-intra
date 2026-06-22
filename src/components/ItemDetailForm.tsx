@@ -193,6 +193,44 @@ export default function ItemDetailForm({ item }: { item: ItemData }) {
     weight: reviewMode && (!formData.weight || !Number.isFinite(parseFloat(formData.weight)) || parseFloat(formData.weight) <= 0),
   };
 
+  // Lokalni raw text pro Hmotnost — user pise volne, do formData (a tim do
+  // autosave) commit az na BLUR. Bez tohoto autosave debounce 800ms strilel
+  // pri kazdem keystroke, server router.refresh resync formData zpet a uzivatel
+  // videl zruseni vlastniho psani. Stejny pattern jako Cena specialni.
+  const [weightRaw, setWeightRaw] = useState<string>(formData.weight ?? '');
+  // Sync raw z formData (= item resync) jen pokud parsed hodnota se lisi
+  useEffect(() => {
+    const parsedRaw = parseDecimalCs(weightRaw);
+    const expected = parseDecimalCs(formData.weight);
+    if (Number.isFinite(parsedRaw) && Number.isFinite(expected) && Math.abs(parsedRaw - expected) < 0.005) return;
+    if (!Number.isFinite(parsedRaw) && !Number.isFinite(expected)) return;
+    setWeightRaw(formData.weight ?? '');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formData.weight]);
+  // Commit na blur: parse + ulozit do formData (trigger autosave)
+  function commitWeight() {
+    const raw = weightRaw.trim();
+    if (raw === '') {
+      if (formData.weight !== '' && formData.weight !== '0') {
+        setFormData((f) => ({ ...f, weight: '' }));
+      }
+      return;
+    }
+    const n = parseDecimalCs(raw);
+    if (!Number.isFinite(n) || n < 0) {
+      // Invalid → vrat raw na committed
+      setWeightRaw(formData.weight ?? '');
+      return;
+    }
+    const formatted = n.toFixed(2);
+    if (formatted !== formData.weight) {
+      setFormData((f) => ({ ...f, weight: formatted }));
+    }
+    if (formatted !== weightRaw) {
+      setWeightRaw(formatted);
+    }
+  }
+
   // Banner „K revizi" — viditelne nahore detail karte. Vyjmenuje povinna
   // pole co kameni chybi, plus pripadnou manualPrice anomalii. Skryje se
   // pouze pro status OK; pro NEEDS_INPUT/NEEDS_REVIEW/STALE je viditelny.
@@ -399,17 +437,10 @@ export default function ItemDetailForm({ item }: { item: ItemData }) {
               <input
                 type="text"
                 inputMode="decimal"
-                value={formData.weight}
-                onChange={(e) => setFormData((f) => ({ ...f, weight: e.target.value }))}
-                onBlur={(e) => {
-                  // Normalizace carka → tecka na blur
-                  const raw = e.target.value.trim();
-                  if (raw === '') return;
-                  const n = parseDecimalCs(raw);
-                  if (Number.isFinite(n) && String(n) !== raw) {
-                    setFormData((f) => ({ ...f, weight: String(n) }));
-                  }
-                }}
+                value={weightRaw}
+                onChange={(e) => setWeightRaw(e.target.value)}
+                onBlur={commitWeight}
+                onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
                 className={`w-full bg-background border rounded-lg px-3 py-2.5 text-lg font-mono font-bold text-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/20 transition-shadow ${
                   missingHighlight.weight ? 'border-warning ring-2 ring-warning/40' : 'border-border'
                 }`}
