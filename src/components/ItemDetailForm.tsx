@@ -835,13 +835,6 @@ function PriceSection({
                 editable={false}
                 displayValue={exVat > 0 ? fmt(String(exVat)) : '—'}
                 emptyHint="Spočítá se po přepočtu cenotvorby zakázky."
-                rightExtra={
-                  vat > 0 ? (
-                    <span className="text-[10px] font-mono text-muted-foreground whitespace-nowrap">
-                      + {fmt(String(vat))} DPH = {fmt(String(rec))} s DPH (viz níže)
-                    </span>
-                  ) : null
-                }
               />
 
               {/* 3b. Cena prodejní s DPH — READONLY. To je co user vidi v eshopu. */}
@@ -857,12 +850,19 @@ function PriceSection({
                       const sale = Number(salePrice);
                       const matches = sale > 0 && Math.abs(sale - rec) < 0.5;
                       return (
-                        <span className="inline-flex items-center gap-1.5">
-                          <span className="text-[10px] font-mono whitespace-nowrap" style={{ color: matches ? 'var(--success)' : 'var(--muted-foreground)' }}>
-                            {matches ? `✓ odpovídá doporučené (${fmt(recommendedPriceInclVatCzk)})` : `doporučená: ${fmt(recommendedPriceInclVatCzk)}`}
+                        <div className="flex flex-col gap-0.5">
+                          <span className="inline-flex items-center gap-1.5">
+                            <span className="text-[10px] font-mono whitespace-nowrap" style={{ color: matches ? 'var(--success)' : 'var(--muted-foreground)' }}>
+                              {matches ? `✓ odpovídá doporučené (${fmt(recommendedPriceInclVatCzk)})` : `doporučená: ${fmt(recommendedPriceInclVatCzk)}`}
+                            </span>
+                            <BreakdownTooltip breakdown={priceCalcBreakdown} />
                           </span>
-                          <BreakdownTooltip breakdown={priceCalcBreakdown} />
-                        </span>
+                          {vat > 0 && (
+                            <span className="text-[10px] font-mono text-muted-foreground whitespace-nowrap">
+                              {fmt(String(exVat))} bez DPH + {fmt(String(vat))} DPH = {fmt(String(rec))} s DPH
+                            </span>
+                          )}
+                        </div>
                       );
                     })()
                   ) : null
