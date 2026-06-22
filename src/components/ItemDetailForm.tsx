@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { formatPrice } from '@/lib/utils';
+import { formatPrice, parseDecimalCs } from '@/lib/utils';
 import { getPasShape } from '@/lib/pasShapes';
 import { computeSizeCategory, SIZE_CATEGORY_COLOR } from '@/lib/sizeCategory';
 import dynamic from 'next/dynamic';
@@ -117,6 +117,19 @@ export default function ItemDetailForm({ item }: { item: ItemData }) {
   };
 
   const catalogNumber = `${item.box.code}-${item.evidNumber}`;
+
+  // Per-field highlight — kdyz je status NEEDS_REVIEW/NEEDS_INPUT, pole
+  // ktera chybi dostanou oranzovy ring (warning) primo na sebe. Jakmile
+  // user vybere/zadat hodnotu, controlled state to schova (formData se
+  // updatne -> missing.X = false -> ring zmizi).
+  const reviewMode = item.pricingStatus === 'NEEDS_REVIEW' || item.pricingStatus === 'NEEDS_INPUT';
+  const missingHighlight = {
+    pasShape: reviewMode && !formData.pasShape,
+    attrDamage: reviewMode && !formData.attrDamage,
+    attrColor: reviewMode && (!formData.attrColor || formData.attrColor.length === 0),
+    location: reviewMode && !formData.location,
+    weight: reviewMode && (!formData.weight || !Number.isFinite(parseFloat(formData.weight)) || parseFloat(formData.weight) <= 0),
+  };
 
   // Banner „K revizi" — viditelne nahore detail karte. Vyjmenuje povinna
   // pole co kameni chybi, plus pripadnou manualPrice anomalii. Skryje se
@@ -322,9 +335,22 @@ export default function ItemDetailForm({ item }: { item: ItemData }) {
             <div>
               <label className="block text-[10px] text-muted-foreground mb-1 uppercase tracking-wider font-mono">Hmotnost (g)</label>
               <input
-                type="number" step="0.01" value={formData.weight}
+                type="text"
+                inputMode="decimal"
+                value={formData.weight}
                 onChange={(e) => setFormData((f) => ({ ...f, weight: e.target.value }))}
-                className="w-full bg-background border border-border rounded-lg px-3 py-2.5 text-lg font-mono font-bold text-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/20 transition-shadow"
+                onBlur={(e) => {
+                  // Normalizace carka → tecka na blur
+                  const raw = e.target.value.trim();
+                  if (raw === '') return;
+                  const n = parseDecimalCs(raw);
+                  if (Number.isFinite(n) && String(n) !== raw) {
+                    setFormData((f) => ({ ...f, weight: String(n) }));
+                  }
+                }}
+                className={`w-full bg-background border rounded-lg px-3 py-2.5 text-lg font-mono font-bold text-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/20 transition-shadow ${
+                  missingHighlight.weight ? 'border-warning ring-2 ring-warning/40' : 'border-border'
+                }`}
               />
             </div>
             <div>
@@ -341,13 +367,15 @@ export default function ItemDetailForm({ item }: { item: ItemData }) {
           <div>
             <label className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1.5 uppercase tracking-wider font-mono">
               <Icon name="shape" className="w-3.5 h-3.5" />
-              Tvar (PAS)
+              Tvar (PAS) {missingHighlight.pasShape && <span className="text-warning font-bold">·</span>}
             </label>
-            <AttrSelect
-              attrKey="pasShape"
-              value={formData.pasShape}
-              onChange={(v) => setFormData((f) => ({ ...f, pasShape: v }))}
-            />
+            <div className={missingHighlight.pasShape ? 'rounded-md ring-2 ring-warning/70 transition-all' : ''}>
+              <AttrSelect
+                attrKey="pasShape"
+                value={formData.pasShape}
+                onChange={(v) => setFormData((f) => ({ ...f, pasShape: v }))}
+              />
+            </div>
             {formData.pasShape && getPasShape(formData.pasShape) && (
               <p className="mt-1.5 text-xs text-muted-foreground italic">
                 {lang === 'en' ? getPasShape(formData.pasShape)?.descEn : getPasShape(formData.pasShape)?.descCz}
@@ -358,25 +386,29 @@ export default function ItemDetailForm({ item }: { item: ItemData }) {
           <div>
             <label className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1.5 uppercase tracking-wider font-mono">
               <Icon name="damage" className="w-3.5 h-3.5" />
-              Poškození
+              Poškození {missingHighlight.attrDamage && <span className="text-warning font-bold">·</span>}
             </label>
-            <AttrSelect
-              attrKey="attrDamage"
-              value={formData.attrDamage}
-              onChange={(v) => setFormData((f) => ({ ...f, attrDamage: v }))}
-            />
+            <div className={missingHighlight.attrDamage ? 'rounded-md ring-2 ring-warning/70 transition-all' : ''}>
+              <AttrSelect
+                attrKey="attrDamage"
+                value={formData.attrDamage}
+                onChange={(v) => setFormData((f) => ({ ...f, attrDamage: v }))}
+              />
+            </div>
           </div>
 
           <div>
             <label className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1.5 uppercase tracking-wider font-mono">
               <Icon name="location" className="w-3.5 h-3.5" />
-              Místo nálezu
+              Místo nálezu {missingHighlight.location && <span className="text-warning font-bold">·</span>}
             </label>
-            <AttrSelect
-              attrKey="location"
-              value={formData.location}
-              onChange={(v) => setFormData((f) => ({ ...f, location: v }))}
-            />
+            <div className={missingHighlight.location ? 'rounded-md ring-2 ring-warning/70 transition-all' : ''}>
+              <AttrSelect
+                attrKey="location"
+                value={formData.location}
+                onChange={(v) => setFormData((f) => ({ ...f, location: v }))}
+              />
+            </div>
           </div>
 
           <div>
@@ -398,14 +430,16 @@ export default function ItemDetailForm({ item }: { item: ItemData }) {
           <div className="md:col-span-2">
             <label className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1.5 uppercase tracking-wider font-mono">
               <Icon name="palette" className="w-3.5 h-3.5" />
-              Barva (lze vybrat víc)
+              Barva (lze vybrat víc) {missingHighlight.attrColor && <span className="text-warning font-bold">·</span>}
             </label>
-            <AttrMultiSelect
-              attrKey="attrColor"
-              value={formData.attrColor}
-              onChange={(v) => setFormData((f) => ({ ...f, attrColor: v }))}
-              color="var(--primary)"
-            />
+            <div className={missingHighlight.attrColor ? 'rounded-md ring-2 ring-warning/70 transition-all p-0.5' : ''}>
+              <AttrMultiSelect
+                attrKey="attrColor"
+                value={formData.attrColor}
+                onChange={(v) => setFormData((f) => ({ ...f, attrColor: v }))}
+                color="var(--primary)"
+              />
+            </div>
           </div>
         </div>
 
@@ -783,9 +817,18 @@ function PriceRow({
       <div className="w-full">
         {editable ? (
           <input
-            type="number"
+            type="text"
+            inputMode="decimal"
             value={value ?? ''}
             onChange={(e) => onChange?.(e.target.value)}
+            onBlur={(e) => {
+              // Normalizuj „5,67" → „5.67" na blur — vstup akceptuje carku,
+              // ale zobrazujeme + ukladame s teckou (konzistentni napric appkou).
+              const raw = e.target.value.trim();
+              if (raw === '' || !onChange) return;
+              const n = parseDecimalCs(raw);
+              if (Number.isFinite(n) && String(n) !== raw) onChange(String(n));
+            }}
             placeholder={placeholder ?? ''}
             className="w-full bg-card border border-border rounded-lg px-3 h-9 text-sm font-mono text-right text-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
           />
