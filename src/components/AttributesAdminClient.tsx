@@ -115,6 +115,9 @@ function SectionBlock({
   const [newValue, setNewValue] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  // Edit mode per-row — null = nic se needituje, jinak ID otevřené hodnoty.
+  // Externí EDIT tlačítko v action baru řádku tuto state nastaví.
+  const [editingId, setEditingId] = useState<number | null>(null);
 
   async function addOption() {
     if (newValue.trim().length === 0) return;
@@ -147,6 +150,7 @@ function SectionBlock({
   }
 
   async function updateValue(opt: AttrOption, newVal: string) {
+    setEditingId(null); // close edit mode regardless of result
     if (newVal.trim() === opt.value || newVal.trim().length === 0) return;
     const res = await apiFetch(`/api/attr-options/${opt.id}`, {
       method: 'PATCH',
@@ -330,7 +334,12 @@ function SectionBlock({
                   <Icon name="arrow-down" className="w-3 h-3" />
                 </button>
               </div>
-              <InlineEditValue value={opt.value} onSave={(v) => updateValue(opt, v)} />
+              <InlineEditValue
+                value={opt.value}
+                editing={editingId === opt.id}
+                onSave={async (v) => { await updateValue(opt, v); }}
+                onCancel={() => setEditingId(null)}
+              />
               <InlineEditLabelEn
                 value={opt.labelEn ?? ''}
                 placeholder="EN překlad"
@@ -339,6 +348,18 @@ function SectionBlock({
               <span className="text-[10px] text-muted-foreground font-mono ml-auto flex-shrink-0">
                 sort: {opt.sortOrder}
               </span>
+              <button
+                onClick={() => setEditingId(editingId === opt.id ? null : opt.id)}
+                className={`inline-flex items-center gap-1 text-[10px] font-mono uppercase tracking-wider px-2 py-1 rounded border transition-colors ${
+                  editingId === opt.id
+                    ? 'border-primary text-primary bg-[color-mix(in_srgb,var(--primary)_10%,transparent)]'
+                    : 'border-border text-muted-foreground hover:text-foreground'
+                }`}
+                title={editingId === opt.id ? 'Zavřít editaci' : 'Upravit hodnotu'}
+              >
+                <Icon name="edit" className="w-3 h-3" />
+                {editingId === opt.id ? 'Zavřít' : 'Edit'}
+              </button>
               <button
                 onClick={() => toggleActive(opt)}
                 className={`inline-flex items-center gap-1 text-[10px] font-mono uppercase tracking-wider px-2 py-1 rounded border transition-colors ${
@@ -368,9 +389,24 @@ function SectionBlock({
   );
 }
 
-function InlineEditValue({ value, onSave }: { value: string; onSave: (v: string) => void | Promise<void> }) {
-  const [editing, setEditing] = useState(false);
+/**
+ * Controlled inline editor pro CZ hodnotu. Edit state drží parent přes
+ * `editing` + `onCancel` (Escape / blur). Edit button je oddělený v action
+ * baru vpravo (per Gideon 22. 6.) — text samotný neni klikatelny.
+ */
+function InlineEditValue({
+  value, editing, onSave, onCancel,
+}: {
+  value: string;
+  editing: boolean;
+  onSave: (v: string) => void | Promise<void>;
+  onCancel: () => void;
+}) {
   const [val, setVal] = useState(value);
+  // Sync local buffer when value changes externally (po cascade rename apod.)
+  // nebo když se editing toggluje (reset bufferu na aktuální)
+  // useEffect není potřeba — controlled prop pattern: každý re-render aktualizuje
+  // pokud editing přejde false→true, val už drží stará hodnota → ok pro inline edit.
 
   if (editing) {
     return (
@@ -379,27 +415,17 @@ function InlineEditValue({ value, onSave }: { value: string; onSave: (v: string)
         value={val}
         autoFocus
         onChange={(e) => setVal(e.target.value)}
-        onBlur={() => { setEditing(false); onSave(val); }}
+        onBlur={() => { onCancel(); onSave(val); }}
         onKeyDown={(e) => {
           if (e.key === 'Enter') { (e.target as HTMLInputElement).blur(); }
-          if (e.key === 'Escape') { setVal(value); setEditing(false); }
+          if (e.key === 'Escape') { setVal(value); onCancel(); }
         }}
         className="flex-1 bg-card border border-ring rounded-md px-2 py-1 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring/20"
       />
     );
   }
-  // Explicitní tlačítko Upravit (ne jen click-na-text) — uživatel viděl plain
-  // text bez vizuálního signálu že je editovatelný. Teď je ikona viditelná
-  // vždy, na hover ještě výraznější + podtržení textu.
   return (
-    <button
-      onClick={() => setEditing(true)}
-      className="flex-1 text-left text-sm text-foreground inline-flex items-center gap-2 group hover:text-primary transition-colors"
-      title="Klikni pro úpravu hodnoty"
-    >
-      <span className="group-hover:underline">{value}</span>
-      <Icon name="edit" className="w-3 h-3 text-muted-foreground/60 group-hover:text-primary transition-colors" />
-    </button>
+    <span className="flex-1 text-sm text-foreground">{value}</span>
   );
 }
 
