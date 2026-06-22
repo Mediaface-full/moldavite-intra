@@ -383,55 +383,55 @@ function BoxesSummaryCard({ order }: { order: SerializedOrder }) {
           // Pocet kamenu vyzadujicich pozornost (NEEDS_INPUT + NEEDS_REVIEW) — pro warning chip per kazeta.
           const attentionCount = items.filter((i) => i.pricingStatus === 'NEEDS_INPUT' || i.pricingStatus === 'NEEDS_REVIEW').length;
 
+          // Skrýt default jméno (Krabice/Kazeta XXXX) — je redundantní s kódem.
+          const isDefaultName = (() => {
+            if (!b.name) return true;
+            const n = b.name.trim().toLowerCase();
+            const c = b.code.trim().toLowerCase();
+            return n === c || n === `krabice ${c}` || n === `kazeta ${c}` || n === '';
+          })();
+          const showName = !isDefaultName && b.name;
+
           return (
             <Link
               key={b.id}
               href={`/boxes/${b.id}`}
-              className="grid grid-cols-[1fr_auto_auto_auto_auto] items-center gap-4 px-5 py-3 hover:bg-muted/30 transition-colors"
+              className="grid grid-cols-[minmax(140px,1fr)_auto_auto_auto_auto_auto] items-center gap-x-5 gap-y-1 px-5 py-3 hover:bg-muted/30 transition-colors"
             >
+              {/* Sloupec 1: kod kazety + typ chip + (volitelne) jmeno na druhem radku */}
               <div className="min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="font-mono font-semibold text-foreground">{b.code}</span>
-                  {b.name && <span className="text-xs text-muted-foreground">· {b.name}</span>}
                   {b.cassetteType && (
-                    <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground px-1.5 py-0.5 rounded border border-border">
+                    <span
+                      className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground px-1.5 py-0.5 rounded border border-border whitespace-nowrap"
+                      title="Typ kazety"
+                    >
                       {b.cassetteType}
                     </span>
                   )}
-                  {mix && (
-                    <span
-                      className="text-[9px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded"
-                      style={{ background: 'color-mix(in srgb, var(--warning) 15%, transparent)', color: 'var(--warning)' }}
-                      title="Dodavatel této kazety se liší od dodavatele zakázky"
-                    >
-                      MIX
-                    </span>
-                  )}
-                  {attentionCount > 0 && (
-                    <span
-                      className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold font-mono uppercase tracking-wider"
-                      style={{ color: '#FFFFFF', background: 'var(--warning)' }}
-                      title={`${attentionCount} ${attentionCount === 1 ? 'kámen vyžaduje' : 'kamenů vyžaduje'} pozornost (bez vstupů nebo k revizi)`}
-                    >
-                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
-                      </svg>
-                      {attentionCount}
-                    </span>
-                  )}
                 </div>
+                {showName && (
+                  <p className="text-xs text-muted-foreground mt-0.5 truncate">{b.name}</p>
+                )}
               </div>
-              <div className="text-right">
+
+              {/* Sloupec 2: Kameny */}
+              <div className="text-right min-w-[60px]">
                 <p className="text-[10px] text-muted-foreground font-mono uppercase tracking-wider">Kameny</p>
                 <p className={`text-sm font-mono ${declaredVsActual ? 'text-warning' : 'text-foreground'}`} title={declaredVsActual ? `Deklarováno ${b.declaredPieces}, skutečně ${itemCount}` : undefined}>
                   {itemCount}{declaredVsActual ? ` / ${b.declaredPieces}` : ''}
                 </p>
               </div>
-              <div className="text-right">
+
+              {/* Sloupec 3: Σ váha */}
+              <div className="text-right min-w-[80px]">
                 <p className="text-[10px] text-muted-foreground font-mono uppercase tracking-wider">Σ váha (g)</p>
                 <p className="text-sm font-mono text-foreground">{sumWeight.toFixed(2)}</p>
               </div>
-              <div className="text-right min-w-20">
+
+              {/* Sloupec 4: PPG */}
+              <div className="text-right min-w-[80px]">
                 <p className="text-[10px] text-muted-foreground font-mono uppercase tracking-wider">PPG</p>
                 <p
                   className="text-sm font-mono"
@@ -450,11 +450,38 @@ function BoxesSummaryCard({ order }: { order: SerializedOrder }) {
                   {ppgSource === 'box' ? 'override' : ppgSource === 'compute' ? 'auto' : ppgSource === 'order' ? 'order' : 'order auto'}
                 </p>
               </div>
-              <div className="text-right min-w-24">
+
+              {/* Sloupec 5: Σ doporučená */}
+              <div className="text-right min-w-[100px]">
                 <p className="text-[10px] text-muted-foreground font-mono uppercase tracking-wider">Σ doporučená</p>
                 <p className="text-sm font-mono" style={{ color: sumRecommended > 0 ? 'var(--success)' : 'var(--muted-foreground)' }}>
                   {fmtMoney(sumRecommended)}
                 </p>
+              </div>
+
+              {/* Sloupec 6: Stav chipy (MIX + K revizi) — vzdy nejaka sirka i kdyz prazdne, aby radky byly zarovnane */}
+              <div className="flex items-center justify-end gap-1.5 min-w-[80px]">
+                {mix && (
+                  <span
+                    className="text-[10px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded whitespace-nowrap"
+                    style={{ background: 'color-mix(in srgb, var(--warning) 15%, transparent)', color: 'var(--warning)' }}
+                    title="Dodavatel této kazety se liší od dodavatele zakázky"
+                  >
+                    MIX
+                  </span>
+                )}
+                {attentionCount > 0 && (
+                  <span
+                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-bold font-mono whitespace-nowrap"
+                    style={{ color: '#FFFFFF', background: 'var(--warning)' }}
+                    title={`${attentionCount} ${attentionCount === 1 ? 'kámen vyžaduje' : 'kamenů vyžaduje'} pozornost (bez vstupů nebo k revizi)`}
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                    </svg>
+                    {attentionCount}
+                  </span>
+                )}
               </div>
             </Link>
           );
