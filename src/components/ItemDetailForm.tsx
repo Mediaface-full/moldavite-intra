@@ -143,6 +143,37 @@ export default function ItemDetailForm({ item }: { item: ItemData }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [formData]);
 
+  // Resync formData kdyz prijde fresh `item` prop ze serveru (po router.refresh).
+  // Bez tohoto by `formData` drzelo stara client state — server uz ma novou
+  // recommendedPrice/salePrice (po auto-recalc Order), ale UI by je nevidelo.
+  // skipNextAutoSave = true → useEffect[formData] preskoci save (zmena prisla
+  // ze serveru, ne od uzivatele).
+  useEffect(() => {
+    skipNextAutoSave.current = true;
+    setFormData({
+      name: item.name,
+      nameEn: item.nameEn,
+      description: item.description,
+      descriptionEn: item.descriptionEn,
+      longDescription: item.longDescription,
+      longDescriptionEn: item.longDescriptionEn,
+      location: item.location,
+      storage: item.storage,
+      purchasePrice: item.purchasePrice,
+      salePrice: item.salePrice,
+      weight: item.weight,
+      sold: item.sold,
+      onShop: item.onShop,
+      onEtsy: item.onEtsy,
+      pasShape: item.pasShape || '',
+      attrDamage: item.attrDamage || '',
+      attrColor: item.attrColor || [],
+      attrCollectible: item.attrCollectible || false,
+      manualPriceInclVatCzk: item.manualPriceInclVatCzk ?? '',
+      purchasePricePerGramCzk: item.purchasePricePerGramCzk ?? '',
+    });
+  }, [item]);
+
   const catalogNumber = `${item.box.code}-${item.evidNumber}`;
 
   // Per-field highlight — kdyz je status NEEDS_REVIEW/NEEDS_INPUT, pole
