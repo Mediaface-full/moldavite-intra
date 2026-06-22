@@ -270,7 +270,8 @@ function SectionBlock({
         {!adding && (
           <button
             onClick={() => setAdding(true)}
-            className="bg-primary hover:bg-primary/90 text-primary-foreground px-3 py-1.5 rounded-md text-xs font-mono uppercase tracking-wider transition-colors inline-flex items-center gap-2 flex-shrink-0"
+            style={{ background: 'var(--success)' }}
+            className="text-white hover:opacity-90 px-3 py-1.5 rounded-md text-xs font-mono uppercase tracking-wider transition-opacity inline-flex items-center gap-2 flex-shrink-0"
           >
             <Icon name="plus" className="w-3.5 h-3.5" strokeWidth={2} />
             Přidat
@@ -292,7 +293,8 @@ function SectionBlock({
           <button
             onClick={addOption}
             disabled={busy || newValue.trim().length === 0}
-            className="bg-primary hover:bg-primary/90 disabled:opacity-50 text-primary-foreground px-3 py-2 rounded-lg text-xs font-mono uppercase tracking-wider"
+            style={{ background: busy || newValue.trim().length === 0 ? undefined : 'var(--success)' }}
+            className="text-white hover:opacity-90 disabled:opacity-50 disabled:bg-muted disabled:text-muted-foreground px-3 py-2 rounded-lg text-xs font-mono uppercase tracking-wider transition-opacity"
           >
             {busy ? 'Přidávám…' : 'Uložit'}
           </button>
