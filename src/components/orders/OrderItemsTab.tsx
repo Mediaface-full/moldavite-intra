@@ -32,6 +32,47 @@ function fmt(n: unknown): string {
   return `${Math.round(v).toLocaleString('cs-CZ')} Kč`;
 }
 
+/**
+ * Diagnostika proc kamen ma status NEEDS_INPUT — pro tooltip badge.
+ * Sleduje stejny PPG fallback chain jako lib/pricing/resolve.ts:
+ *   Item.PPG -> Box.PPG -> Box.amount/weight -> Order.defaultPPG
+ * Vraci ['vaha', 'cena za gram', ...] — co konkretne chybi.
+ */
+function diagnoseNeedsInput(
+  item: SerializedItem,
+  order: SerializedOrder,
+): string[] {
+  const reasons: string[] = [];
+  const weight = Number(item.weight ?? 0);
+  if (!Number.isFinite(weight) || weight <= 0) {
+    reasons.push('váha kamene');
+  }
+  // PPG fallback chain — pokud zadny zdroj nema kladnou hodnotu, chybi cena za gram
+  const itemPpg = Number(item.purchasePricePerGramCzk ?? 0);
+  if (itemPpg <= 0) {
+    const box = order.boxes.find((b) => b.id === item.boxId);
+    const boxPpg = Number(box?.purchasePricePerGramCzk ?? 0);
+    const boxAmount = Number(box?.purchaseAmountCzk ?? 0);
+    const boxDeclWeight = Number(box?.declaredWeight ?? 0);
+    const orderPpg = Number(order.defaultPurchasePricePerGramCzk ?? 0);
+    const orderAmount = Number(order.totalPurchaseAmountCzk ?? 0);
+    const orderDeclWeight = Number(order.declaredWeight ?? 0);
+    const hasBoxExplicit = boxPpg > 0;
+    const hasBoxCompute = boxAmount > 0 && boxDeclWeight > 0;
+    const hasOrderDefault = orderPpg > 0;
+    const hasOrderCompute = orderAmount > 0 && orderDeclWeight > 0;
+    if (!hasBoxExplicit && !hasBoxCompute && !hasOrderDefault && !hasOrderCompute) {
+      reasons.push('cena za gram (Kč/g) — chybí na kameni, kazetě i zakázce');
+    }
+  }
+  // Pricing rule s missingPolicy='error' nelze diagnostikovat bez snapshot
+  // pravidel — pro vetsinu pripadu jsou problemy 1-2 vyse, zbytek catch-all.
+  if (reasons.length === 0) {
+    reasons.push('atribut s povinným pravidlem cenotvorby (např. tvar, barva)');
+  }
+  return reasons;
+}
+
 export default function OrderItemsTab({ order }: { order: SerializedOrder }) {
   const router = useRouter();
   const [filter, setFilter] = useState<'all' | 'NEEDS_INPUT' | 'NEEDS_REVIEW' | 'OK' | 'STALE'>('all');
@@ -87,7 +128,7 @@ export default function OrderItemsTab({ order }: { order: SerializedOrder }) {
             </thead>
             <tbody>
               {filtered.map((it) => (
-                <ItemRow key={it.id} item={it} boxCode={it.box.code} onSaveManual={(v) => updateManualPrice(it.id, v)} />
+                <ItemRow key={it.id} item={it} boxCode={it.box.code} order={order} onSaveManual={(v) => updateManualPrice(it.id, v)} />
               ))}
             </tbody>
           </table>
@@ -114,11 +155,14 @@ function FilterChip({ label, count, active, onClick, color, icon }: { label: str
   );
 }
 
-function ItemRow({ item, boxCode, onSaveManual }: { item: SerializedItem; boxCode: string; onSaveManual: (v: string) => Promise<void> }) {
+function ItemRow({ item, boxCode, order, onSaveManual }: { item: SerializedItem; boxCode: string; order: SerializedOrder; onSaveManual: (v: string) => Promise<void> }) {
   const [editing, setEditing] = useState(false);
   const [manualValue, setManualValue] = useState(item.manualPriceInclVatCzk ?? '');
   const status = item.pricingStatus;
   const color = STATUS_COLOR[status];
+  // Pro NEEDS_INPUT: rozepis konkretni chybejici udaje do tooltipu
+  const missingReasons = status === 'NEEDS_INPUT' ? diagnoseNeedsInput(item, order) : null;
+  const tooltipTitle = missingReasons ? `Chybí: ${missingReasons.join(' · ')}` : undefined;
 
   return (
     <tr className="border-b border-border last:border-0 hover:bg-muted/40 transition-colors">
@@ -162,7 +206,8 @@ function ItemRow({ item, boxCode, onSaveManual }: { item: SerializedItem; boxCod
       </td>
       <td className="px-3 py-2">
         <span
-          className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono uppercase tracking-wider border"
+          title={tooltipTitle}
+          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono uppercase tracking-wider border ${missingReasons ? 'cursor-help' : ''}`}
           style={{
             color,
             background: `color-mix(in srgb, ${color} 12%, transparent)`,
@@ -172,6 +217,13 @@ function ItemRow({ item, boxCode, onSaveManual }: { item: SerializedItem; boxCod
           <Icon name={STATUS_ICON[status]} className="w-3 h-3" />
           {STATUS_LABEL[status]}
         </span>
+        {missingReasons && (
+          <div className="text-[10px] font-mono text-muted-foreground mt-1 leading-snug max-w-[200px]">
+            {missingReasons.map((r) => `• ${r}`).join('\n').split('\n').map((line, i) => (
+              <div key={i}>{line}</div>
+            ))}
+          </div>
+        )}
       </td>
     </tr>
   );
