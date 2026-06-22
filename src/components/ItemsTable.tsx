@@ -660,7 +660,13 @@ function UnchangedAttrSelect({
 function ZeroInput({ initial, onSave, step, width }: {
   initial: number; onSave: (v: number) => void; step?: string; width?: string;
 }) {
-  const [display, setDisplay] = useState(initial === 0 ? '' : String(initial));
+  // Pro step="0.01" (váha, cena) formátuj na 2 desetiny při unfocused stavu.
+  // Při focusu nech raw text (uživatel může mid-typing měnit počet desetin).
+  const fmt = (n: number): string => {
+    if (n === 0) return '';
+    return step === '0.01' ? n.toFixed(2) : String(n);
+  };
+  const [display, setDisplay] = useState(fmt(initial));
   const [focused, setFocused] = useState(false);
 
   const shown = focused ? display : (display === '' || display === '0' ? '' : display);
@@ -676,7 +682,7 @@ function ZeroInput({ initial, onSave, step, width }: {
       onBlur={(e) => {
         setFocused(false);
         const num = parseFloat(e.target.value) || 0;
-        setDisplay(num === 0 ? '' : String(num));
+        setDisplay(fmt(num));
         onSave(num);
       }}
       className={`${width || 'w-24'} bg-muted border border-border rounded px-2 py-1 text-right text-sm text-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/20 placeholder:text-muted-foreground`}

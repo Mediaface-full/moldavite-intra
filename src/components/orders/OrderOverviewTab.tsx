@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { apiFetch } from '@/lib/apiFetch';
+import { formatWeight, formatWeightStrict } from '@/lib/utils';
 import type { SerializedOrder } from './OrderDetailClient';
 import Icon from '../Icon';
 import SellerPicker from '../SellerPicker';
@@ -77,8 +78,8 @@ export default function OrderOverviewTab({ order }: { order: SerializedOrder }) 
               />
               <ItemWithDiff
                 label="Deklarovaná váha prodejcem"
-                value={declaredWeight > 0 ? `${declaredWeight.toFixed(2)} g` : '—'}
-                actualLabel={`Skutečně v evidenci: ${actualWeight.toFixed(2)} g`}
+                value={formatWeight(declaredWeight)}
+                actualLabel={`Skutečně v evidenci: ${formatWeightStrict(actualWeight)}`}
                 diff={actualWeight - declaredWeight}
                 fmt={(n) => `${n > 0 ? '+' : ''}${n.toFixed(2)} g`}
                 mono

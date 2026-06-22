@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { apiFetch } from '@/lib/apiFetch';
+import { formatWeight } from '@/lib/utils';
 
 interface Stats {
   overview: {
@@ -240,7 +241,7 @@ export default function StatsPage() {
                 <td className="px-4 py-3 text-right text-destructive">{box.sold || '-'}</td>
                 <td className="px-4 py-3 text-right text-primary">{box.onShop || '-'}</td>
                 <td className="px-4 py-3 text-right text-warning">{box.onEtsy || '-'}</td>
-                <td className="px-4 py-3 text-right text-muted-foreground">{box.totalWeight > 0 ? `${box.totalWeight.toFixed(1)}g` : '-'}</td>
+                <td className="px-4 py-3 text-right text-muted-foreground">{formatWeight(box.totalWeight)}</td>
                 <td className="px-4 py-3 text-right text-foreground">{box.totalValue > 0 ? fmtCZK(box.totalValue) : '-'}</td>
               </tr>
             ))}
@@ -269,7 +270,7 @@ export default function StatsPage() {
               {stats.soldList.map(item => (
                 <tr key={item.id} className="border-b border-border hover:bg-muted/40">
                   <td className="px-4 py-3 font-mono text-xs text-primary">{item.catalogNumber}</td>
-                  <td className="px-4 py-3 text-right text-muted-foreground">{item.weight > 0 ? `${item.weight}g` : '-'}</td>
+                  <td className="px-4 py-3 text-right text-muted-foreground">{formatWeight(item.weight)}</td>
                   <td className="px-4 py-3 text-right text-muted-foreground">{item.purchasePrice > 0 ? fmtCZK(item.purchasePrice) : '-'}</td>
                   <td className="px-4 py-3 text-right text-foreground">{fmtCZK(item.salePrice)}</td>
                   <td className={`px-4 py-3 text-right font-medium ${item.profit >= 0 ? 'text-primary' : 'text-destructive'}`}>
@@ -285,7 +286,7 @@ export default function StatsPage() {
               <tr className="bg-muted border-t border-border font-medium">
                 <td className="px-4 py-3 text-muted-foreground">Celkem ({stats.soldList.length})</td>
                 <td className="px-4 py-3 text-right text-muted-foreground">
-                  {stats.soldList.reduce((s, i) => s + i.weight, 0).toFixed(1)}g
+                  {formatWeight(stats.soldList.reduce((s, i) => s + i.weight, 0))}
                 </td>
                 <td className="px-4 py-3 text-right text-muted-foreground">
                   {fmtCZK(stats.soldList.reduce((s, i) => s + i.purchasePrice, 0))}

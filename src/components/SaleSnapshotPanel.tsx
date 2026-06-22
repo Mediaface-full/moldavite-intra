@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { formatWeight } from '@/lib/utils';
 
 type ItemSnapshot = {
   weight: string | null;
@@ -82,7 +83,7 @@ export default function SaleSnapshotPanel({
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4 text-[11px] font-mono">
         <Field label="Zakázka" value={snapshot.orderCode ?? '—'} />
         <Field label="Cenotvorba" value={snapshot.pricingConfigName ?? '— (žádná)'} />
-        <Field label="Váha v okamžiku prodeje" value={it.weight ? `${it.weight} g` : '—'} />
+        <Field label="Váha v okamžiku prodeje" value={formatWeight(it.weight)} />
         <Field label="Prodejní cena (CZK)" value={it.salePrice} />
       </div>
 

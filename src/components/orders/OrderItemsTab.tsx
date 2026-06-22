@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { apiFetch } from '@/lib/apiFetch';
+import { formatWeight } from '@/lib/utils';
 import type { SerializedOrder, SerializedItem } from './OrderDetailClient';
 import Icon, { type IconName } from '../Icon';
 
@@ -171,7 +172,7 @@ function ItemRow({ item, boxCode, order, onSaveManual }: { item: SerializedItem;
           {boxCode}-{item.evidNumber}
         </Link>
       </td>
-      <td className="px-3 py-2 text-right font-mono text-xs">{Number(item.weight ?? 0).toFixed(2)}</td>
+      <td className="px-3 py-2 text-right font-mono text-xs">{formatWeight(item.weight, { unit: 'none' })}</td>
       <td className="px-3 py-2 text-right font-mono text-xs text-muted-foreground">{fmt(item.allocatedOrderCostCzk)}</td>
       <td className="px-3 py-2 text-right font-mono text-xs">{fmt(item.recommendedPriceInclVatCzk)}</td>
       <td className="px-3 py-2 text-right">
