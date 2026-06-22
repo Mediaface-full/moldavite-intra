@@ -577,9 +577,9 @@ function PriceSection({
           onChange={setPurchasePrice}
         />
 
-        {/* 1b. Cena za gram nákupní (override) — pro výjimečné kameny */}
+        {/* 1b. Cena nákupní za gram (override) — pro výjimečné kameny */}
         <PriceRow
-          label="Cena za gram nákupní"
+          label="Cena nákupní za gram"
           hint={
             ppgOverride && Number(ppgOverride) > 0
               ? 'Override jen pro tento kámen — přebije PPG kazety i zakázky.'
