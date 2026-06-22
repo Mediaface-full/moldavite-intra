@@ -42,6 +42,7 @@ interface ItemData {
   costBasisCzk?: string | null;
   computedMinPriceExVatCzk?: string | null;
   recommendedPriceInclVatCzk?: string | null;
+  vatRatePct?: string | null;  // ze zakazky, pro UI prevod „Cena specialni bez DPH" → s DPH
   manualPriceInclVatCzk?: string | null;
   pricingStatus?: 'NEEDS_INPUT' | 'NEEDS_REVIEW' | 'OK' | 'STALE' | null;
   purchasePricePerGramCzk?: string | null;
@@ -515,6 +516,7 @@ export default function ItemDetailForm({ item }: { item: ItemData }) {
           costBasisCzk={item.costBasisCzk}
           computedMinPriceExVatCzk={item.computedMinPriceExVatCzk}
           recommendedPriceInclVatCzk={item.recommendedPriceInclVatCzk}
+          vatRatePct={item.vatRatePct}
           pricingStatus={item.pricingStatus}
           priceCalcBreakdown={item.priceCalcBreakdown}
           usedPpgHint={(() => {
@@ -733,6 +735,7 @@ function PriceSection({
   costBasisCzk,
   computedMinPriceExVatCzk,
   recommendedPriceInclVatCzk,
+  vatRatePct,
   pricingStatus,
   priceCalcBreakdown,
   usedPpgHint,
@@ -748,6 +751,7 @@ function PriceSection({
   costBasisCzk: string | null | undefined;
   computedMinPriceExVatCzk: string | null | undefined;
   recommendedPriceInclVatCzk: string | null | undefined;
+  vatRatePct: string | null | undefined;
   pricingStatus: 'NEEDS_INPUT' | 'NEEDS_REVIEW' | 'OK' | 'STALE' | null | undefined;
   priceCalcBreakdown?: unknown;
   usedPpgHint: string | null;
@@ -758,7 +762,21 @@ function PriceSection({
       ? `${Math.round(Number(v)).toLocaleString('cs-CZ')} Kč`
       : '—';
 
-  const manualNum = Number(manualPrice);
+  // DPH koeficient ze zakazky (fallback 21% pokud zakazka chybi/legacy data).
+  const vatRate = vatRatePct && Number(vatRatePct) > 0 ? Number(vatRatePct) : 21;
+  const vatMultiplier = 1 + vatRate / 100;
+
+  // Cena specialni: UI vstup je „bez DPH", ALE v DB se uklada s DPH
+  // (manualPriceInclVatCzk — pole se historicky jmenuje takhle).
+  // Pri zobrazeni: konvertujeme uloznou s-DPH hodnotu zpet na bez-DPH pro input.
+  // Pri ulozeni: input je bez DPH, pred PATCH se nasobi (1 + vatRate/100).
+  // POZOR: manualPrice prop drzi RAW hodnotu z formData = s DPH (handleSave
+  // posila Number(formData.manualPriceInclVatCzk) primo). Konverze je v ItemDetailForm
+  // useEffect[item] kdy resync z item.manualPriceInclVatCzk → my zde jen prevadime
+  // pro UI display. Save flow viz nize.
+  const manualNum = Number(manualPrice);  // s DPH (jak je v DB / formData)
+  const manualExVat = Number.isFinite(manualNum) && manualNum > 0 ? manualNum / vatMultiplier : 0;
+
   const recommendedNum = Number(recommendedPriceInclVatCzk);
   const manualBelowRecommended =
     Number.isFinite(manualNum) && manualNum > 0 && Number.isFinite(recommendedNum) && recommendedNum > 0 && manualNum < recommendedNum;
@@ -872,18 +890,46 @@ function PriceSection({
           );
         })()}
 
-        {/* 4. Cena speciální */}
+        {/* 4. Cena speciální — uzivatel zadava BEZ DPH; ulozi se s DPH (manualPriceInclVatCzk).
+            Pole zobrazi manualExVat (= manualPrice/1.21), na blur se prepocita zpet × 1.21 a posle setManualPrice. */}
         <PriceRow
-          label="Cena speciální"
-          hint="Mimořádně vyšší cena pro výjimečně pěkné kameny (override doporučené). Musí být ≥ doporučená."
+          label="Cena speciální (bez DPH)"
+          hint="Mimořádně vyšší cena pro výjimečně pěkné kameny (override doporučené). Zadáváš bez DPH, s DPH se dopočte níže."
           editable
-          value={manualPrice}
-          onChange={setManualPrice}
+          value={manualExVat > 0 ? manualExVat.toFixed(2) : ''}
+          onChange={(v) => {
+            // Empty = clear manualPrice
+            if (v.trim() === '') {
+              setManualPrice('');
+              return;
+            }
+            const n = parseDecimalCs(v);
+            if (Number.isFinite(n) && n > 0) {
+              const inclVat = (n * vatMultiplier).toFixed(2);
+              setManualPrice(inclVat);
+            }
+          }}
           placeholder="—"
           rightExtra={
             manualBelowRecommended ? (
               <span className="text-[10px] text-warning font-mono whitespace-nowrap" title="Speciální cena je pod doporučeným minimem — kámen bude označen NEEDS_REVIEW">
                 ⚠ pod doporučenou
+              </span>
+            ) : null
+          }
+        />
+
+        {/* 4b. Cena specialni s DPH — READONLY, automaticky dopocita z bez-DPH × (1 + vatRate/100). */}
+        <PriceRow
+          label="Cena speciální (s DPH)"
+          hint={`Automaticky dopočteno z Ceny speciální × ${(vatMultiplier).toFixed(2)} (DPH ${vatRate}%).`}
+          editable={false}
+          displayValue={manualNum > 0 ? fmt(String(manualNum)) : '—'}
+          emptyHint="Zadej Cenu speciální výše — s DPH se dopočte."
+          rightExtra={
+            manualExVat > 0 && manualNum > 0 ? (
+              <span className="text-[10px] font-mono text-muted-foreground whitespace-nowrap">
+                {fmt(String(manualExVat))} bez DPH × {(vatMultiplier).toFixed(2)} = {fmt(String(manualNum))} s DPH
               </span>
             ) : null
           }

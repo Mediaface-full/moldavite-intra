@@ -26,6 +26,7 @@ export default async function ItemDetailPage({
           order: {
             select: {
               id: true, code: true, title: true,
+              vatRatePct: true,
               // PricingConfig snapshot pro on-the-fly breakdown fallback (vis nize)
               pricingConfig: { select: { rules: true } },
             },
@@ -210,6 +211,7 @@ export default async function ItemDetailPage({
               costBasisCzk: item.costBasisCzk ? item.costBasisCzk.toString() : null,
               computedMinPriceExVatCzk: item.computedMinPriceExVatCzk ? item.computedMinPriceExVatCzk.toString() : null,
               recommendedPriceInclVatCzk: item.recommendedPriceInclVatCzk ? item.recommendedPriceInclVatCzk.toString() : null,
+              vatRatePct: item.box.order?.vatRatePct ? item.box.order.vatRatePct.toString() : null,
               manualPriceInclVatCzk: item.manualPriceInclVatCzk ? item.manualPriceInclVatCzk.toString() : null,
               purchasePricePerGramCzk: item.purchasePricePerGramCzk ? item.purchasePricePerGramCzk.toString() : null,
               pricingStatus: item.pricingStatus,
