@@ -74,6 +74,28 @@ function diagnoseNeedsInput(
   return reasons;
 }
 
+/**
+ * Diagnostika proc kamen ma status NEEDS_REVIEW — pro tooltip badge.
+ * Sleduje stejne pravidla jako lib/pricing/calculate.ts:
+ *   - chybi povinne evidencni pole (tvar, poskozeni, barva, misto nalezu)
+ *   - manualPrice < recommendedPrice
+ */
+function diagnoseNeedsReview(item: SerializedItem): string[] {
+  const reasons: string[] = [];
+  if (!item.pasShape) reasons.push('tvar');
+  if (!item.attrDamage) reasons.push('poškození');
+  if (!item.attrColor || item.attrColor.length === 0) reasons.push('barva');
+  if (!item.location) reasons.push('místo nálezu');
+  if (
+    item.manualPriceInclVatCzk &&
+    item.recommendedPriceInclVatCzk &&
+    Number(item.manualPriceInclVatCzk) < Number(item.recommendedPriceInclVatCzk)
+  ) {
+    reasons.push(`speciální cena ${item.manualPriceInclVatCzk} < doporučená ${item.recommendedPriceInclVatCzk}`);
+  }
+  return reasons;
+}
+
 export default function OrderItemsTab({ order }: { order: SerializedOrder }) {
   const router = useRouter();
   const [filter, setFilter] = useState<'all' | 'NEEDS_INPUT' | 'NEEDS_REVIEW' | 'OK' | 'STALE'>('all');
@@ -161,9 +183,14 @@ function ItemRow({ item, boxCode, order, onSaveManual }: { item: SerializedItem;
   const [manualValue, setManualValue] = useState(item.manualPriceInclVatCzk ?? '');
   const status = item.pricingStatus;
   const color = STATUS_COLOR[status];
-  // Pro NEEDS_INPUT: rozepis konkretni chybejici udaje do tooltipu
-  const missingReasons = status === 'NEEDS_INPUT' ? diagnoseNeedsInput(item, order) : null;
-  const tooltipTitle = missingReasons ? `Chybí: ${missingReasons.join(' · ')}` : undefined;
+  // Pro NEEDS_INPUT i NEEDS_REVIEW: rozepis konkretni problemy do tooltipu + pod badge
+  const missingReasons =
+    status === 'NEEDS_INPUT' ? diagnoseNeedsInput(item, order) :
+    status === 'NEEDS_REVIEW' ? diagnoseNeedsReview(item) :
+    null;
+  const reasonPrefix = status === 'NEEDS_INPUT' ? 'Chybí' : status === 'NEEDS_REVIEW' ? 'K revizi' : '';
+  const tooltipTitle = missingReasons && missingReasons.length > 0 ? `${reasonPrefix}: ${missingReasons.join(' · ')}` : undefined;
+  const showReasonList = missingReasons && missingReasons.length > 0;
 
   return (
     <tr className="border-b border-border last:border-0 hover:bg-muted/40 transition-colors">
@@ -208,7 +235,7 @@ function ItemRow({ item, boxCode, order, onSaveManual }: { item: SerializedItem;
       <td className="px-3 py-2">
         <span
           title={tooltipTitle}
-          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono uppercase tracking-wider border ${missingReasons ? 'cursor-help' : ''}`}
+          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono uppercase tracking-wider border ${showReasonList ? 'cursor-help' : ''}`}
           style={{
             color,
             background: `color-mix(in srgb, ${color} 12%, transparent)`,
@@ -218,10 +245,10 @@ function ItemRow({ item, boxCode, order, onSaveManual }: { item: SerializedItem;
           <Icon name={STATUS_ICON[status]} className="w-3 h-3" />
           {STATUS_LABEL[status]}
         </span>
-        {missingReasons && (
+        {showReasonList && (
           <div className="text-[10px] font-mono text-muted-foreground mt-1 leading-snug max-w-[200px]">
-            {missingReasons.map((r) => `• ${r}`).join('\n').split('\n').map((line, i) => (
-              <div key={i}>{line}</div>
+            {missingReasons.map((r, i) => (
+              <div key={i}>• {r}</div>
             ))}
           </div>
         )}

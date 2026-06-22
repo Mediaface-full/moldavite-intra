@@ -79,6 +79,7 @@ export type SerializedItem = {
   attrDamage: string;
   attrColor: string[];
   attrCollectible: boolean;
+  location: string | null;
   box: { id: number; code: string };
 };
 

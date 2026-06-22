@@ -216,6 +216,25 @@ function computeStone(
     status = 'NEEDS_INPUT';
   }
 
+  // Povinná evidenční pole. Cena se spočítat dá, ale kámen není evidence-ready
+  // dokud nemá vyplněné: tvar, poškození, barvu, místo nálezu. (Váha je už
+  // pokrytá MISSING_WEIGHT check výše.) Chybějící pole → NEEDS_REVIEW —
+  // signál Gideonovi „dopiš metadata" bez blokování cenotvorby.
+  const missingRequired: string[] = [];
+  if (!stone.attrs.pasShape) missingRequired.push('tvar');
+  if (!stone.attrs.attrDamage) missingRequired.push('poškození');
+  if (!stone.attrs.attrColor || stone.attrs.attrColor.length === 0) missingRequired.push('barva');
+  if (!stone.attrs.location) missingRequired.push('místo nálezu');
+
+  if (missingRequired.length > 0) {
+    issues.push({
+      severity: 'warn',
+      code: 'MISSING_REQUIRED_FIELD',
+      message: `Chybí povinná evidenční pole: ${missingRequired.join(', ')}`,
+    });
+    if (status === 'OK') status = 'NEEDS_REVIEW';
+  }
+
   const steps: StonePricingSteps = {
     weightGrams: weight.toFixed(2),
     purchasePricePerGramCzk: moneyString(ppg),

@@ -24,7 +24,10 @@ function baseStone(overrides: Partial<StoneInput> = {}): StoneInput {
     weightGrams: '5',
     purchasePricePerGramCzk: null,
     manualPriceInclVatCzk: null,
-    attrs: { pasShape: null, location: null, attrDamage: null, attrColor: [], attrCollectible: false },
+    // Defaultně vyplněné všechny povinné evidenční atributy, aby existující
+    // testy „chování cenotvorby" neměly NEEDS_REVIEW kvůli prázdným polím.
+    // Testy které ověřují MISSING_REQUIRED_FIELD explicitně přepíší attrs.
+    attrs: { pasShape: 'kapka', location: 'Ježkovna, Besednice', attrDamage: 'bez', attrColor: ['zelená'], attrCollectible: false },
     ...overrides,
   };
 }
@@ -161,6 +164,88 @@ describe('edge: manualPrice > recommendedPrice → použij manual', () => {
     });
     expect(r.perStone[0].status).toBe('OK');
     expect(r.perStone[0].finalInternalPriceInclVatCzk).toBe('200.00');
+  });
+});
+
+describe('edge: chybí povinná evidenční pole → NEEDS_REVIEW', () => {
+  it('prázdný pasShape → status NEEDS_REVIEW + MISSING_REQUIRED_FIELD', () => {
+    const r = calculateOrderPricing({
+      order: baseOrder(),
+      stones: [baseStone({
+        weightGrams: '1',
+        purchasePricePerGramCzk: '100',
+        attrs: { pasShape: null, location: 'Ježkovna, Besednice', attrDamage: 'bez', attrColor: ['zelená'], attrCollectible: false },
+      })],
+      costs: [],
+      config: EMPTY_CONFIG,
+    });
+    expect(r.perStone[0].status).toBe('NEEDS_REVIEW');
+    const issue = r.perStone[0].issues.find((i) => i.code === 'MISSING_REQUIRED_FIELD');
+    expect(issue).toBeDefined();
+    expect(issue!.message).toContain('tvar');
+  });
+
+  it('chybí poškození, barva i místo nálezu → vyjmenuje všechna v message', () => {
+    const r = calculateOrderPricing({
+      order: baseOrder(),
+      stones: [baseStone({
+        weightGrams: '1',
+        purchasePricePerGramCzk: '100',
+        attrs: { pasShape: 'kapka', location: null, attrDamage: null, attrColor: [], attrCollectible: false },
+      })],
+      costs: [],
+      config: EMPTY_CONFIG,
+    });
+    expect(r.perStone[0].status).toBe('NEEDS_REVIEW');
+    const msg = r.perStone[0].issues.find((i) => i.code === 'MISSING_REQUIRED_FIELD')!.message;
+    expect(msg).toContain('poškození');
+    expect(msg).toContain('barva');
+    expect(msg).toContain('místo nálezu');
+    expect(msg).not.toContain('tvar');
+  });
+
+  it('cena se i tak spočítá (finalInternalPrice ≠ null)', () => {
+    const r = calculateOrderPricing({
+      order: baseOrder(),
+      stones: [baseStone({
+        weightGrams: '1',
+        purchasePricePerGramCzk: '100',
+        attrs: { pasShape: null, location: null, attrDamage: null, attrColor: [], attrCollectible: false },
+      })],
+      costs: [],
+      config: EMPTY_CONFIG,
+    });
+    expect(r.perStone[0].finalInternalPriceInclVatCzk).not.toBeNull();
+  });
+
+  it('chybějící pole + manualPrice < recommended → NEEDS_REVIEW (oba issues)', () => {
+    const r = calculateOrderPricing({
+      order: baseOrder(),
+      stones: [baseStone({
+        weightGrams: '1',
+        purchasePricePerGramCzk: '100',
+        manualPriceInclVatCzk: '50', // pod recommended
+        attrs: { pasShape: null, location: 'Ježkovna, Besednice', attrDamage: 'bez', attrColor: ['zelená'], attrCollectible: false },
+      })],
+      costs: [],
+      config: EMPTY_CONFIG,
+    });
+    expect(r.perStone[0].status).toBe('NEEDS_REVIEW');
+    expect(r.perStone[0].issues.some((i) => i.code === 'MANUAL_BELOW_MIN')).toBe(true);
+    expect(r.perStone[0].issues.some((i) => i.code === 'MISSING_REQUIRED_FIELD')).toBe(true);
+  });
+
+  it('chybějící váha (NEEDS_INPUT) má přednost před chybějícími atributy', () => {
+    const r = calculateOrderPricing({
+      order: baseOrder(),
+      stones: [baseStone({
+        weightGrams: null,
+        attrs: { pasShape: null, location: null, attrDamage: null, attrColor: [], attrCollectible: false },
+      })],
+      costs: [],
+      config: EMPTY_CONFIG,
+    });
+    expect(r.perStone[0].status).toBe('NEEDS_INPUT');
   });
 });
 
