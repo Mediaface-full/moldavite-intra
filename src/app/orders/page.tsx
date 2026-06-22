@@ -92,7 +92,8 @@ export default async function OrdersPage() {
                     <td className="px-4 py-3 text-muted-foreground font-mono text-xs">{fmtDate(o.purchaseDate)}</td>
                     <td className="px-4 py-3 text-right font-mono">{fmtMoney(o.totalPurchaseAmountCzk)}</td>
                     <td className="px-4 py-3 text-right font-mono">
-                      <div className="inline-flex items-center gap-2 justify-end">
+                      {/* Cislo nahore zarovnane (lze ho cist pres radky), warning chip pod nim. */}
+                      <div className="flex flex-col items-end gap-1">
                         <span>{o._count.items}</span>
                         {totalAttention > 0 && (
                           <span
