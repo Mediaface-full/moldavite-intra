@@ -8,11 +8,12 @@ import OrderCostsTab from './OrderCostsTab';
 import OrderItemsTab from './OrderItemsTab';
 import OrderPricingTab from './OrderPricingTab';
 import OrderOverviewTab from './OrderOverviewTab';
+import OrderLogsTab from './OrderLogsTab';
 import DoubleConfirmDelete from '../DoubleConfirmDelete';
 import Icon from '../Icon';
 import NewBoxButton from '../NewBoxButton';
 
-type Tab = 'overview' | 'costs' | 'items' | 'pricing';
+type Tab = 'overview' | 'costs' | 'items' | 'pricing' | 'logs';
 
 export type SerializedOrder = {
   id: number;
@@ -264,6 +265,7 @@ export default function OrderDetailClient({
         <TabBtn label="Náklady" icon="cash" active={tab === 'costs'} onClick={() => setTab('costs')} count={order.costs.length} />
         <TabBtn label="Kameny" icon="gem" active={tab === 'items'} onClick={() => setTab('items')} count={order.items.length} />
         <TabBtn label="Cenotvorba" icon="calc" active={tab === 'pricing'} onClick={() => setTab('pricing')} />
+        <TabBtn label="Logy" icon="history" active={tab === 'logs'} onClick={() => setTab('logs')} />
       </div>
 
       {/* Tab content */}
@@ -271,6 +273,7 @@ export default function OrderDetailClient({
       {tab === 'costs' && <OrderCostsTab order={order} />}
       {tab === 'items' && <OrderItemsTab order={order} />}
       {tab === 'pricing' && <OrderPricingTab order={order} pricingConfigs={pricingConfigs} />}
+      {tab === 'logs' && <OrderLogsTab orderId={order.id} />}
     </div>
   );
 }
