@@ -8,6 +8,8 @@ import BackupButton from '@/components/BackupButton';
 import Sparkline from '@/components/charts/Sparkline';
 import Donut from '@/components/charts/Donut';
 import ClickableRow from '@/components/ClickableRow';
+import Icon from '@/components/Icon';
+import { actionMeta, describeDetails, friendlyTarget } from '@/lib/activity-format';
 
 export default async function DashboardPage() {
   const session = await getSession();
@@ -60,6 +62,22 @@ export default async function DashboardPage() {
   const eurRate = rates.EUR;
   const usdRate = rates.USD;
   const totalValue = Number(inventoryValue._sum.salePrice ?? 0);
+
+  // Batched lookup item.id → katalogove cislo (K0001-0005) pro friendly target v logu.
+  const itemTargets = recentActivity
+    .filter((l) => l.action.startsWith('item.'))
+    .map((l) => parseInt(l.target, 10))
+    .filter((n) => Number.isInteger(n) && n > 0);
+  const itemCatalogRows = itemTargets.length > 0
+    ? await prisma.item.findMany({
+        where: { id: { in: itemTargets } },
+        select: { id: true, evidNumber: true, box: { select: { code: true } } },
+      })
+    : [];
+  const itemCatalog: Record<string, string> = {};
+  for (const it of itemCatalogRows) {
+    itemCatalog[String(it.id)] = `${it.box.code}-${it.evidNumber}`;
+  }
 
   // Synthesize a 12-point sparkline from a real-ish metric — for now use
   // last 12 ActivityLog buckets per day (placeholder until we add proper
@@ -239,34 +257,49 @@ export default async function DashboardPage() {
           {recentActivity.length === 0 ? (
             <p className="text-sm text-muted-foreground">Žádné záznamy.</p>
           ) : (
-            <ul className="space-y-2">
-              {recentActivity.map((log) => (
-                <li
-                  key={log.id}
-                  className="flex items-center justify-between gap-3 py-2 border-b border-border last:border-0"
-                >
-                  <div className="flex items-center gap-3 min-w-0 flex-1">
+            <ul className="space-y-1">
+              {recentActivity.map((log) => {
+                const meta = actionMeta(log.action);
+                const human = describeDetails(log.action, log.details);
+                const target = friendlyTarget(log.action, log.target, itemCatalog);
+                const isItem = log.action.startsWith('item.');
+                return (
+                  <li key={log.id} className="grid grid-cols-[auto_1fr_auto] items-start gap-3 py-2 border-b border-border last:border-0">
                     <span
-                      className="w-1.5 h-1.5 rounded-full flex-shrink-0"
-                      style={{ background: getActionColor(log.action) }}
-                    />
+                      className="inline-flex items-center justify-center w-6 h-6 rounded-md flex-shrink-0 mt-0.5"
+                      style={{
+                        color: meta.color,
+                        background: `color-mix(in srgb, ${meta.color} 12%, transparent)`,
+                      }}
+                    >
+                      <Icon name={meta.icon} className="w-3.5 h-3.5" />
+                    </span>
                     <div className="min-w-0">
-                      <p className="text-sm text-foreground truncate">
-                        <span className="font-mono text-xs text-muted-foreground mr-2">
-                          {log.action}
-                        </span>
-                        {log.target && <span className="text-muted-foreground">{log.target}</span>}
+                      <p className="text-sm text-foreground">
+                        <span className="font-medium">{meta.label}</span>
+                        {target && (
+                          isItem ? (
+                            <Link href={`/items/${log.target}`} className="font-mono text-xs text-primary hover:underline ml-2">
+                              {target}
+                            </Link>
+                          ) : (
+                            <span className="font-mono text-xs text-muted-foreground ml-2">{target}</span>
+                          )
+                        )}
                       </p>
-                      <p className="text-[11px] text-muted-foreground">
+                      {human && (
+                        <p className="text-[11px] text-muted-foreground truncate">{human}</p>
+                      )}
+                      <p className="text-[10px] text-muted-foreground/70 mt-0.5">
                         {log.user?.name || log.user?.email || 'system'}
                       </p>
                     </div>
-                  </div>
-                  <span className="text-[11px] text-muted-foreground font-mono flex-shrink-0">
-                    {formatRelative(log.createdAt)}
-                  </span>
-                </li>
-              ))}
+                    <span className="text-[11px] text-muted-foreground font-mono flex-shrink-0">
+                      {formatRelative(log.createdAt)}
+                    </span>
+                  </li>
+                );
+              })}
             </ul>
           )}
         </div>

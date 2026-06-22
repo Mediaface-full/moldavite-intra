@@ -29,5 +29,28 @@ export async function GET(request: NextRequest) {
     prisma.activityLog.count({ where }),
   ]);
 
-  return NextResponse.json({ logs, total });
+  // Enrich item.* logs s katalogovym cislem (K0001-0005) misto raw item id.
+  const itemTargets = logs
+    .filter((l) => l.action.startsWith('item.'))
+    .map((l) => parseInt(l.target, 10))
+    .filter((n) => Number.isInteger(n) && n > 0);
+  const itemCatalog: Record<string, string> = {};
+  if (itemTargets.length > 0) {
+    const items = await prisma.item.findMany({
+      where: { id: { in: itemTargets } },
+      select: { id: true, evidNumber: true, box: { select: { code: true } } },
+    });
+    for (const it of items) {
+      itemCatalog[String(it.id)] = `${it.box.code}-${it.evidNumber}`;
+    }
+  }
+
+  const enriched = logs.map((l) => ({
+    ...l,
+    targetDisplay: l.action.startsWith('item.') && itemCatalog[l.target]
+      ? itemCatalog[l.target]
+      : l.target,
+  }));
+
+  return NextResponse.json({ logs: enriched, total });
 }

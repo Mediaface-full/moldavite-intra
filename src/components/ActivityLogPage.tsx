@@ -1,38 +1,20 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { apiFetch } from '@/lib/apiFetch';
+import Icon from './Icon';
+import { actionMeta, describeDetails, friendlyTarget } from '@/lib/activity-format';
 
 interface LogEntry {
   id: number;
   action: string;
   target: string;
+  targetDisplay?: string;
   details: string;
   createdAt: string;
   user: { email: string; name: string | null };
 }
-
-const ACTION_LABELS: Record<string, { label: string; color: string }> = {
-  'auth.login': { label: 'Přihlášení', color: 'text-info' },
-  'item.update': { label: 'Úprava kamene', color: 'text-primary' },
-  'item.bulk_update': { label: 'Hromadná úprava', color: 'text-primary' },
-  'item.delete': { label: 'Smazání kamene', color: 'text-destructive' },
-  'item.sold': { label: 'Prodej', color: 'text-success' },
-  'box.placement': { label: 'Umístění kazety', color: 'text-warning' },
-  'box.photos': { label: 'Fotky kazety', color: 'text-warning' },
-  'admin.user.create': { label: 'Nový uživatel', color: 'text-success' },
-  'admin.user.update': { label: 'Úprava uživatele', color: 'text-warning' },
-  'admin.user.delete': { label: 'Smazání uživatele', color: 'text-destructive' },
-  'admin.backup': { label: 'Záloha DB', color: 'text-info' },
-  'export.upgates': { label: 'Export Upgates', color: 'text-primary' },
-  'export.etsy': { label: 'Export Etsy', color: 'text-warning' },
-  'rates.fetch': { label: 'Kurzy ČNB', color: 'text-info' },
-  'rates.recalc': { label: 'Přepočet cen', color: 'text-info' },
-  'scan': { label: 'Sken fotek', color: 'text-warning' },
-  'ai.generate': { label: 'AI generování', color: 'text-violet' },
-  'ai.apply': { label: 'AI texty uloženy', color: 'text-violet' },
-  'certificate.generate': { label: 'Certifikát', color: 'text-info' },
-};
 
 const ACTION_FILTERS = [
   { value: '', label: 'Všechny akce' },
@@ -104,7 +86,10 @@ export default function ActivityLogPage() {
           </thead>
           <tbody>
             {logs.map((log) => {
-              const actionInfo = ACTION_LABELS[log.action] || { label: log.action, color: 'text-muted-foreground' };
+              const meta = actionMeta(log.action);
+              const human = describeDetails(log.action, log.details);
+              const target = log.targetDisplay || friendlyTarget(log.action, log.target);
+              const isItem = log.action.startsWith('item.');
               return (
                 <tr key={log.id} className="border-b border-border hover:bg-muted/40 transition-colors">
                   <td className="px-4 py-3 text-muted-foreground text-xs whitespace-nowrap">
@@ -114,15 +99,24 @@ export default function ActivityLogPage() {
                     {log.user.name || log.user.email}
                   </td>
                   <td className="px-4 py-3">
-                    <span className={`text-xs font-medium ${actionInfo.color}`}>
-                      {actionInfo.label}
+                    <span className="inline-flex items-center gap-1.5 text-xs font-medium" style={{ color: meta.color }}>
+                      <Icon name={meta.icon} className="w-3.5 h-3.5" />
+                      {meta.label}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-muted-foreground text-xs font-mono">
-                    {log.target || '-'}
+                  <td className="px-4 py-3 text-xs">
+                    {target ? (
+                      isItem ? (
+                        <Link href={`/items/${log.target}`} className="font-mono text-primary hover:underline">
+                          {target}
+                        </Link>
+                      ) : (
+                        <span className="font-mono text-muted-foreground">{target}</span>
+                      )
+                    ) : <span className="text-muted-foreground">—</span>}
                   </td>
-                  <td className="px-4 py-3 text-muted-foreground text-xs max-w-xs truncate">
-                    {log.details || '-'}
+                  <td className="px-4 py-3 text-muted-foreground text-xs max-w-md truncate" title={log.details || undefined}>
+                    {human || '—'}
                   </td>
                 </tr>
               );

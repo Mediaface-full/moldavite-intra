@@ -10,8 +10,9 @@
  */
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import Icon, { type IconName } from '../Icon';
+import Icon from '../Icon';
 import { apiFetch } from '@/lib/apiFetch';
+import { actionMeta, describeDetails } from '@/lib/activity-format';
 
 type LogEntry = {
   id: number;
@@ -23,49 +24,6 @@ type LogEntry = {
   targetDisplay: string;
 };
 
-const ACTION_LABELS: Record<string, { label: string; icon: IconName; color: string }> = {
-  'order.create':           { label: 'Vytvořena zakázka',          icon: 'plus',        color: 'var(--success)' },
-  'order.update':           { label: 'Upravena zakázka',           icon: 'edit',        color: 'var(--info)' },
-  'order.delete':           { label: 'Smazána zakázka',            icon: 'trash',       color: 'var(--destructive)' },
-  'order.recalculate':      { label: 'Přepočet zakázky',           icon: 'recalculate', color: 'var(--primary)' },
-  'order.cost.add':         { label: 'Přidán náklad',              icon: 'plus',        color: 'var(--success)' },
-  'order.cost.update':      { label: 'Upraven náklad',             icon: 'edit',        color: 'var(--info)' },
-  'order.cost.delete':      { label: 'Smazán náklad',              icon: 'trash',       color: 'var(--destructive)' },
-  'box.create':             { label: 'Vytvořena kazeta',           icon: 'plus',        color: 'var(--success)' },
-  'box.update':             { label: 'Upravena kazeta',            icon: 'edit',        color: 'var(--info)' },
-  'box.delete':             { label: 'Smazána kazeta',             icon: 'trash',       color: 'var(--destructive)' },
-  'box.placement':          { label: 'Změněno umístění kazety',    icon: 'location',    color: 'var(--info)' },
-  'box.photos':             { label: 'Nahrány fotky kazety',       icon: 'camera',      color: 'var(--info)' },
-  'item.update':            { label: 'Úprava kamene',              icon: 'edit',        color: 'var(--info)' },
-  'item.delete':            { label: 'Smazán kámen',               icon: 'trash',       color: 'var(--destructive)' },
-  'item.bulk_update':       { label: 'Hromadná úprava kamenů',     icon: 'edit',        color: 'var(--info)' },
-};
-
-// Lidsky popis fieldů pro item.update details (= JSON.stringify(data) v PATCH item).
-const FIELD_LABELS: Record<string, string> = {
-  name:                          'Název',
-  nameEn:                        'Název EN',
-  description:                   'Popis',
-  descriptionEn:                 'Popis EN',
-  longDescription:               'Dlouhý popis',
-  longDescriptionEn:             'Dlouhý popis EN',
-  location:                      'Místo nálezu',
-  storage:                       'Umístění (fyzické)',
-  weight:                        'Hmotnost',
-  sold:                          'Prodáno',
-  onShop:                        'Eshop',
-  onEtsy:                        'Etsy',
-  pasShape:                      'Tvar',
-  attrDamage:                    'Poškození',
-  attrColor:                     'Barva',
-  attrCollectible:               'Sbírkový',
-  manualPriceInclVatCzk:         'Cena speciální',
-  purchasePricePerGramCzk:       'Cena za gram (override)',
-  mainPhoto:                     'Hlavní fotka',
-  upgatesId:                     'Upgates ID',
-  etsyId:                        'Etsy ID',
-};
-
 function fmtDate(iso: string): string {
   try {
     return new Date(iso).toLocaleString('cs-CZ', {
@@ -73,78 +31,6 @@ function fmtDate(iso: string): string {
       hour: '2-digit', minute: '2-digit',
     });
   } catch { return iso; }
-}
-
-/**
- * Převede `details` na lidskou popisku podle akce.
- *  - item.update: details = JSON.stringify(patch object). Vyextrahuj klíče
- *    + hodnoty (s ohledem na sensible non-stringy: boolean/number/string/array).
- *  - order.update: details = JSON.stringify(Object.keys(data)) → jen seznam upravených polí
- *  - jiné: text už lidsky čitelný (např. „Nahrány 3 fotky")
- */
-function describeDetails(action: string, raw: string): string | null {
-  if (!raw) return null;
-
-  // Není JSON → vrať jak je
-  if (!raw.startsWith('{') && !raw.startsWith('[')) return raw;
-
-  let parsed: unknown;
-  try { parsed = JSON.parse(raw); } catch { return raw; }
-
-  if (action === 'item.update' && typeof parsed === 'object' && parsed) {
-    const obj = parsed as Record<string, unknown>;
-    const changes: string[] = [];
-    for (const [key, val] of Object.entries(obj)) {
-      // Skipni prázdné stringy a default values co PATCH posílá celé tělo
-      if (val === '' || val === null) continue;
-      const label = FIELD_LABELS[key] ?? key;
-      if (typeof val === 'boolean') {
-        changes.push(`${label}: ${val ? 'ano' : 'ne'}`);
-      } else if (typeof val === 'number') {
-        changes.push(`${label}: ${val}`);
-      } else if (typeof val === 'string') {
-        // dlouhé texty zkráť
-        const short = val.length > 40 ? val.slice(0, 40) + '…' : val;
-        changes.push(`${label}: „${short}"`);
-      } else if (Array.isArray(val) && val.length > 0) {
-        changes.push(`${label}: ${val.join(', ')}`);
-      }
-    }
-    return changes.length > 0 ? changes.join(' · ') : null;
-  }
-
-  if (action === 'order.update' && Array.isArray(parsed)) {
-    const fields = parsed.map((k) => FIELD_LABELS[k as string] ?? k);
-    return `Upravená pole: ${fields.join(', ')}`;
-  }
-
-  if (action === 'order.recalculate' && typeof parsed === 'object' && parsed) {
-    const o = parsed as { stones?: number; ok?: number; needsInput?: number; needsReview?: number };
-    const parts: string[] = [];
-    if (typeof o.stones === 'number') parts.push(`${o.stones} kamenů`);
-    if (typeof o.ok === 'number') parts.push(`OK: ${o.ok}`);
-    if (typeof o.needsReview === 'number' && o.needsReview > 0) parts.push(`K revizi: ${o.needsReview}`);
-    if (typeof o.needsInput === 'number' && o.needsInput > 0) parts.push(`Bez vstupů: ${o.needsInput}`);
-    return parts.join(' · ');
-  }
-
-  if (action === 'order.cost.add' && typeof parsed === 'object' && parsed) {
-    const o = parsed as { typeKey?: string; amountCzk?: string };
-    return `${o.typeKey ?? 'Náklad'}: ${o.amountCzk ?? '?'} Kč`;
-  }
-
-  if (action === 'box.create' && typeof parsed === 'object' && parsed) {
-    const o = parsed as { cassetteType?: string };
-    return o.cassetteType ? `Typ: ${o.cassetteType}` : null;
-  }
-
-  // Fallback: pokud objekt s primitivy, list klíčů
-  if (typeof parsed === 'object' && parsed) {
-    const keys = Object.keys(parsed);
-    return keys.length > 0 ? `${keys.join(', ')}` : null;
-  }
-
-  return raw.length > 80 ? raw.slice(0, 80) + '…' : raw;
 }
 
 export default function OrderLogsTab({ orderId }: { orderId: number }) {
@@ -210,7 +96,7 @@ export default function OrderLogsTab({ orderId }: { orderId: number }) {
       </div>
       <ul className="divide-y divide-border">
         {logs.map((l) => {
-          const meta = ACTION_LABELS[l.action] ?? { label: l.action, icon: 'info' as IconName, color: 'var(--muted-foreground)' };
+          const meta = actionMeta(l.action);
           const human = describeDetails(l.action, l.details);
           const isItem = l.action.startsWith('item.');
           const itemHref = isItem ? `/items/${l.target}` : null;
