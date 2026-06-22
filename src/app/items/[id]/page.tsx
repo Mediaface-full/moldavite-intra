@@ -17,7 +17,14 @@ export default async function ItemDetailPage({
 
   const item = await prisma.item.findUnique({
     where: { id: parseInt(id) },
-    include: { box: true },
+    include: {
+      box: {
+        include: {
+          // Pro breadcrumb segment „Zakázka {code}" pokud kazeta patri do zakazky.
+          order: { select: { id: true, code: true, title: true } },
+        },
+      },
+    },
   });
 
   if (!item) notFound();
@@ -28,12 +35,33 @@ export default async function ItemDetailPage({
 
   return (
     <div>
-      {/* Breadcrumb */}
-      <div className="flex items-center gap-2 text-sm text-muted-foreground mb-6">
-        <Link href="/boxes" className="hover:text-foreground transition-colors">
-          Kazety
-        </Link>
-        <span>/</span>
+      {/* Breadcrumb — pokud kazeta patri do zakazky, ukaz radici hierarchii:
+          Zakazky / {order.code} / {box.code} / {evidNumber}. Jinak pouvodni
+          plocha hierarchie Kazety / {box.code} / {evidNumber}. */}
+      <div className="flex items-center gap-2 text-sm text-muted-foreground mb-6 flex-wrap">
+        {item.box.order ? (
+          <>
+            <Link href="/orders" className="hover:text-foreground transition-colors">
+              Zakázky
+            </Link>
+            <span>/</span>
+            <Link
+              href={`/orders/${item.box.order.id}`}
+              className="hover:text-foreground transition-colors"
+              title={item.box.order.title || undefined}
+            >
+              {item.box.order.code}
+            </Link>
+            <span>/</span>
+          </>
+        ) : (
+          <>
+            <Link href="/boxes" className="hover:text-foreground transition-colors">
+              Kazety
+            </Link>
+            <span>/</span>
+          </>
+        )}
         <Link
           href={`/boxes/${item.box.id}`}
           className="hover:text-foreground transition-colors"
