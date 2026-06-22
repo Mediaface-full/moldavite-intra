@@ -421,31 +421,27 @@ export default function ItemsTable({ items: initialItems, boxCode, isAdmin = tru
                 {/* Location */}
                 <td className="px-3 py-2 text-muted-foreground">{item.location || '-'}</td>
 
-                {/* PAS shape — inline select */}
-                <td className="px-3 py-2" onClick={stopRowClick}>
-                  <select
-                    value={item.pasShape || ''}
-                    onChange={(e) => {
-                      const v = e.target.value;
-                      setLocalItems(prev => prev.map(i => i.id === item.id ? { ...i, pasShape: v } : i));
-                      autoSave(item.id, 'pasShape', v);
-                    }}
-                    className="w-full bg-muted border border-border rounded px-2 py-1 text-xs text-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
+                {/* PAS shape — READONLY (pro hromadnou editaci pouzij modal vyse, pro per-kamen detail). */}
+                <td className="px-3 py-2">
+                  <span
+                    className="inline-block px-2 py-1 text-xs text-foreground"
+                    title="Edituj na kartě kamene nebo přes Hromadnou editaci"
                   >
-                    <option value="">—</option>
-                    {pasOptions.map((o) => (
-                      <option key={o.value} value={o.value}>{o.value}</option>
-                    ))}
-                  </select>
+                    {item.pasShape || <span className="text-muted-foreground/60">—</span>}
+                  </span>
                 </td>
 
-                {/* Weight */}
-                <td className="px-3 py-2 text-right" onClick={stopRowClick}>
-                  <ZeroInput
-                    step="0.01" width="w-20"
-                    initial={typeof item.weight === 'string' ? parseFloat(item.weight) : item.weight}
-                    onSave={(v) => autoSave(item.id, 'weight', v)}
-                  />
+                {/* Weight — READONLY */}
+                <td className="px-3 py-2 text-right">
+                  <span
+                    className="inline-block w-20 px-2 py-1 font-mono text-xs text-foreground text-right"
+                    title="Edituj na kartě kamene nebo přes Hromadnou editaci"
+                  >
+                    {(() => {
+                      const w = typeof item.weight === 'string' ? parseFloat(item.weight) : item.weight;
+                      return Number.isFinite(w) && w > 0 ? w.toFixed(2) : '—';
+                    })()}
+                  </span>
                 </td>
 
                 {/* Purchase Price — READONLY (vypocet z cenotvorby zakazky/kazety) */}
