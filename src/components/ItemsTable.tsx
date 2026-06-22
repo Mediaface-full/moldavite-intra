@@ -330,16 +330,52 @@ export default function ItemsTable({ items: initialItems, boxCode, isAdmin = tru
                 onClick={() => router.push(`/items/${item.id}`)}
                 className={`border-b border-border hover:bg-muted/40 transition-colors cursor-pointer ${item.sold ? 'opacity-50' : ''}`}
               >
-                {/* Stav cenotvorby — varovny trojuhelnik pro NEEDS_INPUT/NEEDS_REVIEW */}
+                {/* Stav cenotvorby — varovny trojuhelnik pro NEEDS_INPUT/NEEDS_REVIEW,
+                    zeleny checkmark pro OK, info icon pro STALE. Bez statusu = null. */}
                 <td className="px-2 py-2 text-center" onClick={stopRowClick}>
                   {(() => {
                     const status = item.pricingStatus;
-                    if (!status || status === 'OK' || status === 'STALE') return null;
+                    if (!status) return null;
+                    if (status === 'OK') {
+                      return (
+                        <span
+                          title="Vše vyplněno, cena spočítaná"
+                          className="inline-flex items-center justify-center w-7 h-7 rounded-full"
+                          style={{
+                            background: 'color-mix(in srgb, var(--success) 14%, transparent)',
+                            border: '1.5px solid var(--success)',
+                            color: 'var(--success)',
+                          }}
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={3}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                          </svg>
+                        </span>
+                      );
+                    }
+                    if (status === 'STALE') {
+                      return (
+                        <Link
+                          href={`/items/${item.id}`}
+                          title="Cena je zastaralá — spusť Přepočítat v zakázce"
+                          className="inline-flex items-center justify-center w-7 h-7 rounded-full hover:opacity-80 transition-opacity"
+                          style={{
+                            background: 'color-mix(in srgb, var(--info) 14%, transparent)',
+                            border: '1.5px solid var(--info)',
+                            color: 'var(--info)',
+                          }}
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+                          </svg>
+                        </Link>
+                      );
+                    }
                     const missing = listMissingRequired(item);
                     const tooltip = missing.length > 0
                       ? `${status === 'NEEDS_INPUT' ? 'Chybí' : 'K revizi'}: ${missing.join(', ')}`
                       : status === 'NEEDS_INPUT' ? 'Chybí vstupy pro cenu' : 'K revizi';
-                    const color = status === 'NEEDS_INPUT' ? 'var(--muted-foreground)' : 'var(--warning)';
+                    const color = 'var(--warning)';
                     return (
                       <Link
                         href={`/items/${item.id}`}
@@ -432,48 +468,69 @@ export default function ItemsTable({ items: initialItems, boxCode, isAdmin = tru
                   />
                 </td>
 
-                {/* Eshop Toggle - disabled if sold */}
+                {/* Eshop Toggle - disabled if sold, prodáno nebo kámen není OK */}
+                {/* Server-side gate: PATCH item odmítne onShop=true kdyz pricingStatus != OK */}
                 <td className="px-3 py-2 text-center" onClick={stopRowClick}>
-                  {item.sold ? (
-                    <span className="relative inline-flex h-5 w-9 items-center rounded-full bg-muted opacity-50 cursor-not-allowed ring-1 ring-inset ring-border">
-                      <span className="inline-block h-3.5 w-3.5 transform rounded-full bg-muted-foreground/40 translate-x-0.5" />
-                    </span>
-                  ) : (
-                    <button
-                      onClick={() => toggleField(item.id, 'onShop', item.onShop)}
-                      style={item.onShop ? { background: 'var(--success)' } : undefined}
-                      className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ring-1 ring-inset ${
-                        item.onShop ? 'ring-transparent' : 'bg-muted ring-border'
-                      }`}
-                      aria-label="Vystaveno na eshopu"
-                    >
-                      <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-card shadow-sm transition-transform ${
-                        item.onShop ? 'translate-x-[18px]' : 'translate-x-0.5'
-                      }`} />
-                    </button>
-                  )}
+                  {(() => {
+                    const blocked = item.sold
+                      || (item.pricingStatus && item.pricingStatus !== 'OK' && item.pricingStatus !== 'STALE');
+                    if (blocked) {
+                      return (
+                        <span
+                          className="relative inline-flex h-5 w-9 items-center rounded-full bg-muted opacity-50 cursor-not-allowed ring-1 ring-inset ring-border"
+                          title={item.sold ? 'Kámen je prodán' : 'Dopiš povinné údaje a spusť Přepočítat'}
+                        >
+                          <span className="inline-block h-3.5 w-3.5 transform rounded-full bg-muted-foreground/40 translate-x-0.5" />
+                        </span>
+                      );
+                    }
+                    return (
+                      <button
+                        onClick={() => toggleField(item.id, 'onShop', item.onShop)}
+                        style={item.onShop ? { background: 'var(--success)' } : undefined}
+                        className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ring-1 ring-inset ${
+                          item.onShop ? 'ring-transparent' : 'bg-muted ring-border'
+                        }`}
+                        aria-label="Vystaveno na eshopu"
+                      >
+                        <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-card shadow-sm transition-transform ${
+                          item.onShop ? 'translate-x-[18px]' : 'translate-x-0.5'
+                        }`} />
+                      </button>
+                    );
+                  })()}
                 </td>
 
-                {/* Etsy Toggle - disabled if sold */}
+                {/* Etsy Toggle - stejný gating jako Eshop */}
                 <td className="px-3 py-2 text-center" onClick={stopRowClick}>
-                  {item.sold ? (
-                    <span className="relative inline-flex h-5 w-9 items-center rounded-full bg-muted opacity-50 cursor-not-allowed ring-1 ring-inset ring-border">
-                      <span className="inline-block h-3.5 w-3.5 transform rounded-full bg-muted-foreground/40 translate-x-0.5" />
-                    </span>
-                  ) : (
-                    <button
-                      onClick={() => toggleField(item.id, 'onEtsy', item.onEtsy)}
-                      style={item.onEtsy ? { background: 'var(--warning)' } : undefined}
-                      className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ring-1 ring-inset ${
-                        item.onEtsy ? 'ring-transparent' : 'bg-muted ring-border'
-                      }`}
-                      aria-label="Vystaveno na Etsy"
-                    >
-                      <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-card shadow-sm transition-transform ${
-                        item.onEtsy ? 'translate-x-[18px]' : 'translate-x-0.5'
-                      }`} />
-                    </button>
-                  )}
+                  {(() => {
+                    const blocked = item.sold
+                      || (item.pricingStatus && item.pricingStatus !== 'OK' && item.pricingStatus !== 'STALE');
+                    if (blocked) {
+                      return (
+                        <span
+                          className="relative inline-flex h-5 w-9 items-center rounded-full bg-muted opacity-50 cursor-not-allowed ring-1 ring-inset ring-border"
+                          title={item.sold ? 'Kámen je prodán' : 'Dopiš povinné údaje a spusť Přepočítat'}
+                        >
+                          <span className="inline-block h-3.5 w-3.5 transform rounded-full bg-muted-foreground/40 translate-x-0.5" />
+                        </span>
+                      );
+                    }
+                    return (
+                      <button
+                        onClick={() => toggleField(item.id, 'onEtsy', item.onEtsy)}
+                        style={item.onEtsy ? { background: 'var(--warning)' } : undefined}
+                        className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ring-1 ring-inset ${
+                          item.onEtsy ? 'ring-transparent' : 'bg-muted ring-border'
+                        }`}
+                        aria-label="Vystaveno na Etsy"
+                      >
+                        <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-card shadow-sm transition-transform ${
+                          item.onEtsy ? 'translate-x-[18px]' : 'translate-x-0.5'
+                        }`} />
+                      </button>
+                    );
+                  })()}
                 </td>
 
                 {/* Sold button - only one-way in table (mark as sold, unmark only from detail) */}

@@ -81,6 +81,17 @@ export async function PATCH(
           { status: 400 }
         );
       }
+      // Gate na pricing status — kamen k revizi / bez vstupu nesmi byt na shopu.
+      // STALE projde (signal „klikni Prepocitat", ne data error).
+      if (existing.pricingStatus === 'NEEDS_INPUT' || existing.pricingStatus === 'NEEDS_REVIEW') {
+        const reason = existing.pricingStatus === 'NEEDS_INPUT'
+          ? 'kameni chybí vstupy pro cenu (váha nebo Kč/g)'
+          : 'kámen má nevyplněná povinná evidenční pole nebo speciální cenu pod doporučenou';
+        return NextResponse.json(
+          { error: `Nelze vystavit kámen ve stavu ${existing.pricingStatus} — ${reason}. Dopiš chybějící údaje a spusť Přepočítat.` },
+          { status: 400 }
+        );
+      }
     }
   }
 

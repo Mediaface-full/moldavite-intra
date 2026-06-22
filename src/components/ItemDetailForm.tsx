@@ -507,40 +507,74 @@ export default function ItemDetailForm({ item }: { item: ItemData }) {
             )}
           </div>
 
-          <div className="flex items-center justify-between">
-            <div>
-              <label className="block text-[10px] text-muted-foreground mb-0.5 uppercase tracking-wider font-mono">Vystavit na Eshop</label>
-              <p className="text-xs text-muted-foreground">Prodejní cena: {formatPrice(formData.salePrice)}</p>
-            </div>
-            <button
-              onClick={() => setFormData((f) => ({ ...f, onShop: !f.onShop }))}
-              style={formData.onShop ? { background: 'var(--success)' } : undefined}
-              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ring-1 ring-inset ${
-                formData.onShop ? 'ring-transparent' : 'bg-muted ring-border'
-              }`}
-              aria-label="Vystavit na Eshop"
-            >
-              <span className={`inline-block h-4 w-4 transform rounded-full bg-card shadow-sm transition-transform ${
-                formData.onShop ? 'translate-x-[22px]' : 'translate-x-0.5'
-              }`} />
-            </button>
-          </div>
+          {/* Gating: dokud neni cena v poradku (OK nebo STALE), nelze vystavit. */}
+          {/* Server-side PATCH item endpoint odmita totez (defense-in-depth). */}
+          {(() => {
+            const publishBlocked = item.pricingStatus
+              && item.pricingStatus !== 'OK'
+              && item.pricingStatus !== 'STALE';
+            const blockedTitle = publishBlocked
+              ? 'Dopiš chybějící údaje a spusť „Přepočítat" v zakázce — kámen ve stavu '
+                + (item.pricingStatus === 'NEEDS_INPUT' ? 'BEZ VSTUPŮ' : 'K REVIZI')
+                + ' nelze vystavit.'
+              : undefined;
+            return (
+              <>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <label className="block text-[10px] text-muted-foreground mb-0.5 uppercase tracking-wider font-mono">Vystavit na Eshop</label>
+                    <p className="text-xs text-muted-foreground">Prodejní cena: {formatPrice(formData.salePrice)}</p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      if (publishBlocked) {
+                        alert(blockedTitle);
+                        return;
+                      }
+                      setFormData((f) => ({ ...f, onShop: !f.onShop }));
+                    }}
+                    disabled={!!publishBlocked}
+                    title={blockedTitle}
+                    style={formData.onShop && !publishBlocked ? { background: 'var(--success)' } : undefined}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ring-1 ring-inset ${
+                      publishBlocked ? 'bg-muted ring-border opacity-50 cursor-not-allowed' :
+                      formData.onShop ? 'ring-transparent' : 'bg-muted ring-border'
+                    }`}
+                    aria-label="Vystavit na Eshop"
+                  >
+                    <span className={`inline-block h-4 w-4 transform rounded-full bg-card shadow-sm transition-transform ${
+                      formData.onShop && !publishBlocked ? 'translate-x-[22px]' : 'translate-x-0.5'
+                    }`} />
+                  </button>
+                </div>
 
-          <div className="flex items-center justify-between">
-            <label className="block text-[10px] text-muted-foreground uppercase tracking-wider font-mono">Vystavit na Etsy</label>
-            <button
-              onClick={() => setFormData((f) => ({ ...f, onEtsy: !f.onEtsy }))}
-              style={formData.onEtsy ? { background: 'var(--warning)' } : undefined}
-              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ring-1 ring-inset ${
-                formData.onEtsy ? 'ring-transparent' : 'bg-muted ring-border'
-              }`}
-              aria-label="Vystavit na Etsy"
-            >
-              <span className={`inline-block h-4 w-4 transform rounded-full bg-card shadow-sm transition-transform ${
-                formData.onEtsy ? 'translate-x-[22px]' : 'translate-x-0.5'
-              }`} />
-            </button>
-          </div>
+                <div className="flex items-center justify-between">
+                  <label className="block text-[10px] text-muted-foreground uppercase tracking-wider font-mono">Vystavit na Etsy</label>
+                  <button
+                    onClick={() => {
+                      if (publishBlocked) {
+                        alert(blockedTitle);
+                        return;
+                      }
+                      setFormData((f) => ({ ...f, onEtsy: !f.onEtsy }));
+                    }}
+                    disabled={!!publishBlocked}
+                    title={blockedTitle}
+                    style={formData.onEtsy && !publishBlocked ? { background: 'var(--warning)' } : undefined}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ring-1 ring-inset ${
+                      publishBlocked ? 'bg-muted ring-border opacity-50 cursor-not-allowed' :
+                      formData.onEtsy ? 'ring-transparent' : 'bg-muted ring-border'
+                    }`}
+                    aria-label="Vystavit na Etsy"
+                  >
+                    <span className={`inline-block h-4 w-4 transform rounded-full bg-card shadow-sm transition-transform ${
+                      formData.onEtsy && !publishBlocked ? 'translate-x-[22px]' : 'translate-x-0.5'
+                    }`} />
+                  </button>
+                </div>
+              </>
+            );
+          })()}
         </div>
       </div>
 
