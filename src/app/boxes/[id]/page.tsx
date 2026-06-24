@@ -9,6 +9,7 @@ import BoxPlacement from '@/components/BoxPlacement';
 import CassetteTypePicker from '@/components/CassetteTypePicker';
 import AiBulkButton from '@/components/AiBulkButton';
 import BoxDeleteButton from '@/components/BoxDeleteButton';
+import BoxMoveToOrderButton from '@/components/BoxMoveToOrderButton';
 import GenerateItemsButton from '@/components/GenerateItemsButton';
 import BoxSellerPicker from '@/components/BoxSellerPicker';
 import FtpUploadInfo from '@/components/FtpUploadInfo';
@@ -186,6 +187,14 @@ export default async function BoxDetailPage({
             <AiBulkButton
               boxCode={box.code}
               items={box.items.map(i => ({ id: i.id, evidNumber: i.evidNumber }))}
+            />
+          )}
+          {isAdmin && (
+            <BoxMoveToOrderButton
+              boxId={box.id}
+              boxCode={box.code}
+              currentOrderId={box.order?.id ?? null}
+              currentOrderCode={box.order?.code ?? null}
             />
           )}
           {isAdmin && (

@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma';
 import { NextResponse } from 'next/server';
 import { getSession, logActivity } from '@/lib/auth';
+import { recalcOrder } from '@/lib/orders/recalcOrder';
 
 export async function PATCH(
   request: Request,
@@ -30,6 +31,30 @@ export async function PATCH(
   // Per-kazeta dodavatel a cenotvorba (vše nullable — null = dědí z Order)
   if (body.sellerId !== undefined) {
     data.sellerId = body.sellerId === null ? null : Number(body.sellerId);
+  }
+
+  // Přesun kazety mezi zakázkami (orderId). null = oddělit od zakázky (skladová).
+  // Pri zmene musi:
+  //  1) Item.orderId vsech kamenu v box → sync s novym Box.orderId
+  //  2) Recalc OBOU zakazek (zdrojova ztratila alokaci, cilova ziskala)
+  let orderTransition: { from: number | null; to: number | null } | null = null;
+  if (body.orderId !== undefined) {
+    const newOrderId = body.orderId === null ? null : Number(body.orderId);
+    if (newOrderId !== null && (!Number.isInteger(newOrderId) || newOrderId <= 0)) {
+      return NextResponse.json({ error: 'orderId musí být pozitivní integer nebo null' }, { status: 422 });
+    }
+    if (newOrderId !== null) {
+      // Verifikuj že target zakazka existuje
+      const targetOrder = await prisma.order.findUnique({ where: { id: newOrderId }, select: { id: true } });
+      if (!targetOrder) {
+        return NextResponse.json({ error: `Zakázka id=${newOrderId} neexistuje` }, { status: 404 });
+      }
+    }
+    const currentBox = await prisma.box.findUnique({ where: { id: boxId }, select: { orderId: true } });
+    if (currentBox && currentBox.orderId !== newOrderId) {
+      data.orderId = newOrderId;
+      orderTransition = { from: currentBox.orderId, to: newOrderId };
+    }
   }
   if (body.declaredPieces !== undefined) {
     const n = body.declaredPieces === null ? null : Number(body.declaredPieces);
@@ -62,6 +87,28 @@ export async function PATCH(
     await logActivity(session.id, 'box.placement', box.code, `Umístění: ${body.placement} (propsáno ke kamenům)`);
   } else if (body.placement !== undefined) {
     await logActivity(session.id, 'box.placement', box.code, `Umístění: ${body.placement}`);
+  }
+
+  // Pri presunu mezi zakazkami: sync Item.orderId + recalc obou Orderu.
+  if (orderTransition) {
+    // Sync items.orderId (musi byt = box.orderId aby calculate.ts aplikoval spravnou cenotvorbu)
+    await prisma.item.updateMany({
+      where: { boxId },
+      data: { orderId: orderTransition.to },
+    });
+    await logActivity(
+      session.id,
+      'box.update',
+      box.code,
+      JSON.stringify({ orderId: { from: orderTransition.from, to: orderTransition.to } }),
+    );
+    // Auto-recalc obou Orderu (zdrojova ztratila kazetu, cilova ziskala → alokace + ceny se meni)
+    try {
+      if (orderTransition.from) await recalcOrder(orderTransition.from);
+      if (orderTransition.to) await recalcOrder(orderTransition.to);
+    } catch (err) {
+      console.error('Auto-recalc after box order transition failed:', err);
+    }
   }
 
   return NextResponse.json(box);
