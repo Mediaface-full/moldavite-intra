@@ -141,7 +141,17 @@ export default function VoiceInputButton({
       });
     };
     rec.onerror = (e) => {
-      setError(`Chyba rozpoznávání: ${e.error ?? 'neznámá'}`);
+      const code = e.error ?? 'unknown';
+      // Lidsky popis nejcastejsich chyb — Speech API codes nejsou self-explanatory
+      const friendly: Record<string, string> = {
+        'not-allowed': 'Prohlížeč zablokoval mikrofon. Klikni vlevo nahoře na ikonu 🔒 / 🔍 → Site settings → Microphone → Allow. Pak obnov stránku a zkus znovu.',
+        'service-not-allowed': 'Mikrofon blokován v nastavení prohlížeče. Povol ho pro tuto stránku a obnov.',
+        'no-speech': 'Mikrofon nezachytil žádnou řeč. Mluv blíž k mikrofonu a zkus znovu.',
+        'audio-capture': 'Mikrofon nenalezen. Zkontroluj že je připojený a vybraný jako vstup v OS.',
+        'network': 'Chyba sítě — rozpoznávání běží přes Google. Zkontroluj internet.',
+        'aborted': 'Nahrávání zrušeno.',
+      };
+      setError(friendly[code] ?? `Chyba rozpoznávání (${code}). Zkus prosím znovu nebo restartuj prohlížeč.`);
       stopRecording();
     };
     rec.onend = () => {
