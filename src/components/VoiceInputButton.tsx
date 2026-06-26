@@ -108,7 +108,7 @@ export default function VoiceInputButton({
     setRecording(false);
   }, []);
 
-  const startRecording = useCallback(() => {
+  const startRecording = useCallback(async () => {
     if (typeof window === 'undefined') return;
     const Ctor = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!Ctor) {
@@ -118,6 +118,42 @@ export default function VoiceInputButton({
     setError(null);
     setTranscript('');
     setResult(null);
+
+    // Debug info — diagnostika pokud něco selže
+    const debug = {
+      secure: window.isSecureContext,
+      protocol: window.location.protocol,
+      host: window.location.host,
+      userAgent: navigator.userAgent.slice(0, 80),
+    };
+
+    if (!window.isSecureContext) {
+      setError(`Hlasový vstup vyžaduje HTTPS. Aktuální origin: ${window.location.origin} (${debug.protocol}). Zkontroluj že stránka běží přes https://.`);
+      return;
+    }
+
+    // Explicitne pozadat mikrofonni stream — bez tohoto Chrome Speech API
+    // nekdy hodi „not-allowed" i kdyz user povolil mic v site settings.
+    // getUserMedia trigguje permission prompt (pokud jeste nezadal) nebo
+    // okamzite uspeje (pokud Allow). MediaStream pak hned uzavreme — Speech
+    // API si nahravani spousti sam.
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      // Pustit stream — Speech API si vytvori vlastni
+      stream.getTracks().forEach((t) => t.stop());
+    } catch (err) {
+      const name = err instanceof Error ? err.name : 'unknown';
+      console.error('[VoiceInput] getUserMedia failed:', err, debug);
+      const friendly: Record<string, string> = {
+        NotAllowedError: `Mikrofon zamítnut. Klikni vlevo nahoře na 🔒 v ${debug.host} → Microphone → Allow. Pokud uz Allow, restartuj Chrome (App > Quit, znovu otevri).`,
+        NotFoundError: 'Mikrofon nenalezen v OS — zkontroluj že je připojený a vybraný jako vstup.',
+        NotReadableError: 'Mikrofon používá jiná aplikace (Zoom, Meet, …). Zavři ji a zkus znovu.',
+        SecurityError: `Browser blokoval mic kvuli security — origin ${debug.protocol}//${debug.host} neni secure context.`,
+        AbortError: 'Permission prompt byl zavřen.',
+      };
+      setError(friendly[name] ?? `Mikrofon nepřístupný: ${name}. Otevři DevTools Console pro detaily.`);
+      return;
+    }
 
     const rec = new Ctor();
     rec.lang = 'cs-CZ';
