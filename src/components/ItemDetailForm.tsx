@@ -12,6 +12,7 @@ import AttrMultiSelect from './AttrMultiSelect';
 import Icon from './Icon';
 import { apiFetch } from '@/lib/apiFetch';
 import SaleSnapshotPanel from './SaleSnapshotPanel';
+import VoiceInputButton, { type VoiceApplyPayload } from './VoiceInputButton';
 
 const RichTextEditor = dynamic(() => import('./RichTextEditor'), { ssr: false });
 
@@ -288,27 +289,56 @@ export default function ItemDetailForm({ item }: { item: ItemData }) {
   return (
     <div className="bg-card border border-border rounded-xl p-6 shadow-sm">
       {reviewBanner}
-      <div className="flex items-center justify-between mb-5">
+      <div className="flex items-center justify-between mb-5 gap-3 flex-wrap">
         <h2 className="text-lg font-semibold">Detail kamene</h2>
-        {/* CZ/EN switcher */}
-        <div className="flex items-center bg-muted border border-border rounded-lg p-0.5">
-          <button
-            onClick={() => setLang('cz')}
-            className={`px-3 py-1 rounded text-xs font-mono uppercase tracking-wider transition-colors ${
-              lang === 'cz' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            CZ
-          </button>
-          <button
-            onClick={() => setLang('en')}
-            style={lang === 'en' ? { background: 'var(--info)', color: '#fff' } : undefined}
-            className={`px-3 py-1 rounded text-xs font-mono uppercase tracking-wider transition-colors ${
-              lang === 'en' ? '' : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            EN
-          </button>
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Hlasový vstup — diktuj atributy, AI je vyplní */}
+          <VoiceInputButton
+            itemId={item.id}
+            currentDescription={formData.description ?? ''}
+            onApply={(payload: VoiceApplyPayload) => {
+              setFormData((f) => {
+                const next = { ...f };
+                if (payload.fields.pasShape !== undefined) next.pasShape = payload.fields.pasShape;
+                if (payload.fields.attrDamage !== undefined) next.attrDamage = payload.fields.attrDamage;
+                if (payload.fields.attrColor !== undefined) next.attrColor = payload.fields.attrColor;
+                if (payload.fields.location !== undefined) next.location = payload.fields.location;
+                if (payload.fields.weight !== undefined) next.weight = payload.fields.weight.toFixed(2);
+                if (payload.fields.attrCollectible !== undefined) next.attrCollectible = payload.fields.attrCollectible;
+                if (payload.appendToDescription) {
+                  next.description = next.description
+                    ? `${next.description.trimEnd()}\n\n${payload.appendToDescription}`
+                    : payload.appendToDescription;
+                }
+                return next;
+              });
+              // Sync weight raw (input drzi separate local state)
+              if (payload.fields.weight !== undefined) {
+                setWeightRaw(payload.fields.weight.toFixed(2));
+              }
+            }}
+          />
+
+          {/* CZ/EN switcher */}
+          <div className="flex items-center bg-muted border border-border rounded-lg p-0.5">
+            <button
+              onClick={() => setLang('cz')}
+              className={`px-3 py-1 rounded text-xs font-mono uppercase tracking-wider transition-colors ${
+                lang === 'cz' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              CZ
+            </button>
+            <button
+              onClick={() => setLang('en')}
+              style={lang === 'en' ? { background: 'var(--info)', color: '#fff' } : undefined}
+              className={`px-3 py-1 rounded text-xs font-mono uppercase tracking-wider transition-colors ${
+                lang === 'en' ? '' : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              EN
+            </button>
+          </div>
         </div>
       </div>
 
