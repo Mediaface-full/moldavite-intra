@@ -81,7 +81,11 @@ function applySecurityHeaders(response: NextResponse, nonce: string, isProd: boo
   response.headers.set('X-Frame-Options', 'DENY');
   response.headers.set('X-XSS-Protection', '1; mode=block');
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
-  response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=()');
+  // microphone=self — povoluje hlasovy vstup na nasem origin (VoiceInputButton
+  // pres Web Speech API + getUserMedia). Kdybychom poslali microphone=() jak
+  // bylo drive, browser zamitne mic pro VSE bez ohledu na user permission.
+  // camera/geolocation/payment zustavaji prazne — nepotrebujeme je.
+  response.headers.set('Permissions-Policy', 'camera=(), microphone=(self), geolocation=(), payment=()');
   if (isProd) {
     response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
   }
