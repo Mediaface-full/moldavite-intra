@@ -1,7 +1,7 @@
 import { prisma } from '@/lib/prisma';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
-import StoneViewer360 from '@/components/StoneViewer360';
+import StonePhotoWithViewer from '@/components/StonePhotoWithViewer';
 import ItemDetailForm from '@/components/ItemDetailForm';
 import ItemPhotoUploadModal from '@/components/ItemPhotoUploadModal';
 import MediaToggle from '@/components/MediaToggle';
@@ -173,7 +173,7 @@ export default async function ItemDetailPage({
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Left: 360° Viewer */}
         <div>
-          <StoneViewer360
+          <StonePhotoWithViewer
             photoPath={item.photoPath}
             evidNumber={catalogNumber}
             itemId={item.id}
