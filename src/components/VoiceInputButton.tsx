@@ -35,7 +35,9 @@ type ParseResponse = {
 
 export type VoiceApplyPayload = {
   fields: Partial<Suggestions>;
-  appendToDescription?: string;
+  /** Text k roztřídění — uloží se do Item.voiceNotes (oddělené od description).
+   * User si pak ručně rozhodne kam to patří (popis / dlouhý popis / nikam). */
+  voiceNotes?: string;
 };
 
 const FIELD_LABELS: Record<keyof Suggestions, string> = {
@@ -73,11 +75,12 @@ declare global {
 
 export default function VoiceInputButton({
   itemId,
-  currentDescription,
+  currentVoiceNotes,
   onApply,
 }: {
   itemId: number;
-  currentDescription: string;
+  /** Aktuální obsah voiceNotes — pro append (ne overwrite) */
+  currentVoiceNotes: string;
   onApply: (payload: VoiceApplyPayload) => void;
 }) {
   const [supported, setSupported] = useState(false);
@@ -89,8 +92,8 @@ export default function VoiceInputButton({
   const [showModal, setShowModal] = useState(false);
   // Per-pole checkbox state v modalu
   const [picked, setPicked] = useState<Record<string, boolean>>({});
-  const [appendNotes, setAppendNotes] = useState<string>('');
-  const [appendEnabled, setAppendEnabled] = useState(true);
+  const [notesText, setNotesText] = useState<string>('');
+  const [notesEnabled, setNotesEnabled] = useState(true);
   const recRef = useRef<SpeechRecognitionLike | null>(null);
 
   // Detekce browser support
@@ -224,8 +227,8 @@ export default function VoiceInputButton({
       const initialPicked: Record<string, boolean> = {};
       for (const k of Object.keys(data.suggestions)) initialPicked[k] = true;
       setPicked(initialPicked);
-      setAppendNotes(data.extraNotes ?? '');
-      setAppendEnabled(!!data.extraNotes);
+      setNotesText(data.extraNotes ?? '');
+      setNotesEnabled(!!data.extraNotes);
       setShowModal(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Chyba při zpracování');
@@ -244,7 +247,7 @@ export default function VoiceInputButton({
     }
     onApply({
       fields,
-      appendToDescription: appendEnabled && appendNotes.trim() ? appendNotes.trim() : undefined,
+      voiceNotes: notesEnabled && notesText.trim() ? notesText.trim() : undefined,
     });
     // Reset
     setShowModal(false);
@@ -377,28 +380,30 @@ export default function VoiceInputButton({
 
             {result.extraNotes && (
               <div className="mb-4">
-                <h3 className="text-[10px] uppercase tracking-wider font-mono text-muted-foreground mb-2">Doplnit do popisu</h3>
+                <h3 className="text-[10px] uppercase tracking-wider font-mono text-muted-foreground mb-2">
+                  Text k roztřídění (uloží se zvlášť, ne do popisu)
+                </h3>
                 <label className="flex items-start gap-2 mb-2">
                   <input
                     type="checkbox"
-                    checked={appendEnabled}
-                    onChange={(e) => setAppendEnabled(e.target.checked)}
+                    checked={notesEnabled}
+                    onChange={(e) => setNotesEnabled(e.target.checked)}
                     className="mt-1 w-4 h-4 rounded border-border text-primary focus:ring-ring/20"
                   />
                   <span className="text-xs text-muted-foreground">
-                    Přidat za stávající popis (delete pro úpravu textu).
+                    Uložit do „Text k roztřídění" pole — ručně si pak rozhodneš kam patří (popis / dlouhý popis / smaž).
                   </span>
                 </label>
                 <textarea
-                  value={appendNotes}
-                  onChange={(e) => setAppendNotes(e.target.value)}
+                  value={notesText}
+                  onChange={(e) => setNotesText(e.target.value)}
                   rows={3}
-                  disabled={!appendEnabled}
+                  disabled={!notesEnabled}
                   className="w-full bg-background border border-border rounded-md px-3 py-2 text-sm font-mono disabled:opacity-50 focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
                 />
-                {currentDescription && appendEnabled && (
+                {currentVoiceNotes && notesEnabled && (
                   <p className="mt-1.5 text-[10px] text-muted-foreground">
-                    Stávající popis: „{currentDescription.length > 80 ? currentDescription.slice(0, 80) + '…' : currentDescription}"
+                    Stávající text k roztřídění: „{currentVoiceNotes.length > 80 ? currentVoiceNotes.slice(0, 80) + '…' : currentVoiceNotes}" — nový se přidá za něj.
                   </p>
                 )}
               </div>
@@ -438,7 +443,7 @@ export default function VoiceInputButton({
                 <button
                   type="button"
                   onClick={applyPicked}
-                  disabled={Object.values(picked).every((v) => !v) && !(appendEnabled && appendNotes.trim())}
+                  disabled={Object.values(picked).every((v) => !v) && !(notesEnabled && notesText.trim())}
                   style={{ background: 'var(--success)' }}
                   className="text-white hover:opacity-90 disabled:opacity-50 disabled:bg-muted disabled:text-muted-foreground px-4 py-2 rounded-md text-xs font-mono uppercase tracking-wider transition-opacity"
                 >

@@ -53,6 +53,7 @@ interface ItemData {
   priceCalcBreakdown?: unknown;
   onShopAt?: string | null;
   onEtsyAt?: string | null;
+  voiceNotes?: string;
 }
 
 export default function ItemDetailForm({ item }: { item: ItemData }) {
@@ -79,6 +80,7 @@ export default function ItemDetailForm({ item }: { item: ItemData }) {
     attrCollectible: item.attrCollectible || false,
     manualPriceInclVatCzk: item.manualPriceInclVatCzk ?? '',
     purchasePricePerGramCzk: item.purchasePricePerGramCzk ?? '',
+    voiceNotes: item.voiceNotes ?? '',
   });
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -110,6 +112,7 @@ export default function ItemDetailForm({ item }: { item: ItemData }) {
           attrCollectible: formData.attrCollectible,
           manualPriceInclVatCzk: formData.manualPriceInclVatCzk === '' ? null : Number(formData.manualPriceInclVatCzk),
           purchasePricePerGramCzk: formData.purchasePricePerGramCzk === '' ? null : Number(formData.purchasePricePerGramCzk),
+          voiceNotes: formData.voiceNotes,
         }),
       });
       if (res.ok) {
@@ -176,6 +179,7 @@ export default function ItemDetailForm({ item }: { item: ItemData }) {
       attrCollectible: item.attrCollectible || false,
       manualPriceInclVatCzk: item.manualPriceInclVatCzk ?? '',
       purchasePricePerGramCzk: item.purchasePricePerGramCzk ?? '',
+      voiceNotes: item.voiceNotes ?? '',
     });
   }, [item]);
 
@@ -295,7 +299,7 @@ export default function ItemDetailForm({ item }: { item: ItemData }) {
           {/* Hlasový vstup — diktuj atributy, AI je vyplní */}
           <VoiceInputButton
             itemId={item.id}
-            currentDescription={formData.description ?? ''}
+            currentVoiceNotes={formData.voiceNotes ?? ''}
             onApply={(payload: VoiceApplyPayload) => {
               setFormData((f) => {
                 const next = { ...f };
@@ -305,14 +309,14 @@ export default function ItemDetailForm({ item }: { item: ItemData }) {
                 if (payload.fields.location !== undefined) next.location = payload.fields.location;
                 if (payload.fields.weight !== undefined) next.weight = payload.fields.weight.toFixed(2);
                 if (payload.fields.attrCollectible !== undefined) next.attrCollectible = payload.fields.attrCollectible;
-                if (payload.appendToDescription) {
-                  next.description = next.description
-                    ? `${next.description.trimEnd()}\n\n${payload.appendToDescription}`
-                    : payload.appendToDescription;
+                if (payload.voiceNotes) {
+                  // Append k existujicim voiceNotes (oddelene od description!)
+                  next.voiceNotes = next.voiceNotes
+                    ? `${next.voiceNotes.trimEnd()}\n\n${payload.voiceNotes}`
+                    : payload.voiceNotes;
                 }
                 return next;
               });
-              // Sync weight raw (input drzi separate local state)
               if (payload.fields.weight !== undefined) {
                 setWeightRaw(payload.fields.weight.toFixed(2));
               }
@@ -431,6 +435,37 @@ export default function ItemDetailForm({ item }: { item: ItemData }) {
             className="w-full bg-card border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/20 placeholder:text-muted-foreground transition-shadow"
           />
         </div>
+
+        {/* TEXT K ROZTRIDENI — surovy text z hlasoveho vstupu co AI nedostala
+            do strukturovanych poli. User si pak rucne presune do popisu / smaze.
+            Zobrazi se jen kdyz neco je — nezdrzuje UI prazdnym polem. */}
+        {(formData.voiceNotes ?? '').trim().length > 0 && (
+          <div className="rounded-lg border-2 p-3" style={{ borderColor: 'color-mix(in srgb, var(--violet) 35%, transparent)', background: 'color-mix(in srgb, var(--violet) 5%, transparent)' }}>
+            <div className="flex items-center justify-between mb-2 gap-2">
+              <label className="flex items-center gap-1.5 text-xs uppercase tracking-wider font-mono" style={{ color: 'var(--violet)' }}>
+                <Icon name="sparkles" className="w-3.5 h-3.5" />
+                Text k roztřídění (z hlasu)
+              </label>
+              <button
+                type="button"
+                onClick={() => setFormData((f) => ({ ...f, voiceNotes: '' }))}
+                className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground hover:text-destructive transition-colors"
+                title="Smazat — když jsi obsah už zařadil/a kam patří"
+              >
+                Smazat
+              </button>
+            </div>
+            <textarea
+              value={formData.voiceNotes ?? ''}
+              onChange={(e) => setFormData((f) => ({ ...f, voiceNotes: e.target.value }))}
+              rows={3}
+              className="w-full bg-card border border-border rounded-md px-3 py-2 text-sm font-mono focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
+            />
+            <p className="mt-1.5 text-[10px] text-muted-foreground">
+              Tohle AI nezvládla zařadit do strukturovaných polí. Přečti si a přesuň ručně do popisu / dlouhého popisu, nebo smaž.
+            </p>
+          </div>
+        )}
 
         {/* HMOTNOST — kriticky udaj pro evidenci i cenotvorbu. Zvyraznena karta
             s primary border tintem, vetsi font v inputu (text-lg + font-bold),

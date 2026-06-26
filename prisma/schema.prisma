@@ -200,6 +200,9 @@ model Item {
   onShopAt      DateTime? // datum vystavení na eshopu (nastaveno při false→true)
   onEtsy        Boolean  @default(false) // Etsy
   onEtsyAt      DateTime? // datum vystavení na Etsy (nastaveno při false→true)
+  /// Surový text k roztřídění (typicky z hlasového vstupu — extraNotes co AI nedostala
+  /// do strukturovaných polí). User si to ručně přečte a přesune do description/atd.
+  voiceNotes    String   @default("")
   upgatesId     String   @default("") // ID pro Upgates export
   etsyId        String   @default("") // ID pro Etsy export
   certHash      String   @default("") // hash pro verifikační stránku

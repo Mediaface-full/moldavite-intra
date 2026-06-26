@@ -19,6 +19,7 @@ const ALLOWED_FIELDS = [
   'orderId',
   'manualPriceInclVatCzk',
   'attrDamage', 'attrColor', 'attrCollectible',
+  'voiceNotes',
 ];
 
 function parseItemId(id: string): number | null {
