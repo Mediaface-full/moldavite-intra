@@ -255,7 +255,29 @@ function UploadModal({
         setTimeout(onDone, 800);
       }
     } else {
-      alert(`Upload selhal: ${res.status}`);
+      // Zkus dostat server error message z body (JSON nebo plain text)
+      let msg = `HTTP ${res.status}`;
+      try {
+        const ct = res.headers.get('content-type') ?? '';
+        if (ct.includes('application/json')) {
+          const j = await res.json();
+          if (j?.error) msg = j.error;
+        } else {
+          const t = await res.text();
+          if (t) msg = t.slice(0, 200);
+        }
+      } catch { /* ignore */ }
+      const totalMb = (files.reduce((s, f) => s + f.size, 0) / 1024 / 1024).toFixed(1);
+      alert(
+        `Upload selhal (${res.status})\n\n${msg}\n\n` +
+        `Poslal jsi ${files.length} souborů, celkem ${totalMb} MB.\n\n` +
+        (res.status === 413
+          ? 'Body je moc velký — reverzní proxy nebo Next limit. Zkus nahrát méně souborů najednou (max ~50 MB batch).'
+          : res.status === 400
+          ? 'Chybný požadavek — zkontroluj že soubory jsou PDF nebo EPUB (max 100 MB každý). Detail viz DevTools Console.'
+          : '')
+      );
+      console.error('[Library upload] failed:', { status: res.status, msg, files: files.map(f => ({ name: f.name, size: f.size, type: f.type })) });
     }
   }
 

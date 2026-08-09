@@ -15,6 +15,12 @@ import {
 
 const MAX_FILE_BYTES = 100 * 1024 * 1024; // 100 MB per soubor
 
+// Next 16 Route Handlers: explicit nodejs runtime pro velké multipart uploady.
+// Bez tohoto může edge runtime hodit body size limit i pro malé PDF.
+export const runtime = 'nodejs';
+// Zvýš timeout na 5 min — velké PDF přes pomalejší Synology síť.
+export const maxDuration = 300;
+
 export async function GET(request: Request) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -43,11 +49,24 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
-  const form = await request.formData().catch(() => null);
-  if (!form) return NextResponse.json({ error: 'Multipart form required' }, { status: 400 });
+  let form: FormData;
+  try {
+    form = await request.formData();
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error('[library/books POST] formData parse failed:', msg);
+    return NextResponse.json({
+      error: `Nešlo přečíst multipart form (${msg}). Zkontroluj velikost — reverzní proxy může mít client_max_body_size limit.`,
+    }, { status: 400 });
+  }
 
-  const files = form.getAll('files').filter((v): v is File => v instanceof File);
-  if (files.length === 0) return NextResponse.json({ error: 'Žádné soubory' }, { status: 400 });
+  const rawFiles = form.getAll('files');
+  const files = rawFiles.filter((v): v is File => v instanceof File);
+  if (files.length === 0) {
+    return NextResponse.json({
+      error: `Žádné soubory pod klíčem "files" v form-datě. Přijato ${rawFiles.length} položek (typy: ${rawFiles.map((v) => typeof v).join(', ')}).`,
+    }, { status: 400 });
+  }
 
   const categoryIdRaw = form.get('categoryId');
   let categoryId: number | null = null;
