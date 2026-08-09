@@ -495,3 +495,32 @@ model VsevedMessage {
 
   @@index([conversationId, createdAt])
 }
+
+/// Knihovna (PDF, EPUB) přístupná všem přihlášeným userům.
+/// Upload/delete pouze ADMIN. Soubory na disku v LIBRARY_PATH (bind mount),
+/// pojmenované po `storageFilename` = `<uuid>.<ext>`.
+model BookCategory {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  books     Book[]
+
+  @@index([sortOrder])
+}
+
+model Book {
+  id              Int      @id @default(autoincrement())
+  title           String
+  filename        String   // originální název ze souboru (user-friendly)
+  storageFilename String   @unique // <uuid>.<ext> — soubor na disku
+  mimeType        String
+  size            Int      // v bytech
+  categoryId      Int?
+  category        BookCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  uploadedById    Int
+  createdAt       DateTime @default(now())
+
+  @@index([categoryId])
+  @@index([createdAt])
+}

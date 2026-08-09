@@ -91,7 +91,15 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
                 <NavLink href="/items" icon="items">Kameny</NavLink>
                 <NavLink href="/search" icon="search">Vyhledávání</NavLink>
                 <NavLink href="/stats" icon="stats">Statistiky</NavLink>
-                <NavLink href="/vseved" icon="sparkles">Vševěd</NavLink>
+                {/* Vševěd — group header + 2 sub-links */}
+                <div className="pt-2">
+                  <p className="text-[10px] text-sidebar-muted uppercase tracking-[0.2em] px-3 pb-1 font-mono inline-flex items-center gap-1.5">
+                    <span className="opacity-70">✨</span>
+                    Vševěd
+                  </p>
+                  <NavLink href="/vseved" icon="sparkles">Ptej se</NavLink>
+                  <NavLink href="/vseved/knihy" icon="file">Knihy</NavLink>
+                </div>
 
                 {session.role === 'ADMIN' && (
                   <>
@@ -104,6 +112,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
                     <NavLink href="/admin/pricing-config" icon="pricing">Cenotvorba</NavLink>
                     <NavLink href="/admin/attributes" icon="attributes">Atributy</NavLink>
                     <NavLink href="/admin/sellers" icon="sellers">Dodavatelé</NavLink>
+                    <NavLink href="/admin/library-kategorie" icon="tag">Kategorie knih</NavLink>
                     <NavLink href="/admin/logs" icon="logs">Activity Log</NavLink>
                   </>
                 )}
