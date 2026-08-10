@@ -6,7 +6,7 @@
  * Klik na kartu → nové okno s download URL (PDF inline, EPUB attachment).
  * Admin má i „Smazat" tlačítko na kartě (hover).
  */
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { apiFetch } from '@/lib/apiFetch';
 import Icon from '../Icon';
@@ -53,6 +53,7 @@ export default function LibraryClient({
   const [books, setBooks] = useState(initialBooks);
   const [filter, setFilter] = useState<number | 'all' | 'none'>('all');
   const [showUpload, setShowUpload] = useState(false);
+  const [showFsImport, setShowFsImport] = useState(false);
 
   const filtered = useMemo(() => {
     if (filter === 'all') return books;
@@ -99,14 +100,24 @@ export default function LibraryClient({
           )}
         </div>
         {isAdmin && (
-          <button
-            onClick={() => setShowUpload(true)}
-            style={{ background: 'var(--success)' }}
-            className="text-white hover:opacity-90 px-4 py-2 rounded-md text-xs font-mono uppercase tracking-wider transition-opacity inline-flex items-center gap-2"
-          >
-            <Icon name="upload" className="w-4 h-4" />
-            Nahrát knihy
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowFsImport(true)}
+              className="bg-card border border-border hover:border-foreground/40 text-foreground px-3 py-2 rounded-md text-xs font-mono uppercase tracking-wider inline-flex items-center gap-2"
+              title="Naimportovat soubory nahrané do /data/library přes FTP / File Station"
+            >
+              <Icon name="refresh" className="w-4 h-4" />
+              Import z FTP
+            </button>
+            <button
+              onClick={() => setShowUpload(true)}
+              style={{ background: 'var(--success)' }}
+              className="text-white hover:opacity-90 px-4 py-2 rounded-md text-xs font-mono uppercase tracking-wider transition-opacity inline-flex items-center gap-2"
+            >
+              <Icon name="upload" className="w-4 h-4" />
+              Nahrát knihy
+            </button>
+          </div>
         )}
       </div>
 
@@ -201,6 +212,13 @@ export default function LibraryClient({
           categories={categories}
           onClose={() => setShowUpload(false)}
           onDone={() => { setShowUpload(false); router.refresh(); }}
+        />
+      )}
+      {showFsImport && (
+        <FsImportModal
+          categories={categories}
+          onClose={() => setShowFsImport(false)}
+          onDone={() => { setShowFsImport(false); router.refresh(); }}
         />
       )}
     </div>
@@ -368,6 +386,223 @@ function UploadModal({
           >
             {uploading ? 'Nahrávám…' : `Nahrát ${files.length > 0 ? files.length : ''}`}
           </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * FsImportModal — naimportuje soubory nahrané do /data/library přes FTP/File Station.
+ * Workflow:
+ *  1. Otevřít → dry-run scan (server vrátí co by se importovalo)
+ *  2. User vybere kategorii + potvrdí
+ *  3. Skutečný import (rename na uuid.ext + INSERT do DB)
+ *
+ * Obchází HTTP upload limit (Synology reverse proxy default 1 MB).
+ */
+type FsScanItem = { filename: string; mime: string; size: number };
+type FsScanResult = {
+  dryRun?: boolean;
+  importable?: FsScanItem[];
+  skipped?: Array<{ filename: string; reason: string }>;
+  imported?: Array<{ id: number; title: string }>;
+  errors?: Array<{ filename: string; error: string }>;
+  error?: string;
+};
+
+function FsImportModal({
+  categories,
+  onClose,
+  onDone,
+}: {
+  categories: Category[];
+  onClose: () => void;
+  onDone: () => void;
+}) {
+  const [scan, setScan] = useState<FsScanResult | null>(null);
+  const [categoryId, setCategoryId] = useState<string>('');
+  const [busy, setBusy] = useState(true);
+  const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState<FsScanResult | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  // Auto-scan při otevření (dry-run)
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      const res = await apiFetch('/api/library/import-fs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dryRun: true }),
+      });
+      if (!alive) return;
+      if (res.ok) {
+        setScan(await res.json());
+      } else {
+        const data = await res.json().catch(() => ({}));
+        setError(data.error ?? `HTTP ${res.status}`);
+      }
+      setBusy(false);
+    })();
+    return () => { alive = false; };
+  }, []);
+
+  async function doImport() {
+    setImporting(true);
+    setError(null);
+    const payload: Record<string, unknown> = {};
+    if (categoryId) payload.categoryId = Number(categoryId);
+    const res = await apiFetch('/api/library/import-fs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    setImporting(false);
+    if (res.ok) {
+      setImportResult(await res.json());
+      setTimeout(onDone, 1200);
+    } else {
+      const data = await res.json().catch(() => ({}));
+      setError(data.error ?? `HTTP ${res.status}`);
+    }
+  }
+
+  const importable = scan?.importable ?? [];
+  const skipped = scan?.skipped ?? [];
+  const totalBytes = importable.reduce((s, f) => s + f.size, 0);
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto"
+      onClick={onClose}
+    >
+      <div
+        className="bg-card border border-border rounded-xl shadow-2xl max-w-2xl w-full p-6 my-8"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h2 className="text-lg font-semibold mb-1">Import z FTP</h2>
+        <p className="text-xs text-muted-foreground mb-4">
+          Naimportuje soubory nahrané přes FTP nebo File Station do <code className="font-mono bg-muted px-1 py-0.5 rounded text-[10px]">/volume1/docker/moldavite/library/</code>.
+          Přejmenuje je na UUID a přidá do DB.
+        </p>
+
+        {busy && <p className="text-sm text-muted-foreground py-4 text-center">Skenuji adresář…</p>}
+
+        {error && (
+          <div className="mb-4 px-3 py-2 rounded-md border border-destructive/30 bg-destructive/10 text-sm text-destructive">
+            {error}
+          </div>
+        )}
+
+        {!busy && scan && !importResult && (
+          <>
+            {importable.length === 0 ? (
+              <div className="py-4 text-center text-muted-foreground text-sm">
+                Nic k importu — v adresáři nejsou žádné nové soubory.
+                {skipped.length > 0 && (
+                  <p className="mt-2 text-xs">
+                    ({skipped.length} přeskočeno — už v DB nebo nepodporovaný formát)
+                  </p>
+                )}
+              </div>
+            ) : (
+              <>
+                <div className="mb-4 px-3 py-2 rounded-md bg-primary/10 border border-primary/30">
+                  <p className="text-sm font-semibold text-foreground">
+                    Nalezeno {importable.length} {importable.length === 1 ? 'soubor' : importable.length < 5 ? 'soubory' : 'souborů'}
+                    · {(totalBytes / 1024 / 1024).toFixed(1)} MB
+                  </p>
+                </div>
+
+                <label className="block text-[10px] text-muted-foreground mb-1.5 uppercase tracking-wider font-mono">
+                  Kategorie pro celý batch
+                </label>
+                <select
+                  value={categoryId}
+                  onChange={(e) => setCategoryId(e.target.value)}
+                  className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm mb-4 focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
+                >
+                  <option value="">— bez kategorie —</option>
+                  {categories.map((c) => (
+                    <option key={c.id} value={String(c.id)}>{c.name}</option>
+                  ))}
+                </select>
+
+                <details className="mb-4 text-xs">
+                  <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
+                    Seznam ({importable.length})
+                  </summary>
+                  <ul className="mt-2 space-y-1 max-h-60 overflow-y-auto font-mono">
+                    {importable.map((f) => (
+                      <li key={f.filename} className="flex items-center justify-between gap-3 py-1 border-b border-border/50">
+                        <span className="truncate flex-1">{f.filename}</span>
+                        <span className="text-muted-foreground text-[10px]">{(f.size / 1024 / 1024).toFixed(1)} MB</span>
+                      </li>
+                    ))}
+                  </ul>
+                </details>
+
+                {skipped.length > 0 && (
+                  <details className="mb-4 text-xs">
+                    <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
+                      Přeskočeno ({skipped.length})
+                    </summary>
+                    <ul className="mt-2 space-y-0.5 max-h-40 overflow-y-auto font-mono text-muted-foreground">
+                      {skipped.map((s, i) => (
+                        <li key={i}>• {s.filename} <span className="opacity-60">— {s.reason}</span></li>
+                      ))}
+                    </ul>
+                  </details>
+                )}
+              </>
+            )}
+          </>
+        )}
+
+        {importResult && (
+          <div className="mb-4 space-y-2">
+            {importResult.imported && importResult.imported.length > 0 && (
+              <div className="px-3 py-2 rounded-md border border-success/30 bg-success/10 text-xs">
+                <p className="text-success font-mono uppercase tracking-wider mb-1">✓ Naimportováno {importResult.imported.length}</p>
+                <ul className="space-y-0.5 max-h-40 overflow-y-auto">
+                  {importResult.imported.map((u) => (
+                    <li key={u.id} className="text-foreground truncate">• {u.title}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {importResult.errors && importResult.errors.length > 0 && (
+              <div className="px-3 py-2 rounded-md border border-destructive/30 bg-destructive/10 text-xs">
+                <p className="text-destructive font-mono uppercase tracking-wider mb-1">✗ Selhalo {importResult.errors.length}</p>
+                <ul className="space-y-0.5">
+                  {importResult.errors.map((e, i) => (
+                    <li key={i} className="text-foreground"><b>{e.filename}</b>: {e.error}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        )}
+
+        <div className="flex items-center justify-end gap-2 mt-4">
+          <button
+            onClick={onClose}
+            disabled={importing}
+            className="px-3 py-2 rounded-md text-xs font-mono uppercase tracking-wider border border-border text-muted-foreground hover:text-foreground disabled:opacity-50"
+          >
+            {importResult ? 'Zavřít' : 'Zrušit'}
+          </button>
+          {!importResult && (
+            <button
+              onClick={doImport}
+              disabled={busy || importing || importable.length === 0}
+              style={{ background: busy || importing || importable.length === 0 ? undefined : 'var(--success)' }}
+              className="text-white hover:opacity-90 disabled:opacity-50 disabled:bg-muted disabled:text-muted-foreground px-4 py-2 rounded-md text-xs font-mono uppercase tracking-wider transition-opacity"
+            >
+              {importing ? 'Importuji…' : `Naimportovat ${importable.length > 0 ? importable.length : ''}`}
+            </button>
+          )}
         </div>
       </div>
     </div>
