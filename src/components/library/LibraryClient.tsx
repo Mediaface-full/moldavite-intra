@@ -54,12 +54,46 @@ export default function LibraryClient({
   const [filter, setFilter] = useState<number | 'all' | 'none'>('all');
   const [showUpload, setShowUpload] = useState(false);
   const [showFsImport, setShowFsImport] = useState(false);
+  const [generatingCovers, setGeneratingCovers] = useState<null | { done: number; total: number; generated: number; failed: number }>(null);
 
   const filtered = useMemo(() => {
     if (filter === 'all') return books;
     if (filter === 'none') return books.filter((b) => b.categoryId === null);
     return books.filter((b) => b.categoryId === filter);
   }, [books, filter]);
+
+  async function generateCovers() {
+    setGeneratingCovers({ done: 0, total: 0, generated: 0, failed: 0 });
+    // Volej v smyčce dokud !done (server timeboxne po 50s, vrátí remaining)
+    let generated = 0;
+    let failed = 0;
+    let total = 0;
+    for (let i = 0; i < 20; i++) {
+      const res = await apiFetch('/api/library/covers-generate-all', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      if (!res.ok) {
+        alert(`Generování náhledů selhalo (HTTP ${res.status})`);
+        setGeneratingCovers(null);
+        return;
+      }
+      const data = await res.json();
+      generated += data.generated;
+      failed += data.failed;
+      total = data.total;
+      setGeneratingCovers({
+        done: total - data.remaining,
+        total,
+        generated,
+        failed,
+      });
+      if (data.done) break;
+    }
+    setTimeout(() => setGeneratingCovers(null), 2500);
+    router.refresh();
+  }
 
   async function deleteBook(book: Book) {
     if (!confirm(`Smazat knihu „${book.title}"?\n\nSoubor se odstraní i z disku.`)) return;
@@ -101,6 +135,17 @@ export default function LibraryClient({
         </div>
         {isAdmin && (
           <div className="flex items-center gap-2">
+            <button
+              onClick={generateCovers}
+              disabled={generatingCovers !== null}
+              className="bg-card border border-border hover:border-foreground/40 text-foreground px-3 py-2 rounded-md text-xs font-mono uppercase tracking-wider inline-flex items-center gap-2 disabled:opacity-60"
+              title="Vygeneruje JPG náhled první stránky PDF pro všechny knihy co ho ještě nemají"
+            >
+              <Icon name="camera" className="w-4 h-4" />
+              {generatingCovers
+                ? `Náhledy ${generatingCovers.done}/${generatingCovers.total}…`
+                : 'Vygenerovat náhledy'}
+            </button>
             <button
               onClick={() => setShowFsImport(true)}
               className="bg-card border border-border hover:border-foreground/40 text-foreground px-3 py-2 rounded-md text-xs font-mono uppercase tracking-wider inline-flex items-center gap-2"
@@ -149,30 +194,7 @@ export default function LibraryClient({
                   className="block"
                   title={`Otevřít „${book.title}" v novém okně`}
                 >
-                  {/* Placeholder cover */}
-                  <div
-                    className="aspect-[3/4] flex flex-col items-center justify-center p-4"
-                    style={{
-                      background: `linear-gradient(135deg, color-mix(in srgb, ${meta.color} 20%, transparent), color-mix(in srgb, ${meta.color} 5%, transparent))`,
-                    }}
-                  >
-                    <svg
-                      className="w-16 h-16 mb-3"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                      strokeWidth={1.25}
-                      style={{ color: meta.color }}
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
-                    </svg>
-                    <span
-                      className="text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded"
-                      style={{ background: meta.color, color: '#FFFFFF' }}
-                    >
-                      {meta.label}
-                    </span>
-                  </div>
+                  <BookCover bookId={book.id} meta={meta} />
 
                   {/* Title + meta */}
                   <div className="p-3 border-t border-border">
@@ -220,6 +242,67 @@ export default function LibraryClient({
           onClose={() => setShowFsImport(false)}
           onDone={() => { setShowFsImport(false); router.refresh(); }}
         />
+      )}
+    </div>
+  );
+}
+
+/**
+ * Zkusí načíst /api/library/books/{id}/cover; pokud endpoint vrátí 404 (cover
+ * ještě nevygenerovaný nebo EPUB/MOBI), přepne se na placeholder ikonu.
+ */
+function BookCover({
+  bookId,
+  meta,
+}: {
+  bookId: number;
+  meta: { icon: 'file'; color: string; label: string };
+}) {
+  const [hasImg, setHasImg] = useState(true);
+
+  return (
+    <div
+      className="aspect-[3/4] flex flex-col items-center justify-center p-4 relative overflow-hidden bg-muted/30"
+      style={
+        hasImg
+          ? undefined
+          : {
+              background: `linear-gradient(135deg, color-mix(in srgb, ${meta.color} 20%, transparent), color-mix(in srgb, ${meta.color} 5%, transparent))`,
+            }
+      }
+    >
+      {hasImg ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={`/api/library/books/${bookId}/cover`}
+          alt=""
+          loading="lazy"
+          className="absolute inset-0 w-full h-full object-cover"
+          onError={() => setHasImg(false)}
+        />
+      ) : (
+        <>
+          <svg
+            className="w-16 h-16 mb-3"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            strokeWidth={1.25}
+            style={{ color: meta.color }}
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"
+            />
+          </svg>
+          <span
+            className="text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded"
+            style={{ background: meta.color, color: '#FFFFFF' }}
+          >
+            {meta.label}
+          </span>
+        </>
       )}
     </div>
   );

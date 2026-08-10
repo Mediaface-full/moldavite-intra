@@ -13,6 +13,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getSession, logActivity } from '@/lib/auth';
 import { LIBRARY_ROOT, extensionForMime, SUPPORTED_MIME } from '@/lib/library/storage';
+import { generateCoverAsync } from '@/lib/library/cover';
 import { promises as fs } from 'fs';
 import path from 'path';
 import { randomUUID } from 'crypto';
@@ -111,6 +112,8 @@ export async function POST(request: Request) {
         },
       });
       imported.push({ id: book.id, title: book.title });
+      // Fire-and-forget cover generation (jen PDF; EPUB/MOBI zatím nemá extractor)
+      generateCoverAsync(book.id, storageFilename, f.mime);
     } catch (err) {
       errors.push({ filename: f.filename, error: err instanceof Error ? err.message : String(err) });
     }

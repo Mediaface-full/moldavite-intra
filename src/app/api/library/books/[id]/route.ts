@@ -6,6 +6,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getSession, logActivity } from '@/lib/auth';
 import { deleteBookFile } from '@/lib/library/storage';
+import { deleteCover } from '@/lib/library/cover';
 
 export async function PATCH(
   request: Request,
@@ -58,6 +59,7 @@ export async function DELETE(
 
   await prisma.book.delete({ where: { id: bookId } });
   await deleteBookFile(book.storageFilename);
+  await deleteCover(bookId);
   await logActivity(session.id, 'library.book.delete', book.title, JSON.stringify({ filename: book.filename }));
   return NextResponse.json({ success: true });
 }

@@ -33,7 +33,8 @@ ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
 # pg_dump for backups + su-exec to drop root after fixing volume perms
-RUN apk add --no-cache postgresql16-client su-exec
+# poppler-utils: pdftoppm pro generování cover thumbnails PDF knih v /vseved/knihy
+RUN apk add --no-cache postgresql16-client su-exec poppler-utils
 
 RUN addgroup --system --gid 1001 nodejs \
  && adduser --system --uid 1001 nextjs

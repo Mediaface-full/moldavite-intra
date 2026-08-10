@@ -12,6 +12,7 @@ import { getSession, logActivity } from '@/lib/auth';
 import {
   extensionForMime, newStorageFilename, writeBookFile, ensureLibraryDir,
 } from '@/lib/library/storage';
+import { generateCoverAsync } from '@/lib/library/cover';
 
 const MAX_FILE_BYTES = 100 * 1024 * 1024; // 100 MB per soubor
 
@@ -120,6 +121,8 @@ export async function POST(request: Request) {
         },
       });
       uploaded.push({ id: book.id, title: book.title });
+      // Fire-and-forget cover generation (jen PDF; EPUB/MOBI zatím nemá extractor)
+      generateCoverAsync(book.id, storageFilename, file.type);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       errors.push({ filename: originalName, message: msg });
