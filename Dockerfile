@@ -1,4 +1,4 @@
-FROM node:22-alpine AS base
+FROM node:26-alpine AS base
 # libc6-compat + openssl: Prisma 5.x needs openssl to talk to Postgres;
 # without it you'll see "failed to detect libssl/openssl" warnings and
 # potential runtime connection failures on Alpine 3.19+.
