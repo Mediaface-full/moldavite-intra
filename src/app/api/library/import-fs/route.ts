@@ -70,7 +70,14 @@ export async function POST(request: Request) {
       continue;
     }
     try {
-      const stat = await fs.stat(path.join(LIBRARY_ROOT, filename));
+      // lstat (ne stat): symlink se NEsleduje. Kdo má zápis na FTP share, by
+      // jinak mohl nalinkovat např. DB dump z /data/backups (stejný kontejner)
+      // a po importu by si ho každý přihlášený stáhl přes /download.
+      const stat = await fs.lstat(path.join(LIBRARY_ROOT, filename));
+      if (stat.isSymbolicLink()) {
+        skipped.push({ filename, reason: 'symlink (nepovoleno)' });
+        continue;
+      }
       if (!stat.isFile()) {
         skipped.push({ filename, reason: 'není soubor' });
         continue;

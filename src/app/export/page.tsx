@@ -1,8 +1,10 @@
 import { prisma } from '@/lib/prisma';
 import ExportCard from '@/components/ExportCard';
 import ExportActions from '@/components/ExportActions';
+import { requirePageAdmin } from '@/lib/pageAuth';
 
 export default async function ExportPage() {
+  await requirePageAdmin();
   const [totalCount, shopCount, etsyCount, configs] = await Promise.all([
     prisma.item.count(),
     prisma.item.count({ where: { onShop: true, sold: false } }),

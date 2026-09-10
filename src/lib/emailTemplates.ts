@@ -127,7 +127,7 @@ export function tmplPasswordChanged(opts: {
   ip?: string;
   when: Date;
 }): EmailMessage {
-  const greeting = opts.name ? `Ahoj ${opts.name},` : 'Ahoj,';
+  const greeting = opts.name ? `Ahoj ${escape(opts.name)},` : 'Ahoj,';
   const actor = opts.changedBy === 'self' ? 'tebou' : 'administrátorem';
   const whenStr = opts.when.toLocaleString('cs-CZ', { dateStyle: 'long', timeStyle: 'short' });
   const html = baseLayout({

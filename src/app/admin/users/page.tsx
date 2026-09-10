@@ -1,5 +1,7 @@
 import UsersManagement from '@/components/UsersManagement';
+import { requirePageAdmin } from '@/lib/pageAuth';
 
-export default function AdminUsersPage() {
+export default async function AdminUsersPage() {
+  await requirePageAdmin();
   return <UsersManagement />;
 }

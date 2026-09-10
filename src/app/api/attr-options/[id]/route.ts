@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import type { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { getSession, logActivity } from '@/lib/auth';
 
@@ -26,26 +27,35 @@ async function countUsages(attrKey: string, value: string): Promise<number> {
  * Cascade rename — přepíše hodnotu na všech kamenech / kazetách kde se používá.
  * Vraci počet ovlivněných řádků (informativní).
  */
-async function cascadeRename(attrKey: string, oldValue: string, newValue: string): Promise<number> {
+async function cascadeRename(
+  tx: Prisma.TransactionClient,
+  attrKey: string,
+  oldValue: string,
+  newValue: string,
+): Promise<number> {
+  // Audit 10. 9. 2026: dřív běželo přes globální `prisma` MIMO transakci,
+  // ve které se pak updatoval AttrOption — při selhání druhého kroku zůstaly
+  // kameny přejmenované a AttrOption ne. Teď vše na `tx`.
   if (attrKey === 'pasShape') {
-    const r = await prisma.item.updateMany({ where: { pasShape: oldValue }, data: { pasShape: newValue } });
+    const r = await tx.item.updateMany({ where: { pasShape: oldValue }, data: { pasShape: newValue } });
     return r.count;
   }
   if (attrKey === 'attrDamage') {
-    const r = await prisma.item.updateMany({ where: { attrDamage: oldValue }, data: { attrDamage: newValue } });
+    const r = await tx.item.updateMany({ where: { attrDamage: oldValue }, data: { attrDamage: newValue } });
     return r.count;
   }
   if (attrKey === 'location') {
-    const r = await prisma.item.updateMany({ where: { location: oldValue }, data: { location: newValue } });
+    const r = await tx.item.updateMany({ where: { location: oldValue }, data: { location: newValue } });
     return r.count;
   }
   if (attrKey === 'cassetteType') {
-    const r = await prisma.box.updateMany({ where: { cassetteType: oldValue }, data: { cassetteType: newValue } });
+    const r = await tx.box.updateMany({ where: { cassetteType: oldValue }, data: { cassetteType: newValue } });
     return r.count;
   }
   if (attrKey === 'attrColor') {
-    // attrColor je String[] — Prisma neumí array_replace, fallback na raw SQL
-    const r = await prisma.$executeRawUnsafe(
+    // attrColor je String[] — Prisma neumí array_replace, fallback na raw SQL.
+    // Hodnoty jdou jako $1/$2 parametry (žádná interpolace do SQL textu).
+    const r = await tx.$executeRawUnsafe(
       `UPDATE "Item" SET "attrColor" = array_replace("attrColor", $1, $2) WHERE $1 = ANY("attrColor")`,
       oldValue,
       newValue,
@@ -102,7 +112,7 @@ export async function PATCH(
       if (!current) throw new Error('NOT_FOUND');
       let cascadeCount = 0;
       if (renaming && data.value !== current.value) {
-        cascadeCount = await cascadeRename(current.attrKey, current.value, data.value as string);
+        cascadeCount = await cascadeRename(tx, current.attrKey, current.value, data.value as string);
       }
       const updated = await tx.attrOption.update({ where: { id: optId }, data });
       return { updated, cascadeCount };
@@ -120,7 +130,9 @@ export async function PATCH(
     if (msg.includes('Unique constraint')) {
       return NextResponse.json({ error: 'Hodnota s tímto názvem už existuje' }, { status: 409 });
     }
-    return NextResponse.json({ error: msg }, { status: 400 });
+    // Neposílat raw Prisma/DB hlášku klientovi (obsahuje názvy tabulek/sloupců).
+    console.error('[attr-options PATCH] failed:', msg);
+    return NextResponse.json({ error: 'Úprava hodnoty selhala' }, { status: 400 });
   }
 }
 

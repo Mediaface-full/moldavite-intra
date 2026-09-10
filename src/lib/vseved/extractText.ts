@@ -70,11 +70,49 @@ export async function extractText(
   throw new Error(`Unsupported format: ${format}`);
 }
 
+/**
+ * Odstraní `<tag …>…</tag>` bloky (style/script) lineárně přes indexOf.
+ *
+ * SECURITY (audit 10. 9. 2026): původní `/<style[^>]*>[\s\S]*?<\/style>/gi`
+ * je O(k·n) — EPUB kapitola s tisíci `<style>` bez uzavíracího tagu zablokovala
+ * event loop na hodiny (ReDoS; extrakce běží in-process, takže i veřejný
+ * verify.* host přestal odpovídat). Neuzavřený blok se nechá jak je (stejné
+ * chování jako regex, který by ho nematchnul).
+ */
+function stripBlocks(html: string, tag: string): string {
+  const open = `<${tag}`;
+  const close = `</${tag}>`;
+  const lower = html.toLowerCase();
+  let out = '';
+  let pos = 0;
+  for (;;) {
+    const i = lower.indexOf(open, pos);
+    if (i === -1) { out += html.slice(pos); break; }
+    const j = lower.indexOf(close, i + open.length);
+    if (j === -1) { out += html.slice(pos); break; }
+    out += html.slice(pos, i);
+    pos = j + close.length;
+  }
+  return out;
+}
+
+/** Lineární náhrada `/<[^>]+>/g` (ta je O(n²) na vstupu plném `<` bez `>`). */
+function stripTags(html: string): string {
+  let out = '';
+  let pos = 0;
+  for (;;) {
+    const i = html.indexOf('<', pos);
+    if (i === -1) { out += html.slice(pos); break; }
+    const j = html.indexOf('>', i + 1);
+    if (j === -1) { out += html.slice(pos); break; }
+    out += html.slice(pos, i) + ' ';
+    pos = j + 1;
+  }
+  return out;
+}
+
 function stripHtml(html: string): string {
-  return html
-    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
-    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
-    .replace(/<[^>]+>/g, ' ')
+  return stripTags(stripBlocks(stripBlocks(html, 'style'), 'script'))
     .replace(/&nbsp;/g, ' ')
     .replace(/&amp;/g, '&')
     .replace(/&lt;/g, '<')

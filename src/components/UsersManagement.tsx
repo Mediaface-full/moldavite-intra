@@ -144,7 +144,7 @@ export default function UsersManagement() {
               </div>
               <div>
                 <label className="block text-xs text-muted-foreground mb-1 uppercase tracking-wider">Heslo *</label>
-                <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required minLength={6}
+                <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required minLength={12} placeholder="min. 12 znaků"
                   className="w-full bg-muted border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/20" />
               </div>
               <div>
@@ -258,8 +258,8 @@ function EditUserModal({ user, onClose, onSaved }: {
                 nech prázdné, pokud nechceš měnit
               </span>
             </label>
-            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} minLength={6}
-              placeholder="min. 6 znaků"
+            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} minLength={12}
+              placeholder="min. 12 znaků"
               className="w-full bg-muted border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/20 placeholder:text-muted-foreground" />
           </div>
           <div>

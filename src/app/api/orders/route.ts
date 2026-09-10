@@ -151,5 +151,7 @@ export async function POST(request: Request) {
     }
   }
   const msg = lastError instanceof Error ? lastError.message : String(lastError);
-  return NextResponse.json({ error: `Vytvoření selhalo: ${msg}` }, { status: 500 });
+  // Raw Prisma hláška (názvy modelů/polí + dump argumentů) jen do logu.
+  console.error('[orders POST] failed:', msg);
+  return NextResponse.json({ error: 'Vytvoření zakázky selhalo' }, { status: 500 });
 }

@@ -1,0 +1,30 @@
+# Dependabot — automatické PR na aktualizace (audit 10. 9. 2026).
+# npm: týdně, seskupené minor/patch (méně PR); GitHub Actions + Docker base
+# image: týdně. Security updates chodí okamžitě bez ohledu na schedule.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Europe/Prague
+    open-pull-requests-limit: 5
+    groups:
+      minor-and-patch:
+        update-types: [minor, patch]
+    ignore:
+      # Majory řešit ručně (Prisma 7, TS 7, ESLint 10, React 19.3 mají breaking changes)
+      - dependency-name: "*"
+        update-types: [version-update:semver-major]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly

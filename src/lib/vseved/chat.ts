@@ -48,13 +48,41 @@ ${contextBooks}
 === END CONTEXT ===`;
 }
 
+// Max délka jedné citace `[...]`. Delší hranaté závorky nejsou citace.
+const MAX_CITATION_LEN = 200;
+
+/**
+ * Najde `[…]` segmenty lineárně (bounded scan), regex se pouští jen na
+ * obsah jednoho segmentu (≤ 200 znaků). Audit 10. 9. 2026: původní globální
+ * regex `\[([…\s]+?)[,\s]+(\d{4})…\]` měl překrývající se třídy (obě matchují
+ * whitespace) → O(n²) na `[` + mezery bez `]`; Gemini výstup až 16k tokenů
+ * → několik sekund blokovaného event loopu na jednu zprávu.
+ */
+function* citationSegments(text: string): Generator<string> {
+  let idx = 0;
+  while ((idx = text.indexOf('[', idx)) !== -1) {
+    const window = text.slice(idx + 1, idx + 1 + MAX_CITATION_LEN + 1);
+    const close = window.indexOf(']');
+    if (close !== -1 && close <= MAX_CITATION_LEN) {
+      const inner = window.slice(0, close);
+      if (!inner.includes('[')) {
+        yield inner;
+        idx = idx + 1 + close + 1;
+        continue;
+      }
+    }
+    idx += 1;
+  }
+}
+
 export function parseCitations(response: string, retrieved: RetrievedChunk[]): number[] {
-  // Regex: [Autor, Rok, optional rest] — Autor a Rok jsou striktne pozadovane
-  const citationRegex = /\[([A-Za-zÀ-ÿčďěňřšťůúýžĆĎĚŇŘŠŤŮÚÝŽ.\s]+?)[,\s]+(\d{4})([^\]]*)\]/g;
+  // [Autor, Rok, optional rest] — Autor a Rok jsou striktne pozadovane
+  const citationRegex = /^([A-Za-zÀ-ÿčďěňřšťůúýžĆĎĚŇŘŠŤŮÚÝŽ.\s]+?)[,\s]+(\d{4})(.*)$/;
   const seen = new Set<number>();
 
-  let match: RegExpExecArray | null;
-  while ((match = citationRegex.exec(response)) !== null) {
+  for (const inner of citationSegments(response)) {
+    const match = citationRegex.exec(inner);
+    if (!match) continue;
     const author = match[1].trim().toLowerCase();
     const year = Number.parseInt(match[2], 10);
     const tail = match[3].toLowerCase();

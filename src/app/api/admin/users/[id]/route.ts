@@ -57,8 +57,8 @@ export async function PATCH(
   }
 
   if (body.password) {
-    if (typeof body.password !== 'string' || body.password.length < 6) {
-      return NextResponse.json({ error: 'Heslo musí mít min. 6 znaků' }, { status: 400 });
+    if (typeof body.password !== 'string' || body.password.length < 12 || body.password.length > 1024) {
+      return NextResponse.json({ error: 'Heslo musí mít min. 12 znaků' }, { status: 400 });
     }
     data.password = await bcrypt.hash(body.password, 10);
   }

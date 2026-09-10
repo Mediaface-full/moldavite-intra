@@ -29,6 +29,13 @@ export async function POST(request: Request) {
   if (!email || !password) {
     return NextResponse.json({ error: 'Email a heslo jsou povinné' }, { status: 400 });
   }
+  if (typeof email !== 'string' || typeof password !== 'string' || email.length > 254) {
+    return NextResponse.json({ error: 'Neplatný email nebo heslo' }, { status: 400 });
+  }
+  // Min. 12 znaků (audit 10. 9. 2026) — jediná brute-force bariéra po rate limitu.
+  if (password.length < 12 || password.length > 1024) {
+    return NextResponse.json({ error: 'Heslo musí mít min. 12 znaků' }, { status: 400 });
+  }
 
   const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) {

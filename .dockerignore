@@ -2,9 +2,8 @@ node_modules
 .next
 .git
 .gitignore
-.env
-.env.local
-.env.*.local
+.env*
+!.env.example
 .vscode
 .idea
 *.log

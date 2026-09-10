@@ -3,8 +3,10 @@ import Link from 'next/link';
 import ScanNewBoxButton from '@/components/ScanNewBoxButton';
 import { CASSETTE_TYPE_META } from '@/lib/cassetteType';
 import Icon from '@/components/Icon';
+import { requirePageSession } from '@/lib/pageAuth';
 
 export default async function BoxesPage() {
+  await requirePageSession();
   const boxes = await prisma.box.findMany({
     include: {
       _count: { select: { items: true } },

@@ -1,7 +1,9 @@
 import { prisma } from '@/lib/prisma';
 import ItemsTable from '@/components/ItemsTable';
+import { requirePageSession } from '@/lib/pageAuth';
 
 export default async function ItemsPage() {
+  await requirePageSession();
   const items = await prisma.item.findMany({
     include: { box: { select: { code: true } } },
     orderBy: { evidNumber: 'asc' },

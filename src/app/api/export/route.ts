@@ -3,6 +3,25 @@ import { NextResponse } from 'next/server';
 import { getSession, logActivity } from '@/lib/auth';
 import { getPasShape } from '@/lib/pasShapes';
 
+/**
+ * XML escaping (audit 10. 9. 2026): name/nameEn/location/upgatesId/popisy jsou
+ * USER-editovatelná pole — bez escapování stačí `&` nebo `<` v názvu a celý
+ * Upgates feed přestane být well-formed (import na e-shopu selže), případně
+ * `]]>` v popisu vyskočí z CDATA a vloží vlastní elementy (cena apod.).
+ */
+function xmlEsc(v: unknown): string {
+  return String(v ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+}
+function cdata(v: unknown): string {
+  // `]]>` uvnitř CDATA se rozdělí na dva CDATA bloky — obsah zůstane 1:1.
+  return `<![CDATA[${String(v ?? '').replace(/\]\]>/g, ']]]]><![CDATA[>')}]]>`;
+}
+
 export async function GET() {
   const session = await getSession();
   if (!session || session.role !== 'ADMIN') {
@@ -53,7 +72,7 @@ export async function GET() {
 
     const itemId = item.upgatesId || catalogNumber;
     xml += '  <SHOPITEM>\n';
-    xml += `    <ITEM_ID>${itemId}</ITEM_ID>\n`;
+    xml += `    <ITEM_ID>${xmlEsc(itemId)}</ITEM_ID>\n`;
     const productName = primaryLang === 'en'
       ? (item.nameEn || `Moldavite ${catalogNumber}`)
       : (item.name || `Moldavit ${catalogNumber}`);
@@ -68,8 +87,8 @@ export async function GET() {
     const primaryShapeLine = primaryLang === 'en' ? shapeLineEn : shapeLineCz;
     const descWithShape = primaryShapeLine + (desc || '');
 
-    xml += `    <PRODUCTNAME>${productName}</PRODUCTNAME>\n`;
-    xml += `    <DESCRIPTION><![CDATA[${descWithShape}]]></DESCRIPTION>\n`;
+    xml += `    <PRODUCTNAME>${xmlEsc(productName)}</PRODUCTNAME>\n`;
+    xml += `    <DESCRIPTION>${cdata(descWithShape)}</DESCRIPTION>\n`;
 
     // Second language variant
     if (languages.length > 1) {
@@ -80,25 +99,25 @@ export async function GET() {
         : (item.longDescription || item.description || '');
       const altShapeLine = otherLang === 'en' ? shapeLineEn : shapeLineCz;
       const altDescWithShape = altShapeLine + (altDesc || '');
-      if (altName) xml += `    <PRODUCTNAME_ALT><![CDATA[${altName}]]></PRODUCTNAME_ALT>\n`;
-      if (altDescWithShape) xml += `    <DESCRIPTION_ALT><![CDATA[${altDescWithShape}]]></DESCRIPTION_ALT>\n`;
+      if (altName) xml += `    <PRODUCTNAME_ALT>${cdata(altName)}</PRODUCTNAME_ALT>\n`;
+      if (altDescWithShape) xml += `    <DESCRIPTION_ALT>${cdata(altDescWithShape)}</DESCRIPTION_ALT>\n`;
     }
     xml += `    <PRICE>${price}</PRICE>\n`;
     xml += `    <PRICE_VAT>${price}</PRICE_VAT>\n`;
     xml += `    <CURRENCYID>${primaryCurrency}</CURRENCYID>\n`;
     xml += `    <VAT>0</VAT>\n`;
     xml += `    <ITEM_TYPE>product</ITEM_TYPE>\n`;
-    xml += `    <WEIGHT>${item.weight}</WEIGHT>\n`;
+    xml += `    <WEIGHT>${xmlEsc(item.weight)}</WEIGHT>\n`;
     xml += `    <CATEGORYTEXT>Moldavity</CATEGORYTEXT>\n`;
     xml += `    <MANUFACTURER>Bohemian Moldavite</MANUFACTURER>\n`;
-    xml += `    <IMGURL>${imageUrl}</IMGURL>\n`;
+    xml += `    <IMGURL>${xmlEsc(imageUrl)}</IMGURL>\n`;
 
     for (const img of images360) {
-      xml += `    <IMGURL_ALTERNATIVE>${img}</IMGURL_ALTERNATIVE>\n`;
+      xml += `    <IMGURL_ALTERNATIVE>${xmlEsc(img)}</IMGURL_ALTERNATIVE>\n`;
     }
 
     if (item.photoPath) {
-      xml += `    <VIDEO_URL>${baseUrl}/images/${item.photoPath}/video.mp4</VIDEO_URL>\n`;
+      xml += `    <VIDEO_URL>${xmlEsc(`${baseUrl}/images/${item.photoPath}/video.mp4`)}</VIDEO_URL>\n`;
     }
 
     // All prices as params
@@ -112,11 +131,11 @@ export async function GET() {
       xml += `    <PARAM><PARAM_NAME>Cena USD</PARAM_NAME><VAL>${item.priceUSD} USD</VAL></PARAM>\n`;
     }
 
-    xml += `    <EAN>${catalogNumber}</EAN>\n`;
-    xml += `    <PARAM><PARAM_NAME>Hmotnost</PARAM_NAME><VAL>${item.weight} g</VAL></PARAM>\n`;
-    xml += `    <PARAM><PARAM_NAME>Lokalita</PARAM_NAME><VAL>${item.location}</VAL></PARAM>\n`;
+    xml += `    <EAN>${xmlEsc(catalogNumber)}</EAN>\n`;
+    xml += `    <PARAM><PARAM_NAME>Hmotnost</PARAM_NAME><VAL>${xmlEsc(item.weight)} g</VAL></PARAM>\n`;
+    xml += `    <PARAM><PARAM_NAME>Lokalita</PARAM_NAME><VAL>${xmlEsc(item.location)}</VAL></PARAM>\n`;
     if (shape) {
-      xml += `    <PARAM><PARAM_NAME>Tvar</PARAM_NAME><VAL>${shape.cz} / ${shape.en}</VAL></PARAM>\n`;
+      xml += `    <PARAM><PARAM_NAME>Tvar</PARAM_NAME><VAL>${xmlEsc(`${shape.cz} / ${shape.en}`)}</VAL></PARAM>\n`;
     }
     xml += '  </SHOPITEM>\n';
   }

@@ -16,7 +16,10 @@ import { generateCover, hasCover } from '@/lib/library/cover';
 export const runtime = 'nodejs';
 export const maxDuration = 60;
 
-const TIME_BUDGET_MS = 50_000;
+const TIME_BUDGET_MS = 40_000;
+// Max knih na jedno volání — klient loopuje. Bez tohoto stropu první odpověď
+// přišla až po 50 s a UI ukazovalo „0/0…" bez pohybu (Gideon 10. 9. 2026).
+const MAX_PER_CALL = 5;
 
 export async function POST(request: Request) {
   const session = await getSession();
@@ -25,11 +28,16 @@ export async function POST(request: Request) {
   }
   const body = await request.json().catch(() => ({}));
   const force = body?.force === true;
+  // Kurzor: klient posílá `afterId` z předchozí odpovědi (`lastId`), server
+  // pokračuje od dalšího id. Bez kurzoru by se trvale selhávající PDF zkoušelo
+  // v každém volání znovu a batch by se nikdy neposunul dál.
+  const afterId = Number.isInteger(body?.afterId) && body.afterId > 0 ? (body.afterId as number) : 0;
 
+  const total = await prisma.book.count({ where: { mimeType: 'application/pdf' } });
   const books = await prisma.book.findMany({
-    where: { mimeType: 'application/pdf' },
+    where: { mimeType: 'application/pdf', id: { gt: afterId } },
     orderBy: { id: 'asc' },
-    select: { id: true, storageFilename: true, mimeType: true, title: true },
+    select: { id: true, storageFilename: true, mimeType: true },
   });
 
   const started = Date.now();
@@ -37,8 +45,10 @@ export async function POST(request: Request) {
   let skipped = 0;
   let failed = 0;
   let processed = 0;
+  let lastId = afterId;
 
   for (const book of books) {
+    lastId = book.id;
     if (!force && (await hasCover(book.id))) {
       skipped++;
       processed++;
@@ -48,31 +58,15 @@ export async function POST(request: Request) {
     if (ok) generated++; else failed++;
     processed++;
 
-    if (Date.now() - started > TIME_BUDGET_MS) {
-      // Vyčerpali jsme timebox — vrátíme co jsme udělali, klient dokončí dalším voláním
-      await logActivity(session.id, 'library.covers_generate_partial', '', JSON.stringify({
-        generated, skipped, failed, remaining: books.length - processed,
-      }));
-      return NextResponse.json({
-        done: false,
-        generated,
-        skipped,
-        failed,
-        remaining: books.length - processed,
-        total: books.length,
-      });
-    }
+    if (generated + failed >= MAX_PER_CALL || Date.now() - started > TIME_BUDGET_MS) break;
   }
 
-  await logActivity(session.id, 'library.covers_generate_all', '', JSON.stringify({
-    generated, skipped, failed, total: books.length,
-  }));
-  return NextResponse.json({
-    done: true,
-    generated,
-    skipped,
-    failed,
-    remaining: 0,
-    total: books.length,
-  });
+  const remaining = books.length - processed;
+  const done = remaining === 0;
+  if (generated + failed > 0 || done) {
+    await logActivity(session.id, done ? 'library.covers_generate_all' : 'library.covers_generate_partial', '', JSON.stringify({
+      generated, skipped, failed, remaining, total,
+    }));
+  }
+  return NextResponse.json({ done, generated, skipped, failed, remaining, total, lastId });
 }

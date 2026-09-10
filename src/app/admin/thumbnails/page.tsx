@@ -1,5 +1,7 @@
 import ThumbnailsManager from '@/components/ThumbnailsManager';
+import { requirePageAdmin } from '@/lib/pageAuth';
 
-export default function AdminThumbnailsPage() {
+export default async function AdminThumbnailsPage() {
+  await requirePageAdmin();
   return <ThumbnailsManager />;
 }

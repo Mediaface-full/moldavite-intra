@@ -10,7 +10,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getSession, logActivity } from '@/lib/auth';
 import {
-  extensionForMime, newStorageFilename, writeBookFile, ensureLibraryDir,
+  extensionForMime, newStorageFilename, writeBookFile, ensureLibraryDir, sniffBookMime,
 } from '@/lib/library/storage';
 import { generateCoverAsync } from '@/lib/library/cover';
 
@@ -96,13 +96,19 @@ export async function POST(request: Request) {
         errors.push({ filename: originalName, message: `Příliš velký (max ${MAX_FILE_BYTES / 1024 / 1024} MB)` });
         continue;
       }
-      const ext = extensionForMime(file.type);
-      if (!ext) {
+      if (!extensionForMime(file.type)) {
         errors.push({ filename: originalName, message: `Nepodporovaný formát (${file.type || 'neznámý'})` });
         continue;
       }
 
       const buffer = Buffer.from(await file.arrayBuffer());
+      // Magic bytes rozhodují (audit 10. 9. 2026) — `file.type` je z klienta.
+      const mimeType = sniffBookMime(buffer);
+      if (!mimeType) {
+        errors.push({ filename: originalName, message: 'Obsah souboru neodpovídá PDF / EPUB / MOBI' });
+        continue;
+      }
+      const ext = extensionForMime(mimeType)!;
       const storageFilename = newStorageFilename(ext);
       await writeBookFile(storageFilename, buffer);
 
@@ -114,7 +120,7 @@ export async function POST(request: Request) {
           title,
           filename: originalName,
           storageFilename,
-          mimeType: file.type,
+          mimeType,
           size: file.size,
           categoryId,
           uploadedById: session.id,
@@ -122,7 +128,7 @@ export async function POST(request: Request) {
       });
       uploaded.push({ id: book.id, title: book.title });
       // Fire-and-forget cover generation (jen PDF; EPUB/MOBI zatím nemá extractor)
-      generateCoverAsync(book.id, storageFilename, file.type);
+      generateCoverAsync(book.id, storageFilename, mimeType);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       errors.push({ filename: originalName, message: msg });

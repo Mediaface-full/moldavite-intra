@@ -17,7 +17,7 @@ import BoxFieldInput from '@/components/BoxFieldInput';
 import BoxNameInline from '@/components/BoxNameInline';
 import BoxPpgField from '@/components/BoxPpgField';
 import BoxIntegrityCheck from '@/components/BoxIntegrityCheck';
-import { getSession } from '@/lib/auth';
+import { requirePageSession } from '@/lib/pageAuth';
 
 export default async function BoxDetailPage({
   params,
@@ -25,9 +25,13 @@ export default async function BoxDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+  // Auth PŘED jakýmkoli DB dotazem (audit 10. 9. 2026 — /boxes/1.svg obcházel proxy).
+  const session = await requirePageSession();
+  const boxId = Number(id);
+  if (!Number.isInteger(boxId) || boxId <= 0) notFound();
 
   const box = await prisma.box.findUnique({
-    where: { id: parseInt(id) },
+    where: { id: boxId },
     include: {
       items: {
         orderBy: { evidNumber: 'asc' },
@@ -56,8 +60,7 @@ export default async function BoxDetailPage({
 
   const shopCount = box.items.filter((i) => i.onShop).length;
   const etsyCount = box.items.filter((i) => i.onEtsy).length;
-  const session = await getSession();
-  const isAdmin = session?.role === 'ADMIN';
+  const isAdmin = session.role === 'ADMIN';
 
   // Zdedene hodnoty pro placeholder inputu v hlavicce kazety.
   // Skutecny pocet kamenu uz mame (vzdy), takze ho ukazeme jako default i kdyz

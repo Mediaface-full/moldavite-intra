@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import { getLatestRates } from '@/lib/rates';
-import { getSession } from '@/lib/auth';
+import { requirePageSession } from '@/lib/pageAuth';
 import { PAS_SHAPES } from '@/lib/pasShapes';
 import Link from 'next/link';
 import RefreshRatesButton from '@/components/RefreshRatesButton';
@@ -12,8 +12,8 @@ import Icon from '@/components/Icon';
 import { actionMeta, describeDetails, friendlyTarget } from '@/lib/activity-format';
 
 export default async function DashboardPage() {
-  const session = await getSession();
-  const isAdmin = session?.role === 'ADMIN';
+  const session = await requirePageSession();
+  const isAdmin = session.role === 'ADMIN';
 
   const [
     boxCount,

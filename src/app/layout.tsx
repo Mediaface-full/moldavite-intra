@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Space_Grotesk, JetBrains_Mono } from "next/font/google";
 import Link from "next/link";
+import { headers } from "next/headers";
 import { getSession } from "@/lib/auth";
 import { themeInitScript } from "@/lib/theme";
 import LogoutButton from "@/components/LogoutButton";
@@ -68,11 +69,15 @@ function NavLink({ href, icon, children }: { href: string; icon: string; childre
 
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   const session = await getSession();
+  // CSP nonce z proxy.ts (x-nonce). Bez něj CSP `script-src 'nonce-…'
+  // 'strict-dynamic'` tenhle inline script zahodí → theme FOUC + CSP violation
+  // v konzoli (audit 10. 9. 2026). Obsah skriptu je compile-time konstanta.
+  const nonce = (await headers()).get('x-nonce') ?? undefined;
 
   return (
     <html lang="cs" className={`${spaceGrotesk.variable} ${jetbrainsMono.variable} h-full antialiased`}>
       <head>
-        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+        <script nonce={nonce} dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>
       <body className="min-h-full flex bg-background text-foreground">
         {session ? (

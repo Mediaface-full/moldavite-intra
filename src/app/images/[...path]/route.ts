@@ -2,6 +2,17 @@ import { NextResponse } from 'next/server';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as crypto from 'crypto';
+import { Readable } from 'stream';
+
+/**
+ * Soubor jako streamovaná odpověď (audit 10. 9. 2026): dřív se celý soubor
+ * (i video, i celý Range) načetl do paměti přes readFileSync / Buffer.concat.
+ * Endpoint je veřejný na verify.* hostu → pár set paralelních requestů na
+ * video = OOM celého Node procesu (a s ním admin app). Stream má backpressure.
+ */
+function fileStream(realPath: string, opts?: { start: number; end: number }): ReadableStream {
+  return Readable.toWeb(fs.createReadStream(realPath, opts)) as unknown as ReadableStream;
+}
 
 const PHOTOS_PATH = process.env.PHOTOS_PATH || path.join(process.cwd(), '../kameny/FOTO_MOLDAVITE');
 const PHOTOS_WEB_PATH = process.env.PHOTOS_WEB_PATH || '';
@@ -34,6 +45,8 @@ const MIME_TYPES: Record<string, string> = {
 
 const THUMBNAILABLE = new Set(['.jpg', '.jpeg', '.png']);
 const ALLOWED_THUMB_WIDTHS = [64, 128, 192, 256, 384, 512];
+// Max velikost jednoho Range chunku (browser si další dožádá) — bounded memory.
+const MAX_RANGE_CHUNK_BYTES = 8 * 1024 * 1024;
 
 export async function GET(
   request: Request,
@@ -108,34 +121,50 @@ export async function GET(
   // Handle range requests for video
   const range = request.headers.get('range');
   if (range && contentType.startsWith('video/')) {
-    const parts = range.replace(/bytes=/, '').split('-');
-    const start = parseInt(parts[0], 10);
-    const end = parts[1] ? parseInt(parts[1], 10) : stat.size - 1;
+    // SECURITY (audit 10. 9. 2026): dřív se start/end bral z hlavičky bez
+    // validace — `bytes=abc-`, `bytes=5-2`, `bytes=-1` → NaN / záporné rozsahy
+    // → createReadStream vyhodil výjimku (500) nebo se načetl celý soubor do
+    // paměti. Endpoint je veřejný na verify.* hostu, takže to byl DoS vektor.
+    // Teď: striktní parsování RFC 7233, 416 pro neplatný rozsah, strop na
+    // velikost jednoho chunku aby jeden request nenaalokoval celé video.
+    const m = /^bytes=(\d*)-(\d*)$/.exec(range.trim());
+    if (!m || (m[1] === '' && m[2] === '')) {
+      return new NextResponse(null, { status: 416, headers: { 'Content-Range': `bytes */${stat.size}` } });
+    }
+    let start: number;
+    let end: number;
+    if (m[1] === '') {
+      // suffix range: posledních N bajtů
+      const suffix = parseInt(m[2], 10);
+      start = Math.max(0, stat.size - suffix);
+      end = stat.size - 1;
+    } else {
+      start = parseInt(m[1], 10);
+      end = m[2] === '' ? stat.size - 1 : parseInt(m[2], 10);
+    }
+    if (!Number.isFinite(start) || !Number.isFinite(end) || start < 0 || start >= stat.size || end < start) {
+      return new NextResponse(null, { status: 416, headers: { 'Content-Range': `bytes */${stat.size}` } });
+    }
+    end = Math.min(end, stat.size - 1, start + MAX_RANGE_CHUNK_BYTES - 1);
     const chunkSize = end - start + 1;
 
-    const stream = fs.createReadStream(realPath, { start, end });
-    const chunks: Buffer[] = [];
-    for await (const chunk of stream) {
-      chunks.push(chunk as Buffer);
-    }
-    const buffer = Buffer.concat(chunks);
-
-    return new NextResponse(new Uint8Array(buffer), {
+    return new NextResponse(fileStream(realPath, { start, end }), {
       status: 206,
       headers: {
         'Content-Range': `bytes ${start}-${end}/${stat.size}`,
         'Accept-Ranges': 'bytes',
         'Content-Length': String(chunkSize),
         'Content-Type': contentType,
+        'Cache-Control': 'public, max-age=604800, immutable',
       },
     });
   }
 
-  const buffer = fs.readFileSync(realPath);
-  return new NextResponse(new Uint8Array(buffer), {
+  return new NextResponse(fileStream(realPath), {
     headers: {
       'Content-Type': contentType,
       'Content-Length': String(stat.size),
+      'Accept-Ranges': 'bytes',
       'Cache-Control': 'public, max-age=604800, immutable',
     },
   });

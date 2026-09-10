@@ -64,15 +64,18 @@ export default function LibraryClient({
 
   async function generateCovers() {
     setGeneratingCovers({ done: 0, total: 0, generated: 0, failed: 0 });
-    // Volej v smyčce dokud !done (server timeboxne po 50s, vrátí remaining)
+    // Server zpracuje max 5 knih na volání a vrátí kurzor `lastId`;
+    // loopujeme s `afterId` dokud !done. Průběh se ukazuje po každém volání.
     let generated = 0;
     let failed = 0;
     let total = 0;
-    for (let i = 0; i < 20; i++) {
+    let doneCount = 0;
+    let afterId = 0;
+    for (let i = 0; i < 200; i++) {
       const res = await apiFetch('/api/library/covers-generate-all', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({}),
+        body: JSON.stringify({ afterId }),
       });
       if (!res.ok) {
         alert(`Generování náhledů selhalo (HTTP ${res.status})`);
@@ -83,13 +86,13 @@ export default function LibraryClient({
       generated += data.generated;
       failed += data.failed;
       total = data.total;
-      setGeneratingCovers({
-        done: total - data.remaining,
-        total,
-        generated,
-        failed,
-      });
+      doneCount = total - data.remaining;
+      afterId = data.lastId;
+      setGeneratingCovers({ done: doneCount, total, generated, failed });
       if (data.done) break;
+    }
+    if (failed > 0) {
+      alert(`Náhledy: ${generated} vygenerováno, ${failed} selhalo (poškozené nebo nestandardní PDF — detail v logu serveru).`);
     }
     setTimeout(() => setGeneratingCovers(null), 2500);
     router.refresh();
@@ -143,7 +146,9 @@ export default function LibraryClient({
             >
               <Icon name="camera" className="w-4 h-4" />
               {generatingCovers
-                ? `Náhledy ${generatingCovers.done}/${generatingCovers.total}…`
+                ? generatingCovers.total === 0
+                  ? 'Generuji náhledy…'
+                  : `Náhledy ${generatingCovers.done}/${generatingCovers.total}…`
                 : 'Vygenerovat náhledy'}
             </button>
             <button
@@ -174,7 +179,7 @@ export default function LibraryClient({
           </p>
           {isAdmin && books.length === 0 && (
             <p className="text-xs text-muted-foreground font-mono">
-              Nahraj první knihu tlačítkem „Nahrát knihy" nahoře.
+              Nahraj první knihu tlačítkem „Nahrát knihy“ nahoře.
             </p>
           )}
         </div>

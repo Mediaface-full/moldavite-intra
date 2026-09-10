@@ -127,7 +127,7 @@ export default function LibraryCategoriesAdminClient({
 
       {cats.length === 0 && !adding ? (
         <div className="p-8 text-center text-muted-foreground text-sm">
-          Zatím žádné kategorie. Přidej první (např. „Šperky", „Vltavíny", …).
+          Zatím žádné kategorie. Přidej první (např. „Šperky“, „Vltavíny“, …).
         </div>
       ) : (
         <ul className="divide-y divide-border">

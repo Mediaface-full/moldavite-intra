@@ -92,7 +92,7 @@ export function calculateOrderPricing(input: OrderPricingInput): OrderPricingRes
   const perStone: StonePricingResult[] = [];
   let totalPurchase = new Decimal(0);
   let totalRecommended = new Decimal(0);
-  let counts = { needsInput: 0, needsReview: 0, ok: 0 };
+  const counts = { needsInput: 0, needsReview: 0, ok: 0 };
 
   for (const stone of stones) {
     const result = computeStone(stone, order, vatRatePct, allocation.perStone.get(stone.id) ?? new Decimal(0), config, resolvedPpgByStoneId);

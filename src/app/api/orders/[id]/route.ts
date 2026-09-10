@@ -179,7 +179,9 @@ export async function PATCH(
     return NextResponse.json(serializeOrder(updated));
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
-    return NextResponse.json({ error: msg }, { status: 400 });
+    // Raw Prisma hláška jen do logu; klient dostane generickou.
+    console.error('[orders PATCH] failed:', msg);
+    return NextResponse.json({ error: 'Úprava zakázky selhala' }, { status: 400 });
   }
 }
 

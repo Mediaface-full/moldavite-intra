@@ -6,7 +6,7 @@ import ItemDetailForm from '@/components/ItemDetailForm';
 import ItemPhotoUploadModal from '@/components/ItemPhotoUploadModal';
 import MediaToggle from '@/components/MediaToggle';
 import AiButton from '@/components/AiButton';
-import { getSession } from '@/lib/auth';
+import { requirePageSession } from '@/lib/pageAuth';
 import { resolveMargin } from '@/lib/pricing/margin';
 import type { PricingConfigSnapshot, StoneInput } from '@/lib/pricing/types';
 
@@ -16,9 +16,13 @@ export default async function ItemDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+  // Auth PŘED jakýmkoli DB dotazem (audit 10. 9. 2026 — /items/1.svg obcházel proxy).
+  const session = await requirePageSession();
+  const itemId = Number(id);
+  if (!Number.isInteger(itemId) || itemId <= 0) notFound();
 
   const item = await prisma.item.findUnique({
-    where: { id: parseInt(id) },
+    where: { id: itemId },
     include: {
       box: {
         include: {
@@ -39,8 +43,7 @@ export default async function ItemDetailPage({
   if (!item) notFound();
 
   const catalogNumber = `${item.box.code}-${item.evidNumber}`;
-  const session = await getSession();
-  const isAdmin = session?.role === 'ADMIN';
+  const isAdmin = session.role === 'ADMIN';
 
   // Breakdown — bud z DB (ulozene posledni Prepocitat), nebo on-the-fly z aktualniho
   // PricingConfig + item attrs. Fallback resi pripady kdy Prepocitat probehlo PRED

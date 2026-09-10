@@ -74,6 +74,8 @@ export async function POST(request: Request) {
     if (msg.includes('Unique constraint')) {
       return NextResponse.json({ error: `Hodnota "${body.value}" pro ${body.attrKey} už existuje` }, { status: 409 });
     }
-    return NextResponse.json({ error: msg }, { status: 400 });
+    // Raw Prisma hláška obsahuje názvy tabulek/sloupců — jen do logu.
+    console.error('[attr-options POST] failed:', msg);
+    return NextResponse.json({ error: 'Vytvoření hodnoty selhalo' }, { status: 400 });
   }
 }

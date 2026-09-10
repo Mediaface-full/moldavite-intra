@@ -36,7 +36,10 @@ export async function GET(
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { id } = await params;
-  const itemId = parseInt(id);
+  const itemId = Number(id);
+  if (!Number.isInteger(itemId) || itemId <= 0) {
+    return NextResponse.json({ error: 'Invalid id' }, { status: 400 });
+  }
 
   const item = await prisma.item.findUnique({
     where: { id: itemId },

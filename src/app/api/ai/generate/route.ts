@@ -150,19 +150,35 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
-  const { itemId, name, nameEn, description, descriptionEn, longDescription, longDescriptionEn } = await request.json();
+  let body: Record<string, unknown>;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
+  }
+  const itemId = body.itemId;
+  if (typeof itemId !== 'number' || !Number.isInteger(itemId) || itemId <= 0) {
+    return NextResponse.json({ error: 'itemId musí být kladné celé číslo' }, { status: 400 });
+  }
+  // Textová pole: jen string (nebo vynechané), délkový strop proti nesmyslným payloadům.
+  const TEXT_FIELDS = ['name', 'nameEn', 'description', 'descriptionEn', 'longDescription', 'longDescriptionEn'] as const;
+  const MAX_LEN: Record<(typeof TEXT_FIELDS)[number], number> = {
+    name: 200, nameEn: 200, description: 5000, descriptionEn: 5000, longDescription: 50000, longDescriptionEn: 50000,
+  };
+  const data: Record<string, string> = {};
+  for (const f of TEXT_FIELDS) {
+    const v = body[f];
+    if (v === undefined) continue;
+    if (typeof v !== 'string' || v.length > MAX_LEN[f]) {
+      return NextResponse.json({ error: `${f} musí být string (max ${MAX_LEN[f]} znaků)` }, { status: 400 });
+    }
+    data[f] = v;
+  }
 
-  await prisma.item.update({
-    where: { id: itemId },
-    data: {
-      ...(name !== undefined && { name }),
-      ...(nameEn !== undefined && { nameEn }),
-      ...(description !== undefined && { description }),
-      ...(descriptionEn !== undefined && { descriptionEn }),
-      ...(longDescription !== undefined && { longDescription }),
-      ...(longDescriptionEn !== undefined && { longDescriptionEn }),
-    },
-  });
+  const exists = await prisma.item.findUnique({ where: { id: itemId }, select: { id: true } });
+  if (!exists) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+
+  await prisma.item.update({ where: { id: itemId }, data });
 
   await logActivity(session.id, 'ai.apply', `${itemId}`, 'AI texty aplikovány');
 

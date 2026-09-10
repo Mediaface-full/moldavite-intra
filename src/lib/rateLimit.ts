@@ -33,10 +33,24 @@ if (typeof setInterval !== 'undefined') {
   }, 60_000).unref?.();
 }
 
+/**
+ * Klientská IP za reverzní proxy.
+ *
+ * SECURITY (audit 10. 9. 2026): dřív se brala PRVNÍ hodnota X-Forwarded-For.
+ * DSM nginx nastavuje `X-Forwarded-For $proxy_add_x_forwarded_for`, což
+ * hodnotu od klienta NEPŘEPISUJE, ale PŘIDÁVÁ svou na konec. Útočník tedy
+ * poslal `X-Forwarded-For: 1.2.3.4` a rate limit loginu klíčoval na 1.2.3.4
+ * → neomezený brute-force jen rotací hlavičky. Důvěryhodná je jen POSLEDNÍ
+ * hodnota (tu přidala naše proxy). Login má navíc per-účet limit, který na
+ * IP nezávisí vůbec.
+ */
 export function getClientIp(request: Request): string {
   const fwd = request.headers.get('x-forwarded-for');
-  if (fwd) return fwd.split(',')[0].trim();
+  if (fwd) {
+    const parts = fwd.split(',').map((s) => s.trim()).filter(Boolean);
+    if (parts.length > 0) return parts[parts.length - 1];
+  }
   const real = request.headers.get('x-real-ip');
-  if (real) return real;
+  if (real) return real.trim();
   return 'unknown';
 }
