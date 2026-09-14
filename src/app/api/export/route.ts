@@ -49,9 +49,12 @@ export async function GET() {
   for (const item of items) {
     const catalogNumber = `${item.box.code}-${item.evidNumber}`;
     const mainPhotoNum = String(item.mainPhoto || 1).padStart(2, '0');
-    const imageUrl = `${baseUrl}/images/${item.photoPath}/${mainPhotoNum}.jpg`;
+    // WebP (14. 9. 2026): Upgates WebP podporuje (JPG/PNG/WebP/SVG). Soubory
+    // .webp na disku nejsou — /images route je vyrobí on-demand z .jpg a kešuje
+    // (viz lib/imageFormats.ts). Etsy export zůstává .jpg (Etsy WebP nebere).
+    const imageUrl = `${baseUrl}/images/${item.photoPath}/${mainPhotoNum}.webp`;
     const images360 = Array.from({ length: 24 }, (_, i) =>
-      `${baseUrl}/images/${item.photoPath}/${String(i + 1).padStart(2, '0')}.jpg`
+      `${baseUrl}/images/${item.photoPath}/${String(i + 1).padStart(2, '0')}.webp`
     );
 
     // Pick price based on primary currency (from pre-calculated DB fields)

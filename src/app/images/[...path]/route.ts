@@ -3,6 +3,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as crypto from 'crypto';
 import { Readable } from 'stream';
+import { isWebpRequest, webpSourceCandidates, WEBP_MAX_WIDTH } from '@/lib/imageFormats';
 
 /**
  * Soubor jako streamovaná odpověď (audit 10. 9. 2026): dřív se celý soubor
@@ -39,14 +40,52 @@ const MIME_TYPES: Record<string, string> = {
   '.jpeg': 'image/jpeg',
   '.png': 'image/png',
   '.gif': 'image/gif',
+  '.webp': 'image/webp',
   '.mp4': 'video/mp4',
   '.webm': 'video/webm',
 };
 
-const THUMBNAILABLE = new Set(['.jpg', '.jpeg', '.png']);
+const THUMBNAILABLE = new Set(['.jpg', '.jpeg', '.png', '.webp']);
 const ALLOWED_THUMB_WIDTHS = [64, 128, 192, 256, 384, 512];
 // Max velikost jednoho Range chunku (browser si další dožádá) — bounded memory.
 const MAX_RANGE_CHUNK_BYTES = 8 * 1024 * 1024;
+
+type Resolved = { realPath: string } | { error: 'forbidden' | 'notfound' };
+
+/**
+ * Přeloží URL segmenty na skutečnou cestu na disku: web varianta má přednost
+ * před originálem; traversal + symlink guardy (viz audit 19. 6. / 10. 9. 2026).
+ */
+function resolveSource(segments: readonly string[]): Resolved {
+  // Prefer web-optimised variant if it exists (smaller JPEGs mirror originals).
+  const webPath = findWebVariant([...segments]);
+
+  const filePath = path.join(PHOTOS_PATH, ...segments);
+  const resolvedBase = path.resolve(PHOTOS_PATH);
+  const resolvedPath = path.resolve(filePath);
+  if (resolvedPath !== resolvedBase && !resolvedPath.startsWith(resolvedBase + path.sep)) {
+    return { error: 'forbidden' };
+  }
+
+  // Accept the request if either the web variant or the original exists.
+  if (!webPath && !fs.existsSync(resolvedPath)) return { error: 'notfound' };
+
+  // Follow symlinks and re-verify the real path is still under PHOTOS_PATH
+  // (or under PHOTOS_WEB_PATH if the web variant wins).
+  let realPath: string;
+  try {
+    realPath = webPath ? fs.realpathSync(webPath) : fs.realpathSync(resolvedPath);
+  } catch {
+    return { error: 'notfound' };
+  }
+  const realBase = webPath
+    ? fs.realpathSync(path.resolve(PHOTOS_WEB_PATH))
+    : fs.realpathSync(resolvedBase);
+  if (realPath !== realBase && !realPath.startsWith(realBase + path.sep)) {
+    return { error: 'forbidden' };
+  }
+  return { realPath };
+}
 
 export async function GET(
   request: Request,
@@ -61,40 +100,48 @@ export async function GET(
     }
   }
 
-  // Prefer web-optimised variant if it exists (smaller JPEGs mirror originals).
-  const webPath = findWebVariant(segments);
+  let resolved = resolveSource(segments);
 
-  const filePath = path.join(PHOTOS_PATH, ...segments);
-  const resolvedBase = path.resolve(PHOTOS_PATH);
-  const resolvedPath = path.resolve(filePath);
-  if (resolvedPath !== resolvedBase && !resolvedPath.startsWith(resolvedBase + path.sep)) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  // ---------- On-demand WebP (14. 9. 2026) ----------
+  // `…/01.webp` neexistuje na disku → vezmi `01.jpg` (nebo .jpeg/.png) a
+  // převeď přes sharp (≤ WEBP_MAX_WIDTH, q80) s diskovou cache. Upgates feed
+  // tak dostane WebP bez hromadné konverze originálů. Kandidáti prochází
+  // stejnými guardy jako každý jiný požadavek.
+  let webpOnDemand = false;
+  if ('error' in resolved && resolved.error === 'notfound' && isWebpRequest(segments)) {
+    for (const candidate of webpSourceCandidates(segments)) {
+      const r = resolveSource(candidate);
+      if (!('error' in r)) { resolved = r; webpOnDemand = true; break; }
+      if (r.error === 'forbidden') { resolved = r; break; }
+    }
   }
 
-  // Accept the request if either the web variant or the original exists.
-  if (!webPath && !fs.existsSync(resolvedPath)) {
-    return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  if ('error' in resolved) {
+    return resolved.error === 'forbidden'
+      ? NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+      : NextResponse.json({ error: 'Not found' }, { status: 404 });
   }
-
-  // Follow symlinks and re-verify the real path is still under PHOTOS_PATH
-  // (or under PHOTOS_WEB_PATH if the web variant wins).
-  let realPath: string;
-  try {
-    realPath = webPath ? fs.realpathSync(webPath) : fs.realpathSync(resolvedPath);
-  } catch {
-    return NextResponse.json({ error: 'Not found' }, { status: 404 });
-  }
-  const realBase = webPath
-    ? fs.realpathSync(path.resolve(PHOTOS_WEB_PATH))
-    : fs.realpathSync(resolvedBase);
-  if (realPath !== realBase && !realPath.startsWith(realBase + path.sep)) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-  }
+  const { realPath } = resolved;
 
   const ext = path.extname(realPath).toLowerCase();
   const contentType = MIME_TYPES[ext];
   if (!contentType) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+
+  if (webpOnDemand && THUMBNAILABLE.has(ext)) {
+    const webp = await getOrBuildThumbnail(realPath, WEBP_MAX_WIDTH);
+    if (webp) {
+      return new NextResponse(new Uint8Array(webp), {
+        headers: {
+          'Content-Type': 'image/webp',
+          'Content-Length': String(webp.length),
+          'Cache-Control': 'public, max-age=604800, immutable',
+        },
+      });
+    }
+    // sharp selhal → spadne níž a pošle se zdrojový JPEG (Content-Type podle
+    // skutečného obsahu, klient se řídí hlavičkou, ne příponou v URL).
   }
 
   // ---------- Thumbnail variant ----------
@@ -170,7 +217,8 @@ export async function GET(
   });
 }
 
-// Generate a WebP thumbnail at the requested width, cache it on disk, and
+// Generate a WebP variant at the requested width (thumbnails 64–512 px, or
+// WEBP_MAX_WIDTH for on-demand `.webp` requests), cache it on disk, and
 // return the bytes. Returns null if sharp cannot be loaded or resize fails —
 // caller should fall through to the full image in that case.
 async function getOrBuildThumbnail(sourcePath: string, width: number): Promise<Buffer | null> {
@@ -195,6 +243,7 @@ async function getOrBuildThumbnail(sourcePath: string, width: number): Promise<B
     }
 
     const buffer = await sharp(sourcePath)
+      .rotate()
       .resize({ width, withoutEnlargement: true })
       .webp({ quality: 80 })
       .toBuffer();
