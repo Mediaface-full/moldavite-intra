@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma';
 import { NextResponse } from 'next/server';
 import { getSession, logActivity } from '@/lib/auth';
 import { getPasShape } from '@/lib/pasShapes';
+import { buildItemParams, attrDictKey, type AttrDict } from '@/lib/exportParams';
 
 /**
  * XML escaping (audit 10. 9. 2026): name/nameEn/location/upgatesId/popisy jsou
@@ -28,14 +29,18 @@ export async function GET() {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
-  const [items, config] = await Promise.all([
+  const [items, config, attrOptions] = await Promise.all([
     prisma.item.findMany({
       where: { onShop: true, sold: false },
       include: { box: true },
       orderBy: { evidNumber: 'asc' },
     }),
     prisma.exportConfig.findUnique({ where: { exportType: 'upgates' } }),
+    // Číselník pro CZ/EN labely parametrů (jednou, ne per kámen).
+    prisma.attrOption.findMany({ select: { attrKey: true, value: true, label: true, labelEn: true } }),
   ]);
+  const attrDict: AttrDict = {};
+  for (const o of attrOptions) attrDict[attrDictKey(o.attrKey, o.value)] = { label: o.label, labelEn: o.labelEn };
 
   const primaryCurrency = config?.primaryCurrency || 'CZK';
   const commission = Number(config?.commission || 0);
@@ -123,22 +128,12 @@ export async function GET() {
       xml += `    <VIDEO_URL>${xmlEsc(`${baseUrl}/images/${item.photoPath}/video.mp4`)}</VIDEO_URL>\n`;
     }
 
-    // All prices as params
-    if (priceCZK > 0) {
-      xml += `    <PARAM><PARAM_NAME>Cena CZK</PARAM_NAME><VAL>${priceCZK} CZK</VAL></PARAM>\n`;
-    }
-    if (Number(item.priceEUR) > 0) {
-      xml += `    <PARAM><PARAM_NAME>Cena EUR</PARAM_NAME><VAL>${item.priceEUR} EUR</VAL></PARAM>\n`;
-    }
-    if (Number(item.priceUSD) > 0) {
-      xml += `    <PARAM><PARAM_NAME>Cena USD</PARAM_NAME><VAL>${item.priceUSD} USD</VAL></PARAM>\n`;
-    }
-
     xml += `    <EAN>${xmlEsc(catalogNumber)}</EAN>\n`;
-    xml += `    <PARAM><PARAM_NAME>Hmotnost</PARAM_NAME><VAL>${xmlEsc(item.weight)} g</VAL></PARAM>\n`;
-    xml += `    <PARAM><PARAM_NAME>Lokalita</PARAM_NAME><VAL>${xmlEsc(item.location)}</VAL></PARAM>\n`;
-    if (shape) {
-      xml += `    <PARAM><PARAM_NAME>Tvar</PARAM_NAME><VAL>${xmlEsc(`${shape.cz} / ${shape.en}`)}</VAL></PARAM>\n`;
+
+    // Parametry (filtry e-shopu) — spec docs/ESHOP-PARAMETRY.md, obě jazykové
+    // sady vedle sebe (CZ + EN), bez certifikátu. Logika v lib/exportParams.ts.
+    for (const p of buildItemParams(item, attrDict)) {
+      xml += `    <PARAM><PARAM_NAME>${xmlEsc(p.name)}</PARAM_NAME><VAL>${xmlEsc(p.value)}</VAL></PARAM>\n`;
     }
     xml += '  </SHOPITEM>\n';
   }
