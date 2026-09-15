@@ -60,6 +60,7 @@ export default async function BoxDetailPage({
 
   const shopCount = box.items.filter((i) => i.onShop).length;
   const etsyCount = box.items.filter((i) => i.onEtsy).length;
+  const soldCount = box.items.filter((i) => i.sold).length;
   const isAdmin = session.role === 'ADMIN';
 
   // Zdedene hodnoty pro placeholder inputu v hlavicce kazety.
@@ -205,6 +206,7 @@ export default async function BoxDetailPage({
               boxId={box.id}
               boxCode={box.code}
               itemCount={box.items.length}
+              soldCount={soldCount}
             />
           )}
         </div>

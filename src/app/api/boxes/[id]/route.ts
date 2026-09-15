@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma';
 import { NextResponse } from 'next/server';
 import { getSession, logActivity } from '@/lib/auth';
 import { recalcOrder } from '@/lib/orders/recalcOrder';
+import { decideBoxDelete } from '@/lib/boxDelete';
 
 export async function PATCH(
   request: Request,
@@ -115,14 +116,17 @@ export async function PATCH(
 }
 
 /**
- * DELETE kazetu. Smazání povoleno jen pokud:
- *  - uživatel je ADMIN
- *  - kazety nemá žádné kameny (jinak 409)
- *  - kazety není navázaná na Order který má ještě jiné kameny (Box.orderId FK
- *    je SET NULL, takže smazání Box samo o sobě Order nepoškodí)
+ * DELETE kazetu (ADMIN, ?confirm=DOUBLE_CHECK).
  *
- * UI volá s ?confirm=DOUBLE_CHECK aby šlo o vědomou akci (frontend dělá
- * 2× confirm() dialog před tímhle requestem).
+ * 15. 9. 2026 (Gideon: „nemohu odstranit kazetu, což je divné"): dřív šla
+ * smazat jen prázdná kazeta → kameny po jednom. Teď:
+ *  - prázdná → smazat
+ *  - s kameny + `?withItems=1` → smaže kameny i kazetu v jedné transakci a
+ *    přepočítá zakázku (kameny byly v její alokaci)
+ *  - s PRODANÝM kamenem → 409 vždy (audit prodeje `priceCalcSnapshot` se
+ *    nemaže; kámen se má přesunout jinam)
+ * Pravidla sdílí s UI přes lib/boxDelete.ts. Box.orderId FK je SET NULL,
+ * smazání kazety Order nepoškodí.
  */
 export async function DELETE(
   request: Request,
@@ -135,27 +139,42 @@ export async function DELETE(
 
   const { id } = await params;
   const boxId = parseInt(id, 10);
-  if (Number.isNaN(boxId)) return NextResponse.json({ error: 'Invalid id' }, { status: 400 });
+  if (!Number.isInteger(boxId) || boxId <= 0) return NextResponse.json({ error: 'Invalid id' }, { status: 400 });
 
   const { searchParams } = new URL(request.url);
   if (searchParams.get('confirm') !== 'DOUBLE_CHECK') {
     return NextResponse.json({ error: 'Smazání vyžaduje ?confirm=DOUBLE_CHECK' }, { status: 400 });
   }
+  const withItems = searchParams.get('withItems') === '1';
 
   const box = await prisma.box.findUnique({
     where: { id: boxId },
-    include: { _count: { select: { items: true } } },
+    include: { items: { select: { id: true, sold: true } } },
   });
   if (!box) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-  if (box._count.items > 0) {
-    return NextResponse.json(
-      { error: `Kazeta obsahuje ${box._count.items} kamenů — nejdřív je přesuň nebo smaž.`, itemCount: box._count.items },
-      { status: 409 }
-    );
+  const itemCount = box.items.length;
+  const soldCount = box.items.filter((i) => i.sold).length;
+  const decision = decideBoxDelete({ itemCount, soldCount, withItems });
+  if (!decision.ok) {
+    return NextResponse.json({ error: decision.error, itemCount, soldCount }, { status: decision.status });
   }
 
-  await prisma.box.delete({ where: { id: boxId } });
-  await logActivity(session.id, 'box.delete', box.code, JSON.stringify({ name: box.name }));
-  return NextResponse.json({ success: true });
+  await prisma.$transaction(async (tx) => {
+    if (itemCount > 0) await tx.item.deleteMany({ where: { boxId } });
+    await tx.box.delete({ where: { id: boxId } });
+  });
+
+  // Kameny byly součástí zakázky → přepočítat její součty. Mimo transakci:
+  // selhání přepočtu nesmí vrátit už provedené smazání.
+  if (itemCount > 0 && box.orderId) {
+    try {
+      await recalcOrder(box.orderId);
+    } catch (err) {
+      console.error(`[boxes DELETE] recalcOrder(${box.orderId}) po smazání kazety selhal:`, err);
+    }
+  }
+
+  await logActivity(session.id, 'box.delete', box.code, JSON.stringify({ name: box.name, itemsDeleted: itemCount }));
+  return NextResponse.json({ success: true, itemsDeleted: itemCount });
 }

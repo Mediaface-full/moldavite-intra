@@ -376,7 +376,21 @@ export async function DELETE(
   const { id } = await params;
   const itemId = parseItemId(id);
   if (itemId === null) return NextResponse.json({ error: 'Invalid id' }, { status: 400 });
+  const item = await prisma.item.findUnique({
+    where: { id: itemId },
+    select: { orderId: true, evidNumber: true, box: { select: { code: true } } },
+  });
+  if (!item) return NextResponse.json({ error: 'Not found' }, { status: 404 });
   await prisma.item.delete({ where: { id: itemId } });
-  await logActivity(session.id, 'item.delete', id);
+  // Kámen byl v zakázce → součty zakázky se změnily (15. 9. 2026 — dřív se po
+  // smazání nepřepočítávalo; stejná mezera jako u mazání kazety).
+  if (item.orderId) {
+    try {
+      await recalcOrder(item.orderId);
+    } catch (err) {
+      console.error(`[items DELETE] recalcOrder(${item.orderId}) po smazání kamene selhal:`, err);
+    }
+  }
+  await logActivity(session.id, 'item.delete', `${item.box.code}-${item.evidNumber}`);
   return NextResponse.json({ success: true });
 }
