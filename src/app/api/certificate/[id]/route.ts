@@ -2,7 +2,7 @@ import { prisma } from '@/lib/prisma';
 import { NextResponse } from 'next/server';
 import { getSession, logActivity } from '@/lib/auth';
 import { getPasShape } from '@/lib/pasShapes';
-import { createHash, randomBytes } from 'crypto';
+import { ensureCertificate } from '@/lib/items/certificate';
 import * as fs from 'fs';
 import * as path from 'path';
 import PDFDocument from 'pdfkit';
@@ -52,25 +52,12 @@ export async function GET(
   const weightG = Number(item.weight);
   const weightCt = Number(item.weightCt) || (weightG * 5);
 
-  // Generate or reuse cert hash
-  let certHash = item.certHash;
-  // Generate hash + issue date on first generation, reuse on subsequent
-  let certIssuedAt = item.certIssuedAt;
-  if (!certHash) {
-    certHash = createHash('sha256')
-      .update(`${item.id}-${catalogNumber}-${randomBytes(8).toString('hex')}`)
-      .digest('hex')
-      .substring(0, 16);
-    certIssuedAt = new Date();
-    await prisma.item.update({ where: { id: itemId }, data: { certHash, certIssuedAt } });
-  } else if (!certIssuedAt) {
-    certIssuedAt = new Date();
-    await prisma.item.update({ where: { id: itemId }, data: { certIssuedAt } });
-  }
+  // Vystavit nebo znovu použít certifikát (sdílené s prodejem z e-shopu — lib/items/certificate.ts)
+  const { certHash, certIssuedAt } = await ensureCertificate(prisma, item, catalogNumber);
 
   const verifyBaseUrl = process.env.VERIFY_BASE_URL || process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
   const verifyUrl = `${verifyBaseUrl}/verify/${certHash}`;
-  const issueDate = certIssuedAt!.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+  const issueDate = certIssuedAt.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
 
   // QR code
   const qrDataUrl = await QRCode.toDataURL(verifyUrl, { width: 100, margin: 1 });

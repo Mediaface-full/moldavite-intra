@@ -20,24 +20,24 @@ enum Role {
 // produkční chování nebylo dotčeno.
 
 enum AllocationMethod {
-  BY_WEIGHT          // default — alokace nákladů zakázky podle gramáže
-  BY_PURCHASE_PRICE  // dražší kameny dostanou větší část společných nákladů
-  EQUAL_PER_PIECE    // rovnoměrně na kus
+  BY_WEIGHT // default — alokace nákladů zakázky podle gramáže
+  BY_PURCHASE_PRICE // dražší kameny dostanou větší část společných nákladů
+  EQUAL_PER_PIECE // rovnoměrně na kus
 }
 
 enum OrderStatus {
-  DRAFT      // rozpracovaná, ceny ještě nespočítané
-  PRICED     // ceny spočtené, kameny lze publikovat
-  PUBLISHED  // kameny propsané na shop/Etsy
-  CANCELLED  // stornovaná — ceny zůstávají jako snapshot, ale neaktualizují se
+  DRAFT // rozpracovaná, ceny ještě nespočítané
+  PRICED // ceny spočtené, kameny lze publikovat
+  PUBLISHED // kameny propsané na shop/Etsy
+  CANCELLED // stornovaná — ceny zůstávají jako snapshot, ale neaktualizují se
   ARCHIVED
 }
 
 enum PricingStatus {
-  NEEDS_INPUT   // chybí váha / PPG / atribut s missingPolicy=error
-  NEEDS_REVIEW  // manualPrice spadla pod nový recommendedPrice po přepočtu
-  OK            // spočtené a platné
-  STALE         // konfigurace nebo náklady zakázky se změnily od posledního výpočtu
+  NEEDS_INPUT // chybí váha / PPG / atribut s missingPolicy=error
+  NEEDS_REVIEW // manualPrice spadla pod nový recommendedPrice po přepočtu
+  OK // spočtené a platné
+  STALE // konfigurace nebo náklady zakázky se změnily od posledního výpočtu
 }
 
 /// Typ kazety (Box) — co je v ní fyzicky uložené.
@@ -68,7 +68,7 @@ model ActivityLog {
   id        Int      @id @default(autoincrement())
   userId    Int
   user      User     @relation(fields: [userId], references: [id])
-  action    String   // e.g. "item.update", "item.sold", "export.upgates"
+  action    String // e.g. "item.update", "item.sold", "export.upgates"
   target    String   @default("") // e.g. "K0001-0005"
   details   String   @default("") // JSON or text details
   ip        String   @default("")
@@ -91,16 +91,16 @@ model ActivityLog {
 ///   - purchasePricePerGramCzk — cena za gram pro výpočet ceny kamenů v kazetě
 ///                     (jinak dědí Order.defaultPurchasePricePerGramCzk)
 model Box {
-  id        Int      @id @default(autoincrement())
-  code      String   @unique // e.g. "K0001"
-  name      String?
-  placement String   @default("") // kde je kazeta umístěna
-  photos    String[] @default([]) // až 5 fotek kazety (cesty)
+  id           Int      @id @default(autoincrement())
+  code         String   @unique // e.g. "K0001"
+  name         String?
+  placement    String   @default("") // kde je kazeta umístěna
+  photos       String[] @default([]) // až 5 fotek kazety (cesty)
   /// Řízeno přes AttrOption(attrKey="cassetteType"); default "Kameny"
-  cassetteType String  @default("Kameny")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  items     Item[]
+  cassetteType String   @default("Kameny")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  items        Item[]
 
   // Zakázka (Etapa 1, nullable do migrace dat):
   // - orderId NULL → "skladová kazeta" (fyzická lokace, kameny mohou patřit různým Order)
@@ -113,10 +113,10 @@ model Box {
   seller   Seller? @relation(fields: [sellerId], references: [id], onDelete: SetNull)
 
   // Per-kazeta cenotvorba / deklarace (vše nullable → dědí z Order)
-  declaredPieces           Int?
-  declaredWeight           Decimal? @db.Decimal(10, 2)
-  purchaseAmountCzk        Decimal? @db.Decimal(12, 2)
-  purchasePricePerGramCzk  Decimal? @db.Decimal(10, 2)
+  declaredPieces          Int?
+  declaredWeight          Decimal? @db.Decimal(10, 2)
+  purchaseAmountCzk       Decimal? @db.Decimal(12, 2)
+  purchasePricePerGramCzk Decimal? @db.Decimal(10, 2)
 
   @@index([orderId])
   @@index([sellerId])
@@ -161,9 +161,9 @@ model Seller {
 /// (kvůli migraci a auditní stopě).
 model AttrOption {
   id        Int      @id @default(autoincrement())
-  attrKey   String   // 'pasShape' | 'attrDamage' | 'attrColor' | 'location'
-  value     String   // čitelná hodnota, ukládá se přímo do Item.{pasShape,attrDamage,attrColor[],location}
-  label     String?  // volitelný display label (pokud chybí, použije se `value`)
+  attrKey   String // 'pasShape' | 'attrDamage' | 'attrColor' | 'location'
+  value     String // čitelná hodnota, ukládá se přímo do Item.{pasShape,attrDamage,attrColor[],location}
+  label     String? // volitelný display label (pokud chybí, použije se `value`)
   /// Anglický překlad — použije se v EN katalogu (eshop/Etsy export, EN locale UI).
   /// Pokud null, fallback na `value`.
   labelEn   String?
@@ -177,42 +177,42 @@ model AttrOption {
 }
 
 model Item {
-  id            Int      @id @default(autoincrement())
-  evidNumber    String   // e.g. "0001"
-  boxId         Int
-  box           Box      @relation(fields: [boxId], references: [id])
-  name          String   @default("") // název produktu CZ
-  nameEn        String   @default("") // název produktu EN
-  description   String   @default("") // krátký popis CZ
-  descriptionEn String   @default("") // krátký popis EN
-  longDescription String @default("") // delší popis CZ (HTML)
-  longDescriptionEn String @default("") // delší popis EN (HTML)
-  location      String   @default("") // místo nálezu
-  storage       String   @default("") // lokace
-  purchasePrice Decimal  @default(0) @db.Decimal(10, 2)
-  salePrice     Decimal  @default(0) @db.Decimal(10, 2)
-  priceEUR      Decimal  @default(0) @db.Decimal(10, 2) // přepočtená cena EUR
-  priceUSD      Decimal  @default(0) @db.Decimal(10, 2) // přepočtená cena USD
-  weight        Decimal  @default(0) @db.Decimal(8, 2) // gramy
-  weightCt      Decimal  @default(0) @db.Decimal(8, 2) // karáty (1g = 5ct)
-  sold          Boolean  @default(false) // prodáno
-  onShop        Boolean  @default(false) // Upgates eshop
-  onShopAt      DateTime? // datum vystavení na eshopu (nastaveno při false→true)
-  onEtsy        Boolean  @default(false) // Etsy
-  onEtsyAt      DateTime? // datum vystavení na Etsy (nastaveno při false→true)
+  id                Int       @id @default(autoincrement())
+  evidNumber        String // e.g. "0001"
+  boxId             Int
+  box               Box       @relation(fields: [boxId], references: [id])
+  name              String    @default("") // název produktu CZ
+  nameEn            String    @default("") // název produktu EN
+  description       String    @default("") // krátký popis CZ
+  descriptionEn     String    @default("") // krátký popis EN
+  longDescription   String    @default("") // delší popis CZ (HTML)
+  longDescriptionEn String    @default("") // delší popis EN (HTML)
+  location          String    @default("") // místo nálezu
+  storage           String    @default("") // lokace
+  purchasePrice     Decimal   @default(0) @db.Decimal(10, 2)
+  salePrice         Decimal   @default(0) @db.Decimal(10, 2)
+  priceEUR          Decimal   @default(0) @db.Decimal(10, 2) // přepočtená cena EUR
+  priceUSD          Decimal   @default(0) @db.Decimal(10, 2) // přepočtená cena USD
+  weight            Decimal   @default(0) @db.Decimal(8, 2) // gramy
+  weightCt          Decimal   @default(0) @db.Decimal(8, 2) // karáty (1g = 5ct)
+  sold              Boolean   @default(false) // prodáno
+  onShop            Boolean   @default(false) // Upgates eshop
+  onShopAt          DateTime? // datum vystavení na eshopu (nastaveno při false→true)
+  onEtsy            Boolean   @default(false) // Etsy
+  onEtsyAt          DateTime? // datum vystavení na Etsy (nastaveno při false→true)
   /// Surový text k roztřídění (typicky z hlasového vstupu — extraNotes co AI nedostala
   /// do strukturovaných polí). User si to ručně přečte a přesune do description/atd.
-  voiceNotes    String   @default("")
-  upgatesId     String   @default("") // ID pro Upgates export
-  etsyId        String   @default("") // ID pro Etsy export
-  certHash      String   @default("") // hash pro verifikační stránku
-  certIssuedAt  DateTime? // datum vydání certifikátu
-  mainPhoto     Int      @default(1) // index hlavního obrázku (1-24)
-  photoPath     String   @default("") // relativní cesta k fotkám
-  rangeFolder   String   @default("") // e.g. "0001-0005"
-  pasShape      String   @default("") // Primary Aerodynamic Shape — klíč z lib/pasShapes.ts
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  voiceNotes        String    @default("")
+  upgatesId         String    @default("") // ID pro Upgates export
+  etsyId            String    @default("") // ID pro Etsy export
+  certHash          String    @default("") // hash pro verifikační stránku
+  certIssuedAt      DateTime? // datum vydání certifikátu
+  mainPhoto         Int       @default(1) // index hlavního obrázku (1-24)
+  photoPath         String    @default("") // relativní cesta k fotkám
+  rangeFolder       String    @default("") // e.g. "0001-0005"
+  pasShape          String    @default("") // Primary Aerodynamic Shape — klíč z lib/pasShapes.ts
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
   // ─── Zakázka (Etapa 1, nullable do backfill v Etapě 2) ───
   // RESTRICT: smazání Order s kameny je blokované — defense in depth
@@ -226,15 +226,15 @@ model Item {
   purchasePricePerGramCzk    Decimal? @db.Decimal(10, 2) // přepočet pro výpočet (v1 = source pokud CZK)
 
   /// Atributy pro maržová pravidla (řízeno přes PricingConfig.rules)
-  attrDamage      String   @default("")     // 'none'|'minor'|'major' (snapshot, neenum, řízeno softly)
-  attrColor       String[] @default([])     // multi; UI nabízí jen hodnoty z aktivní PricingConfig
+  attrDamage      String   @default("") // 'none'|'minor'|'major' (snapshot, neenum, řízeno softly)
+  attrColor       String[] @default([]) // multi; UI nabízí jen hodnoty z aktivní PricingConfig
   attrCollectible Boolean  @default(false)
 
   // ─── Výstupy výpočtu (snapshot z posledního přepočtu) ─────
   allocatedOrderCostCzk        Decimal?      @db.Decimal(10, 2)
   /// Cena s náklady = purchasePriceCzk + allocatedOrderCostCzk (řádek "Cena s náklady" v UI)
   costBasisCzk                 Decimal?      @db.Decimal(10, 2)
-  computedMarginRate           Decimal?      @db.Decimal(6, 4)  // decimální multiplikátor (1.5 = 150%)
+  computedMarginRate           Decimal?      @db.Decimal(6, 4) // decimální multiplikátor (1.5 = 150%)
   /// Per-rule rozpis marže z posledního Přepočítat — pro UI tooltip „jaké koeficienty cenotvorby byly použity".
   /// Format: { marginBreakdown: Array<{ ruleKey, matched, marginRate }>, totalMarginRate: string }
   priceCalcBreakdown           Json?
@@ -250,12 +250,17 @@ model Item {
 
   // ─── Audit prodeje ─────────────────────────────────────────
   /// Datum kdy kámen přešel z sold=false na sold=true.
-  soldAt                       DateTime?
+  soldAt              DateTime?
   /// Zafixovaný snapshot výpočtu v okamžiku prodeje — pro dohledatelnost
   /// jak vznikla prodejní cena. Obsahuje rules + breakdown + steps z calculate().
   /// Po nastavení už se nemění — i kdyby user změnil sold zpět a znovu.
-  priceCalcSnapshot            Json?
-  priceCalcSnapshotAt          DateTime?
+  priceCalcSnapshot   Json?
+  priceCalcSnapshotAt DateTime?
+
+  // E-shop BM SHOP (Shop API v1, docs/SHOP-API.md): číslo objednávky e-shopu, kterou byl kámen prodán
+  // (idempotence POST /api/shop/v1/sold) a aktivní/historické rezervace z košíku.
+  shopOrderNumber  String            @default("")
+  shopReservations ShopReservation[]
 
   @@unique([boxId, evidNumber])
   @@index([boxId])
@@ -271,44 +276,44 @@ model Item {
 // Náklady se alokují do kamenů podle allocationMethod (default per Order,
 // override per OrderCostItem). Výpočet ceny v lib/pricing/calculate.ts.
 model Order {
-  id            Int     @id @default(autoincrement())
-  code          String  @unique  // "Z2026-001" / "MIG-K0042" / "LEGACY-IMPORT"
-  title         String  @default("")
+  id             Int       @id @default(autoincrement())
+  code           String    @unique // "Z2026-001" / "MIG-K0042" / "LEGACY-IMPORT"
+  title          String    @default("")
   /// LEGACY free text (zachováno pro migrované zakázky). Pro nové preferuj sellerId FK.
-  sellerName    String  @default("")
-  sellerContact String  @default("")
+  sellerName     String    @default("")
+  sellerContact  String    @default("")
   /// FK na Seller entitu — preferovaný způsob u nových zakázek.
   /// Pokud Box.sellerId !== Order.sellerId u některé kazety → UI zobrazí "MIX".
-  sellerId      Int?
-  seller        Seller? @relation(fields: [sellerId], references: [id], onDelete: SetNull)
-  purchaseDate  DateTime?
-  declaredPieces Int    @default(0)
-  declaredWeight Decimal? @db.Decimal(10, 2)
-  originLocality String  @default("")
-  notes         String  @default("")
+  sellerId       Int?
+  seller         Seller?   @relation(fields: [sellerId], references: [id], onDelete: SetNull)
+  purchaseDate   DateTime?
+  declaredPieces Int       @default(0)
+  declaredWeight Decimal?  @db.Decimal(10, 2)
+  originLocality String    @default("")
+  notes          String    @default("")
 
   // ─── Currency-ready od v1 (UI v1 jen CZK, ale schema připraveno) ───
   /// Měna nákupu. V1 vždy "CZK", schema je pro v2 (EUR/USD nákupy).
-  sourceCurrency            String   @default("CZK")
-  totalPurchaseAmountSource Decimal  @db.Decimal(12, 2) @default(0)
-  totalPurchaseAmountCzk    Decimal  @db.Decimal(12, 2) @default(0)
-  exchangeRate              Decimal? @db.Decimal(12, 6)
+  sourceCurrency            String    @default("CZK")
+  totalPurchaseAmountSource Decimal   @default(0) @db.Decimal(12, 2)
+  totalPurchaseAmountCzk    Decimal   @default(0) @db.Decimal(12, 2)
+  exchangeRate              Decimal?  @db.Decimal(12, 6)
   exchangeRateDate          DateTime?
 
   // ─── Cenotvorba ───────────────────────────────────────────────────
   /// Default cena za gram v sourceCurrency (pro stones bez vlastní PPG)
-  defaultPurchasePricePerGramSource Decimal? @db.Decimal(10, 2)
-  defaultPurchasePricePerGramCzk    Decimal? @db.Decimal(10, 2)
+  defaultPurchasePricePerGramSource Decimal?         @db.Decimal(10, 2)
+  defaultPurchasePricePerGramCzk    Decimal?         @db.Decimal(10, 2)
   allocationMethod                  AllocationMethod @default(BY_WEIGHT)
-  vatRatePct                        Decimal  @db.Decimal(5, 2) @default(21.00) // 21.00 = 21%
-  roundingStep                      Int      @default(10) // 10 / 50 / 100 Kč
+  vatRatePct                        Decimal          @default(21.00) @db.Decimal(5, 2) // 21.00 = 21%
+  roundingStep                      Int              @default(10) // 10 / 50 / 100 Kč
 
   // ─── PricingConfig — ID pro UI ("jaká config se použila?")
   //     + SNAPSHOT pro reproducibility i po smazání nebo úpravě konfigurace
   pricingConfigId       Int?
   pricingConfig         PricingConfig? @relation(fields: [pricingConfigId], references: [id])
-  pricingConfigSnapshot Json?           // celé .rules + missingValuePolicy v okamžiku přepočtu
-  pricingConfigVersion  Int?            // verze schématu pravidel (forward-compat)
+  pricingConfigSnapshot Json? // celé .rules + missingValuePolicy v okamžiku přepočtu
+  pricingConfigVersion  Int? // verze schématu pravidel (forward-compat)
 
   // ─── Stav ─────────────────────────────────────────────────────────
   status           OrderStatus @default(DRAFT)
@@ -343,10 +348,10 @@ model OrderCostItem {
   allocationMethodOverride AllocationMethod?
 
   // Currency-ready (v1: vždy CZK, source == czk)
-  amountSource     Decimal  @db.Decimal(10, 2)
-  amountCzk        Decimal  @db.Decimal(10, 2)
-  currency         String   @default("CZK")
-  exchangeRate     Decimal? @db.Decimal(12, 6)
+  amountSource     Decimal   @db.Decimal(10, 2)
+  amountCzk        Decimal   @db.Decimal(10, 2)
+  currency         String    @default("CZK")
+  exchangeRate     Decimal?  @db.Decimal(12, 6)
   exchangeRateDate DateTime?
 
   note      String   @default("")
@@ -385,7 +390,7 @@ model OrderCostItem {
 // }
 model PricingConfig {
   id        Int       @id @default(autoincrement())
-  name      String                          // "Standardní 2026", "Migrace baseline"
+  name      String // "Standardní 2026", "Migrace baseline"
   active    Boolean   @default(false)
   validFrom DateTime?
   validTo   DateTime?
@@ -399,7 +404,7 @@ model PricingConfig {
 
 model ExchangeRate {
   id        Int      @id @default(autoincrement())
-  currency  String   // EUR, USD
+  currency  String // EUR, USD
   rate      Decimal  @db.Decimal(10, 4) // kurz k CZK
   quantity  Int      @default(1)
   source    String   @default("CNB")
@@ -409,16 +414,16 @@ model ExchangeRate {
 }
 
 model ExportConfig {
-  id             Int      @id @default(autoincrement())
-  exportType     String   @unique // "upgates" or "etsy"
-  currencies     String[] @default(["CZK"]) // ["CZK", "EUR", "USD"]
-  primaryCurrency String  @default("CZK")
-  commission     Decimal  @default(0) @db.Decimal(5, 2) // provize v %
-  roundPrices    Boolean  @default(true)                  // LEGACY — bude dropnuto v Etapě 4
-  roundingStep   Int      @default(10)                    // 10 / 50 / 100 Kč, použije se v Etapě 4 v applyShopModifier
-  languages      String[] @default(["cz"]) // ["cz", "en"]
-  primaryLanguage String  @default("cz")
-  updatedAt      DateTime @updatedAt
+  id              Int      @id @default(autoincrement())
+  exportType      String   @unique // "upgates" or "etsy"
+  currencies      String[] @default(["CZK"]) // ["CZK", "EUR", "USD"]
+  primaryCurrency String   @default("CZK")
+  commission      Decimal  @default(0) @db.Decimal(5, 2) // provize v %
+  roundPrices     Boolean  @default(true) // LEGACY — bude dropnuto v Etapě 4
+  roundingStep    Int      @default(10) // 10 / 50 / 100 Kč, použije se v Etapě 4 v applyShopModifier
+  languages       String[] @default(["cz"]) // ["cz", "en"]
+  primaryLanguage String   @default("cz")
+  updatedAt       DateTime @updatedAt
 }
 
 // ─── Vševěd — znalostní chatbot (Etapa 1) ──────────────────────────────────
@@ -428,70 +433,70 @@ model ExportConfig {
 // s HNSW indexem pro cosine similarity search.
 
 model VsevedDocument {
-  id           Int      @id @default(autoincrement())
-  title        String
-  author       String   @default("")
-  year         Int?
-  language     String   @default("cs")
-  sourceFile   String
-  format       String
-  fileSize     Int
-  textLength   Int      @default(0)
-  chunkCount   Int      @default(0)
-  status       String   @default("PENDING")
-  statusError  String?
-  tags         String[] @default([])
-  notes        String   @default("")
-  uploadedBy   Int
-  uploadedAt   DateTime @default(now())
-  indexedAt    DateTime?
+  id          Int       @id @default(autoincrement())
+  title       String
+  author      String    @default("")
+  year        Int?
+  language    String    @default("cs")
+  sourceFile  String
+  format      String
+  fileSize    Int
+  textLength  Int       @default(0)
+  chunkCount  Int       @default(0)
+  status      String    @default("PENDING")
+  statusError String?
+  tags        String[]  @default([])
+  notes       String    @default("")
+  uploadedBy  Int
+  uploadedAt  DateTime  @default(now())
+  indexedAt   DateTime?
 
-  chunks       VsevedChunk[]
+  chunks VsevedChunk[]
 
   @@index([status])
   @@index([language])
 }
 
 model VsevedChunk {
-  id             Int      @id @default(autoincrement())
-  documentId     Int
-  document       VsevedDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
-  chunkIndex     Int
-  text           String
-  charStart      Int
-  charEnd        Int
-  pageHint       String?
-  tokenCount     Int
+  id         Int            @id @default(autoincrement())
+  documentId Int
+  document   VsevedDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  chunkIndex Int
+  text       String
+  charStart  Int
+  charEnd    Int
+  pageHint   String?
+  tokenCount Int
 
-  embedding      Unsupported("vector(768)")?
+  embedding Unsupported("vector(768)")?
 
   @@unique([documentId, chunkIndex])
   @@index([documentId])
 }
 
 model VsevedConversation {
-  id          Int      @id @default(autoincrement())
-  userId      Int
-  title       String   @default("")
-  archived    Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  messages    VsevedMessage[]
+  id        Int             @id @default(autoincrement())
+  userId    Int
+  title     String          @default("")
+  archived  Boolean         @default(false)
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+  messages  VsevedMessage[]
 
   @@index([userId, archived])
 }
 
 model VsevedMessage {
-  id              Int      @id @default(autoincrement())
-  conversationId  Int
-  conversation    VsevedConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  role            String
-  content         String
-  citedChunkIds   Int[]    @default([])
-  promptTokens    Int?
-  responseTokens  Int?
-  modelUsed       String?
-  createdAt       DateTime @default(now())
+  id             Int                @id @default(autoincrement())
+  conversationId Int
+  conversation   VsevedConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  role           String
+  content        String
+  citedChunkIds  Int[]              @default([])
+  promptTokens   Int?
+  responseTokens Int?
+  modelUsed      String?
+  createdAt      DateTime           @default(now())
 
   @@index([conversationId, createdAt])
 }
@@ -510,17 +515,34 @@ model BookCategory {
 }
 
 model Book {
-  id              Int      @id @default(autoincrement())
+  id              Int           @id @default(autoincrement())
   title           String
-  filename        String   // originální název ze souboru (user-friendly)
-  storageFilename String   @unique // <uuid>.<ext> — soubor na disku
+  filename        String // originální název ze souboru (user-friendly)
+  storageFilename String        @unique // <uuid>.<ext> — soubor na disku
   mimeType        String
-  size            Int      // v bytech
+  size            Int // v bytech
   categoryId      Int?
   category        BookCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   uploadedById    Int
-  createdAt       DateTime @default(now())
+  createdAt       DateTime      @default(now())
 
   @@index([categoryId])
   @@index([createdAt])
+}
+
+/// Rezervace kamene z košíku e-shopu BM SHOP (Shop API v1 — app/docs/SHOP-API.md).
+/// Aktivní = releasedAt IS NULL AND expiresAt > now(). Kus s aktivní rezervací jiného `ref`
+/// nejde rezervovat ani prodat přes API. Rezervace se ruší prodejem (releasedAt) nebo vyprší.
+model ShopReservation {
+  id         String    @id @default(cuid())
+  itemId     Int
+  item       Item      @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  ref        String // identifikátor košíku / objednávky v e-shopu (max 120 znaků)
+  expiresAt  DateTime
+  releasedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@unique([itemId, ref])
+  @@index([itemId, expiresAt])
 }

@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 import { getSession, logActivity } from '@/lib/auth';
 import { recalcItemPrices } from '@/lib/exchangeRates';
 import { resolvePpg } from '@/lib/pricing/resolve';
-import { captureItemSaleSnapshot } from '@/lib/orders/captureItemSaleSnapshot';
+import { applySoldTransition } from '@/lib/items/markSold';
 import { recalcOrder } from '@/lib/orders/recalcOrder';
 
 // Pole co user smi PATCHovat z UI.
@@ -297,20 +297,8 @@ export async function PATCH(
   }
 
   if (isBecomingSold) {
-    await prisma.$transaction(async (tx) => {
-      await tx.item.update({ where: { id: itemId }, data });
-      const capturedAt = new Date();
-      const snap = await captureItemSaleSnapshot(tx, itemId, capturedAt);
-      if (snap) {
-        await tx.item.update({
-          where: { id: itemId },
-          data: {
-            priceCalcSnapshot: snap as never,
-            priceCalcSnapshotAt: capturedAt,
-          },
-        });
-      }
-    });
+    // Sdílené s prodejem z e-shopu (Shop API v1) — lib/items/markSold.ts
+    await applySoldTransition(itemId, data);
   } else {
     await prisma.item.update({ where: { id: itemId }, data });
   }
