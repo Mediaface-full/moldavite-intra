@@ -43,6 +43,7 @@ export const ACTION_LABELS: Record<string, ActionMeta> = {
   'attr_option.create':     { label: 'Přidána položka číselníku', icon: 'plus',        color: 'var(--success)' },
   'attr_option.update':     { label: 'Upravena položka číselníku',icon: 'edit',        color: 'var(--info)' },
   'attr_option.delete':     { label: 'Smazána položka číselníku', icon: 'trash',       color: 'var(--destructive)' },
+  'attr_option.export':     { label: 'Export číselníků',           icon: 'download',    color: 'var(--info)' },
   // Sellers
   'seller.create':          { label: 'Přidán dodavatel',          icon: 'plus',        color: 'var(--success)' },
   'seller.update':          { label: 'Upraven dodavatel',         icon: 'edit',        color: 'var(--info)' },

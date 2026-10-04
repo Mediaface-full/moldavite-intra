@@ -69,14 +69,34 @@ export default function AttributesAdminClient({ initialGrouped }: { initialGroup
 
   return (
     <div>
-      <div className="mb-8">
-        <p className="text-[10px] text-muted-foreground uppercase tracking-[0.25em] font-mono mb-1">
-          Bohemian Moldavite · Intra
-        </p>
-        <h1 className="text-3xl font-bold tracking-tight">Atributy</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Řízené hodnoty pro atributy kamenů — tvar, poškození, lokalita, barva. Změny se projeví v dropdownech v detailu kamene.
-        </p>
+      <div className="mb-8 flex items-start justify-between gap-4 flex-wrap">
+        <div className="min-w-0">
+          <p className="text-[10px] text-muted-foreground uppercase tracking-[0.25em] font-mono mb-1">
+            Bohemian Moldavite · Intra
+          </p>
+          <h1 className="text-3xl font-bold tracking-tight">Atributy</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Řízené hodnoty pro atributy kamenů — tvar, poškození, lokalita, barva. Změny se projeví v dropdownech v detailu kamene.
+          </p>
+        </div>
+        {/* Export číselníků ze živé DB (Gideon 4. 10. 2026) — MD ke stažení + JSON pro stroje */}
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <a
+            href="/api/admin/dictionaries-export?format=md"
+            className="bg-card border border-border hover:border-foreground/40 text-foreground px-3 py-2 rounded-md text-xs font-mono uppercase tracking-wider inline-flex items-center gap-2"
+            title="Stáhne aktuální číselníky (tvary s popisy, lokality, barvy, stavy, typy kazet, odvozené kategorie) jako Markdown, včetně počtu kamenů u každé hodnoty"
+          >
+            <Icon name="download" className="w-4 h-4" />
+            Export číselníků
+          </a>
+          <a
+            href="/api/admin/dictionaries-export?format=json"
+            className="text-muted-foreground hover:text-foreground px-2 py-2 rounded-md text-xs font-mono uppercase tracking-wider"
+            title="Totéž jako JSON (pro import do jiné aplikace)"
+          >
+            JSON
+          </a>
+        </div>
       </div>
 
       <div className="space-y-8">
