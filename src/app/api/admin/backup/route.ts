@@ -6,6 +6,7 @@ import { spawn } from 'child_process';
 import { timingSafeEqual } from 'crypto';
 import * as fs from 'fs';
 import * as path from 'path';
+import { backupRoot, manualBackupDir, scheduledBackupDir } from '@/lib/backupPaths';
 
 // Authorisation: either an admin session (manual UI backup) OR a valid
 // x-cron-secret header (Task Scheduler / cron). Returns caller tag for
@@ -44,10 +45,8 @@ export async function POST(request: Request) {
   }
 
   // Scheduled runs (cron) should land in a separate subdir so retention
-  // policies can differ from ad-hoc manual backups.
-  const backupDir = auth.tag === 'cron'
-    ? (process.env.BACKUP_SCHEDULED_PATH || path.join(process.cwd(), '..', 'backups', 'scheduled'))
-    : (process.env.BACKUP_PATH || path.join(process.cwd(), '..', 'backups', 'daily'));
+  // policies can differ from ad-hoc manual backups. Cesty: lib/backupPaths.ts (stejné jako GET výpis).
+  const backupDir = auth.tag === 'cron' ? scheduledBackupDir() : manualBackupDir();
   if (!fs.existsSync(backupDir)) {
     fs.mkdirSync(backupDir, { recursive: true });
   }
@@ -262,14 +261,12 @@ export async function GET() {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
-  const backupRoot = process.env.BACKUP_PATH
-    ? path.dirname(process.env.BACKUP_PATH)
-    : path.join(process.cwd(), '..', 'backups');
+  const root = backupRoot();
   const dirs = ['daily', 'weekly', 'monthly', 'scheduled'];
   const backups: Array<{ name: string; type: string; size: string; date: string }> = [];
 
   for (const dir of dirs) {
-    const dirPath = path.join(backupRoot, dir);
+    const dirPath = dir === 'scheduled' ? scheduledBackupDir() : path.join(root, dir);
     if (!fs.existsSync(dirPath)) continue;
     const files = fs.readdirSync(dirPath).filter(f => f.endsWith('.sql.gz')).sort().reverse();
     for (const file of files) {
