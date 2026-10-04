@@ -42,9 +42,11 @@ session a CSRF jen přesný prefix `/api/shop/v1/`. Webhook do e-shopu: HMAC SHA
 
 ## Nalezené problémy mimo rozsah (nahlášeno Gideonovi 4. 10.)
 
-1. **Zálohy DB intra pravděpodobně neběží**: DSM cron volá `POST /api/admin/backup` jen s `x-cron-secret`,
-   ale `src/proxy.ts` pro `/api/admin` vyžaduje cookie → 401 před handlerem. Ověřit data souborů v
-   `/volume1/docker/moldavite/backups/scheduled/`. Opravit v rámci této práce.
+1. **Zálohy DB intra NEBĚŽÍ** (Gideon potvrdil 4. 10.: `backups/scheduled/` prázdné). Dvě chyby za sebou:
+   (a) `src/proxy.ts` pro `/api/admin` vyžadoval cookie → DSM cron (`x-cron-secret`) dostal 401 před handlerem;
+   (b) i kdyby prošel, route bez `BACKUP_SCHEDULED_PATH` psala do `/backups/scheduled` UVNITŘ kontejneru
+   (WORKDIR /app), mimo volume `/data/backups` → zálohy by zmizely s kontejnerem.
+   Opraveno v intru: `c4be13c` (proxy) + `ab20e07` (`lib/backupPaths.ts`). Projeví se až po nasazení intra.
 2. **`moldavite_intra/OPERATIONS.md` (mimo git) obsahuje produkční secrety v čitelné podobě**;
    kontrolní grep je omylem vypsal do logu session → doporučena rotace CRON_SECRET, NEXTAUTH_SECRET, DB hesla.
 3. `/images/...` v intru je veřejné bez přihlášení (záměr kvůli verify stránce) — jen informace.
@@ -61,7 +63,12 @@ session a CSRF jen přesný prefix `/api/shop/v1/`. Webhook do e-shopu: HMAC SHA
 - [x] Intra: sdílené `lib/items/markSold.ts` (ruční prodej i e-shop) a `lib/items/certificate.ts` (PDF route i e-shop)
 - [x] Intra: routes `api/shop/v1/catalog` (GET), `reservations` (POST), `reservations/[id]` (DELETE), `sold` (POST)
 - [x] Intra: testy 28 nových (auth, validace, katalog) → celkem 196/196, tsc OK
-- [ ] **Intra: `src/proxy.ts` — výjimka pro `/api/shop/v1/` + oprava cron zálohy — ZABLOKOVÁNO systémem oprávnění, čeká na Gideona**
+- [x] Intra: `src/proxy.ts` — výjimka pro `/api/shop/v1/` + cron zálohy (Gideon schválil variantu A) — `c4be13c`, 19 testů
+      (sousední cesty, `../` a `%2e%2e` únik, jiné admin cesty se secretem, GET); mutační kontrola: se starou proxy padá právě 5 pozitivních
+- [x] Intra: cron zálohy na namountovaný disk (`lib/backupPaths.ts`) — `ab20e07`, celkem 218/218, tsc + eslint OK
+- [x] Sdílené klíče vygenerované (`openssl rand -hex 32`) do gitignored souborů: e-shop `.env.production`
+      (INTRA_API_URL/TOKEN/WEBHOOK_SECRET), intra `.env.intra` (SHOP_*); párování ověřeno skriptem, hodnoty nikde nevypsané
+- [x] Odchozí IP diega ověřena: IPv4 78.47.142.236 (má i IPv6, ale `app.bohemianmoldavite.com` má jen A záznam 78.80.184.81 → jde IPv4)
 - [x] E-shop: `IntraClient` (Bearer, timeouty, bez logování tokenu), `IntraException`
 - [x] E-shop: `Sync` — číselníky → termy (klíč AttrOption.id; převzetí stejnojmenného ukázkového termu), kameny → upsert,
       přeskočení nezměněných (updatedAt + publikováno), skrytí chybějících (koncept), prodané (zásoba 0), zámek proti souběhu,
@@ -74,6 +81,40 @@ session a CSRF jen přesný prefix `/api/shop/v1/`. Webhook do e-shopu: HMAC SHA
 - [ ] Nasazení intra (Gideon push → ghcr → Synology, env SHOP_API_TOKEN, SHOP_API_ALLOWED_IPS, SHOP_WEBHOOK_*)
 - [ ] Nasazení e-shopu (env INTRA_API_URL, INTRA_API_TOKEN, INTRA_WEBHOOK_SECRET), smazání ukázkových dat, první sync
 - [ ] Útočný test API intra na produkci (bez tokenu, cizí IP, CSRF, sousední cesty /api/shop/v1x)
+      — POVINNĚ i **podvržené `X-Forwarded-For: 78.47.142.236` z cizí IP → musí být 403 `forbidden_ip`** (viz níže)
+- [ ] Intra: odesílání webhooku `items.changed` / `dictionaries.changed` (zatím neimplementováno; do té doby stačí sync à 5 min)
+- [ ] Ověřit po nasazení intra, že DSM cron 03:00 vytvořil soubor v `backups/scheduled/`
+
+## Nasazení napojení — postup (bez hodnot; ty jsou v gitignored souborech)
+
+**Pořadí:** intra první (shop bez intra jen hlásí chybu, nic nerozbije).
+
+1. **Intra — kód:** Gideon pushne `moldavite_intra/app` (commity `436841c`, `c4be13c`, `ab20e07`) → GitHub Actions
+   build → ghcr. Na NAS `sudo /volume1/docker/moldavite/deploy.sh`. Migrace `prisma migrate deploy` běží v
+   `docker-entrypoint.sh` sama (jen přidávací: tabulka `ShopReservation`, sloupec `Item.shopOrderNumber`).
+2. **Intra — env (PŘED deployem):** compose na NAS předává proměnné výčtem v `environment:` (žádný `env_file`),
+   takže je potřeba obojí:
+   - do `/volume1/docker/moldavite/.env` přidat 4 řádky ze souboru `.env.intra` (v kořeni e-shop repa),
+   - do `/volume1/docker/moldavite/docker-compose.yml`, služba `app`, blok `environment:` přidat:
+     ```yaml
+           SHOP_API_TOKEN: ${SHOP_API_TOKEN:-}
+           SHOP_API_ALLOWED_IPS: ${SHOP_API_ALLOWED_IPS:-}
+           SHOP_WEBHOOK_URL: ${SHOP_WEBHOOK_URL:-}
+           SHOP_WEBHOOK_SECRET: ${SHOP_WEBHOOK_SECRET:-}
+           BACKUP_SCHEDULED_PATH: /data/backups/scheduled
+     ```
+     (`:-` prázdný default = API je fail-closed → 503 `not_configured`, když chybí; `BACKUP_SCHEDULED_PATH` je pojistka
+     navíc k opravě v kódu.) Synology compose NENÍ Coolify — `${VAR:?…}` tu funguje, ale pro volitelné věci `:-`.
+3. **Intra — kontrola z diega:** `ssh diego "curl -s -o /dev/null -w '%{http_code}' https://app.bohemianmoldavite.com/api/shop/v1/catalog"`
+   → 401 (bez tokenu). S tokenem 200 se ověří až ze shopu (`wp bm sync --dry-run`).
+4. **E-shop — env v Coolify:** `INTRA_API_URL`, `INTRA_API_TOKEN`, `INTRA_WEBHOOK_SECRET` ze `.env.production` → Redeploy.
+5. **E-shop — data:** `wp bm sync --dry-run` → kontrola výpisu → `wp bm purge-sample --yes` → `wp bm sync`.
+6. **E-shop — Coolify Scheduled Task:** `wp bm sync` každých 5 min (`*/5 * * * *`), kontejner `web`.
+7. **Útočný test na produkci** (z Macu, ne z diega): bez tokenu → 403 (cizí IP); s podvrženým
+   `X-Forwarded-For: 78.47.142.236` → musí být **403 `forbidden_ip`**, ne 401. `getClientIp` bere POSLEDNÍ položku XFF
+   — bezpečné jen pokud reverzní proxy DSM hlavičku doplňuje (`$proxy_add_x_forwarded_for`). Z kódu to ověřit nejde.
+   Dále `/api/shop/v1x`, `/api/shop/v2/x`, `/api/shop/v1/%2e%2e/admin/users` → 401; POST bez CSRF na `/api/items` → 401/403.
+8. **Zálohy:** druhý den ráno `ls -la /volume1/docker/moldavite/backups/scheduled/` — soubor `moldavite_scheduled_*.sql.gz`.
 
 ## Deník
 
@@ -98,3 +139,14 @@ session a CSRF jen přesný prefix `/api/shop/v1/`. Webhook do e-shopu: HMAC SHA
   - nalezeno a opraveno: (1) kolize názvu termu s ukázkovým termem → převzetí; (2) skrytý kámen, který se vrátil
     do katalogu se stejným updatedAt, zůstával skrytý → přeskakuje se jen publikovaný; (3) statistika „skryté" počítá kameny
 - Dev-only: povolení privátní IP/portu pro hostitele z `INTRA_API_URL` (jen `wp_get_environment_type() !== 'production'`).
+
+### 4. 10. 2026 (večer)
+- Gideon: „1, povoluji upravu A 2, nejsoou tam zalohy". Proxy upravena (`c4be13c`), 19 regresních testů. Mutační kontrola:
+  test proti původní proxy z HEAD → padá přesně 5 pozitivních testů, zamítací procházejí v obou verzích (jak mají).
+- Při ověřování cesty záloh nalezena DRUHÁ příčina (viz Nalezené problémy 1b) → `lib/backupPaths.ts` (`ab20e07`) + 3 testy.
+  GET výpis záloh už počítal se `/data/backups/scheduled`, zápis ne — teď jedno pravidlo.
+- Klíče vygenerovány do `.env.production` (e-shop) a `.env.intra` (pro NAS); `.env.intra` přidán do `.gitignore`, chmod 600.
+- Ověřena odchozí IP diega (IPv4 78.47.142.236) a že intra nemá AAAA → allowlist jen IPv4 stačí.
+- Zjištěno: `getClientIp` (intra `lib/rateLimit.ts`) věří poslední položce `X-Forwarded-For` → zařazeno do útočného testu.
+- Compose na NAS (`SYNOLOGY-INSTALL/docker-compose.prod.yml` jako vzor) má výčet `environment:` bez `env_file` →
+  nové proměnné musí do `.env` I do compose (postup výše).
