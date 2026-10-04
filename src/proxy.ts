@@ -9,6 +9,19 @@ const PUBLIC_PATHS = ['/login', '/api/auth/login', '/api/cron', '/verify'];
 // per metoda. ADMIN_PATHS držet jen pro 100% admin prefixy.
 const ADMIN_PATHS = ['/admin', '/api/admin', '/export', '/api/export'];
 
+// Shop API v1 (e-shop BM SHOP → intra, server–server; app/docs/SHOP-API.md). Vlastní autentizace
+// v lib/shop/auth.ts (Bearer SHOP_API_TOKEN + allowlist IP + rate limit), proto bez cookie a CSRF.
+// Přesný prefix S LOMÍTKEM — /api/shop/v1x, /api/shop/v2/, /api/shop nesmí projít (viz PUBLIC_PATHS:
+// startsWith bez lomítka otevírá i sousední cesty). Testy: __tests__/proxy-matcher.test.ts.
+// Schváleno Gideonem 4. 10. 2026.
+const SHOP_API_PREFIX = '/api/shop/v1/';
+
+// Noční záloha z DSM cronu: POST /api/admin/backup jen s platným x-cron-secret (bez cookie).
+// Bez této výjimky proxy vracela 401 ještě před handlerem (authorise() v route) → zálohy neběžely
+// (zjištěno 4. 10. 2026, Gideon potvrdil: v backups/scheduled/ žádné soubory). Jen tato přesná
+// cesta + metoda + platný secret; handler secret ověřuje znovu.
+const CRON_BACKUP_PATH = '/api/admin/backup';
+
 // CSRF: default-deny (audit 10. 9. 2026). Dřív allow-list prefixů — každý
 // nový API prefix (naposledy /api/library/) se do ní musel ručně přidat a
 // zapomnělo se na to. Teď KAŽDÁ mutace pod /api/ vyžaduje double-submit
@@ -121,6 +134,20 @@ export function proxy(request: NextRequest) {
   }
 
   // ----- Admin host: regular auth flow -----
+
+  // Shop API v1 — autentizace až v route handleru (lib/shop/auth.ts), viz SHOP_API_PREFIX.
+  if (pathname.startsWith(SHOP_API_PREFIX)) {
+    const res = NextResponse.next({ request: { headers: forwardedHeaders } });
+    applySecurityHeaders(res, nonce, isProd);
+    return res;
+  }
+
+  // Noční záloha s platným cron secretem (handler authorise() ho ověří znovu), viz CRON_BACKUP_PATH.
+  if (pathname === CRON_BACKUP_PATH && request.method === 'POST' && hasValidCronSecret(request)) {
+    const res = NextResponse.next({ request: { headers: forwardedHeaders } });
+    applySecurityHeaders(res, nonce, isProd);
+    return res;
+  }
 
   // Allow public paths
   if (PUBLIC_PATHS.some(p => pathname.startsWith(p))) {

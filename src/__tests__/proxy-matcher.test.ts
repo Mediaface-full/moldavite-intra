@@ -108,3 +108,68 @@ describe('proxy — neautentizovaný request s prefetch hlavičkou', () => {
     });
   }
 });
+
+describe('proxy — Shop API v1 (e-shop, server–server) mimo cookie session', () => {
+  // Shop API má vlastní autentizaci v route (lib/shop/auth.ts: Bearer + allowlist IP + rate limit).
+  // Proxy ji pouští BEZ cookie a CSRF — ale jen přesný prefix /api/shop/v1/ (s lomítkem).
+  const PASS = [
+    ['GET', '/api/shop/v1/catalog'],
+    ['POST', '/api/shop/v1/reservations'],
+    ['DELETE', '/api/shop/v1/reservations/abc'],
+    ['POST', '/api/shop/v1/sold'],
+  ] as const;
+  for (const [method, p] of PASS) {
+    it(`${method} ${p} bez cookie a CSRF → projde do route handleru`, () => {
+      const res = proxy(new NextRequest(`https://app.example.com${p}`, { method }));
+      expect(res.headers.get('x-middleware-next')).toBe('1');
+      expect(res.headers.get('x-frame-options')).toBe('DENY');
+    });
+  }
+  // Sousední cesty a pokusy o únik z prefixu musí zůstat za přihlášením.
+  const BLOCKED = [
+    '/api/shop', '/api/shop/', '/api/shopX', '/api/shop/v1', '/api/shop/v1x/catalog', '/api/shop/v2/catalog',
+    '/api/shop/v1/../admin/users', '/api/shop/v1/%2e%2e/admin/users', '/api/shop/v1/%2E%2E/items',
+  ];
+  for (const p of BLOCKED) {
+    it(`POST ${p} bez cookie → 401`, () => {
+      const res = proxy(new NextRequest(`https://app.example.com${p}`, { method: 'POST' }));
+      expect(res.status).toBe(401);
+    });
+  }
+});
+
+describe('proxy — noční záloha z DSM cronu (x-cron-secret bez cookie)', () => {
+  // Dřív proxy vracela 401 před handlerem → zálohy neběžely (zjištěno 4. 10. 2026).
+  const SECRET = 'cron-secret-for-tests-0123456789abcdef';
+  const withSecret = (fn: () => void) => () => {
+    const prev = process.env.CRON_SECRET;
+    process.env.CRON_SECRET = SECRET;
+    try { fn(); } finally { if (prev === undefined) delete process.env.CRON_SECRET; else process.env.CRON_SECRET = prev; }
+  };
+  const req = (method: string, path: string, secret?: string) =>
+    new NextRequest(`https://app.example.com${path}`, { method, headers: secret ? { 'x-cron-secret': secret } : {} });
+
+  it('POST /api/admin/backup s platným secretem → projde', withSecret(() => {
+    expect(proxy(req('POST', '/api/admin/backup', SECRET)).headers.get('x-middleware-next')).toBe('1');
+  }));
+  it('POST /api/admin/backup bez secretu → 401', withSecret(() => {
+    expect(proxy(req('POST', '/api/admin/backup')).status).toBe(401);
+  }));
+  it('POST /api/admin/backup se špatným secretem → 401', withSecret(() => {
+    expect(proxy(req('POST', '/api/admin/backup', SECRET.slice(0, -1) + 'X')).status).toBe(401);
+  }));
+  it('GET /api/admin/backup s platným secretem → 401 (jen POST)', withSecret(() => {
+    expect(proxy(req('GET', '/api/admin/backup', SECRET)).status).toBe(401);
+  }));
+  it('platný secret neotevírá jiné admin cesty (/api/admin/users, /api/admin/backup/x)', withSecret(() => {
+    expect(proxy(req('POST', '/api/admin/users', SECRET)).status).toBe(401);
+    expect(proxy(req('POST', '/api/admin/backup/x', SECRET)).status).toBe(401);
+    expect(proxy(req('POST', '/api/admin/backupX', SECRET)).status).toBe(401);
+  }));
+  it('bez CRON_SECRET v env neprojde ani prázdný secret', () => {
+    const prev = process.env.CRON_SECRET;
+    delete process.env.CRON_SECRET;
+    try { expect(proxy(req('POST', '/api/admin/backup', 'cokoli')).status).toBe(401); }
+    finally { if (prev !== undefined) process.env.CRON_SECRET = prev; }
+  });
+});
