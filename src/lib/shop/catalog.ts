@@ -8,6 +8,7 @@ import { existsSync } from 'fs';
 import path from 'path';
 import { prisma } from '@/lib/prisma';
 import { getLatestRates } from '@/lib/rates';
+import { WEBP_SOURCE_EXTS } from '@/lib/imageFormats';
 
 export const SHOP_API_VERSION = 1;
 export const SHOP_DICT_KEYS = ['location', 'pasShape', 'attrColor', 'attrDamage'] as const;
@@ -148,30 +149,43 @@ export function buildCatalogItem(
 }
 
 /**
- * Fotky z disku (PHOTOS_PATH): 01–24 (.jpg/.jpeg/.png/.webp), hlavní (mainPhoto) první.
- * URL vede na veřejnou route /images (WebP se vyrobí on-demand), jen pro soubory, které existují.
- * Stejná ochrana cesty jako /images route: žádné „..", výsledek musí zůstat pod PHOTOS_PATH.
+ * Fotky z disku: sloty 01–24, hlavní (mainPhoto) první. URL vede na veřejnou route /images (`NN.webp`).
+ *
+ * Slot existuje, právě když by ho /images route vydala — stejné kořeny a přípony jako tam:
+ * PHOTOS_WEB_PATH (webové varianty, mají přednost) NEBO PHOTOS_PATH (originály), soubor `NN.webp`
+ * nebo zdroj pro on-demand WebP `NN.jpg|jpeg|png` (lib/imageFormats.ts).
+ * Proč oba kořeny (5. 10. 2026): první verze hledala jen v originálech → produkce vrátila 0 fotek
+ * u všech 315 kamenů, přestože /images je vydávala (ověřeno curl na K0001/0001-0005/0001/01.webp).
+ * Stejná ochrana cesty jako /images route: žádné „..", výsledek musí zůstat pod kořenem.
  */
-export function diskPhotoResolver(baseUrl: string, photosRoot = process.env.PHOTOS_PATH || path.join(process.cwd(), '..', 'kameny', 'FOTO_MOLDAVITE')): PhotoResolver {
-  const root = path.resolve(photosRoot);
+export function diskPhotoResolver(
+  baseUrl: string,
+  photosRoot = process.env.PHOTOS_PATH || path.join(process.cwd(), '..', 'kameny', 'FOTO_MOLDAVITE'),
+  webRoot = process.env.PHOTOS_WEB_PATH || '',
+): PhotoResolver {
+  const roots = [webRoot, photosRoot].filter(Boolean).map((r) => path.resolve(r));
   return (photoPath, mainPhoto) => {
     if (!photoPath || photoPath.includes('..') || photoPath.includes('\0') || photoPath.includes('\\')) {
       return { photos: [], video: null };
     }
-    const dir = path.resolve(root, photoPath);
-    if (!dir.startsWith(root + path.sep)) return { photos: [], video: null };
+    const dirs = roots
+      .map((root) => ({ root, dir: path.resolve(root, photoPath) }))
+      .filter(({ root, dir }) => dir.startsWith(root + path.sep))
+      .map(({ dir }) => dir);
+    if (!dirs.length) return { photos: [], video: null };
+    const exists = (name: string) => dirs.some((dir) => existsSync(path.join(dir, name)));
 
     const segs = photoPath.split('/').filter(Boolean).map(encodeURIComponent).join('/');
     const slots: number[] = [];
     for (let n = 1; n <= PHOTO_SLOTS; n++) {
       const nn = String(n).padStart(2, '0');
-      if (['jpg', 'jpeg', 'png', 'webp'].some((ext) => existsSync(path.join(dir, `${nn}.${ext}`)))) slots.push(n);
+      if (['webp', ...WEBP_SOURCE_EXTS.map((e) => e.slice(1))].some((ext) => exists(`${nn}.${ext}`))) slots.push(n);
     }
     const main = Number.isInteger(mainPhoto) && slots.includes(mainPhoto) ? mainPhoto : slots[0];
     const ordered = main ? [main, ...slots.filter((n) => n !== main)] : [];
     return {
       photos: ordered.map((n) => `${baseUrl}/images/${segs}/${String(n).padStart(2, '0')}.webp`),
-      video: existsSync(path.join(dir, 'video.mp4')) ? `${baseUrl}/images/${segs}/video.mp4` : null,
+      video: exists('video.mp4') ? `${baseUrl}/images/${segs}/video.mp4` : null,
     };
   };
 }
