@@ -150,3 +150,20 @@ session a CSRF jen přesný prefix `/api/shop/v1/`. Webhook do e-shopu: HMAC SHA
 - Zjištěno: `getClientIp` (intra `lib/rateLimit.ts`) věří poslední položce `X-Forwarded-For` → zařazeno do útočného testu.
 - Compose na NAS (`SYNOLOGY-INSTALL/docker-compose.prod.yml` jako vzor) má výčet `environment:` bez `env_file` →
   nové proměnné musí do `.env` I do compose (postup výše).
+
+### 5. 10. 2026
+- Gideon doplnil env na NAS (`.env` + compose `environment:` — compose zpočátku chyběl, kontejner měl 0 znaků) a do Coolify.
+- **Útočný test produkce — prošel:** z diega bez tokenu / špatný token → 401; z cizí IP → 403, i s podvrženým
+  `X-Forwarded-For: 78.47.142.236` (jedna i dvě položky) a `X-Real-IP` → 403 (DSM proxy XFF doplňuje, allowlist drží);
+  `/api/shop/v1x`, `v2`, `/api/shopX`, `%2e%2e` → 401; `..%2f` → 404 bez dat; `/api/admin/backup` bez/špatný secret → 401.
+- První `wp bm sync --dry-run`: 0 kamenů (nic nemělo `onShop`). Gideon vystavil → **315 kamenů, 1 vynechán** (K0003-0001, pricing_needs_review).
+- Kontrola dat z produkčního katalogu PŘED ostrým syncem (skript `wp eval-file`, nic nezapisoval):
+  - ceny 1 710–39 550 Kč, EUR/USD u všech, kurzy ČNB z dneška 05:00; atributy u všech; 0 duplicit SKU
+  - **fotky 0 u všech** → chyba v `diskPhotoResolver` (jen originály, `/images` vydává i z `PHOTOS_WEB_PATH`).
+    Opraveno intra `d32da25` + 5 testů. Fotky existují: verify stránka K0001-0001 → 24 fotek, `01.webp` 200.
+  - **názvy prázdné u všech 315 (CZ i EN), popisy prázdné, EN popisky číselníků = české** → rozhodnutí Gideona
+  - `listedAt` null u všech → hromadné vystavení v intru nezapisovalo `onShopAt`. Opraveno `3a5dcb8` (+3 testy),
+    stávajících 315 kamenů potřebuje jednorázové doplnění data (SQL na NAS).
+  - Mimo rozsah: hromadné vystavení obchází gate cenotvorby (proto byl K0003-0001 vystaven přes NEEDS_REVIEW) a hromadné
+    „prodáno" obchází `applySoldTransition` (bez snapshotu ceny). Katalog e-shopu gate drží sám.
+- Ostrý sync, purge-sample a plánovaný sync zatím NEspuštěny — čeká na nasazení oprav intra a rozhodnutí o názvech.
