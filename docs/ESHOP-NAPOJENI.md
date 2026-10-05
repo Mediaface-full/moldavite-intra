@@ -76,11 +76,11 @@ session a CSRF jen přesný prefix `/api/shop/v1/`. Webhook do e-shopu: HMAC SHA
 - [x] E-shop: `wp bm sync [--force] [--ids=] [--dry-run] [--file=]`, `wp bm purge-sample --yes`
 - [x] E-shop: webhook `POST /wp-json/bm/v1/intra` (HMAC SHA-256 `X-BM-Signature`, secret ≥ 32 znaků, jinak 503)
 - [x] E-shop: lokální E2E proti mock intru podle kontraktu — viz deník
-- [ ] E-shop: Coolify Scheduled Task `wp bm sync` každých 5 min (po nasazení)
+- [ ] E-shop: Coolify Scheduled Task — container `web`, příkaz `runuser -u www-data -- wp bm sync`, `*/5 * * * *` (ověřeno ručně: 3,7 s, 315 beze změny) — zadává Gideon
 - [ ] E-shop: rezervace v košíku, prodej po zaplacení (fáze 5)
 - [ ] Nasazení intra (Gideon push → ghcr → Synology, env SHOP_API_TOKEN, SHOP_API_ALLOWED_IPS, SHOP_WEBHOOK_*)
-- [ ] Nasazení e-shopu (env INTRA_API_URL, INTRA_API_TOKEN, INTRA_WEBHOOK_SECRET), smazání ukázkových dat, první sync
-- [ ] Útočný test API intra na produkci (bez tokenu, cizí IP, CSRF, sousední cesty /api/shop/v1x)
+- [x] Nasazení e-shopu (env INTRA_*), smazání ukázkových dat, první import 315 kamenů — 5. 10. 2026, ověřeno kámen po kameni
+- [x] Útočný test API intra na produkci (5. 10.)
       — POVINNĚ i **podvržené `X-Forwarded-For: 78.47.142.236` z cizí IP → musí být 403 `forbidden_ip`** (viz níže)
 - [ ] Intra: odesílání webhooku `items.changed` / `dictionaries.changed` (zatím neimplementováno; do té doby stačí sync à 5 min)
 - [ ] Ověřit po nasazení intra, že DSM cron 03:00 vytvořil soubor v `backups/scheduled/`
@@ -174,3 +174,35 @@ session a CSRF jen přesný prefix `/api/shop/v1/`. Webhook do e-shopu: HMAC SHA
   - intra: jednorázové SQL na NAS (jen prázdné `name`/`nameEn`, jen `onShop`), Gideon pak upravuje v intru.
     Otestováno na lokální DB intra v transakci s ROLLBACK (vlastní název zachován, 12,45 → 12,5).
   - e-shop: `Sync::name()` — stejný vzor jako pojistka pro kameny vystavené později bez názvu; vlastní název má přednost.
+- Intra nasazeno (fotky + datum vystavení), Gideon doplnil `onShopAt` a názvy SQL na NAS. Kontrola katalogu: 315 kamenů,
+  0 bez názvu, 0 bez fotek (7 560 fotek), všechny názvy podle vzoru, hmotnost v názvu = round(weightG, 1) u všech.
+- 24 fotek na kámen = záměr návrhu (README: „24 alternativních fotek z feedu", počítadlo „1 / 24").
+- E-shop `d1ff4ca` nasazen (Coolify, ověřeno: nový kód v kontejneru, web 503 = PIN brána, `uploads/x.php` → 403, proxy běží).
+- `wp bm purge-sample --yes` na produkci: 24 ukázkových produktů + fotky + ukázkové termy smazány.
+- Měření: 1 kámen ≈ 37–41 s (24 fotek × 8 zmenšenin z 1920×1920 WebP) → první import ~3 h. Spuštěn 06:25 UTC na pozadí
+  v kontejneru (`docker exec -d … wp bm sync > /tmp/bm-sync.log`). Při přerušení stačí spustit znovu (fotky se
+  deduplikují podle `_bm_source`, nehotový kámen nemá `_bm_intra_updated_at` → zpracuje se znovu).
+- Ověřen K0001-0001 v DB: CZ „Vltavín Marouškovo Pole 5,7 g" `/produkt/vltavin-marouskovo-pole-57-g/`, EN
+  „Marouškovo Pole Moldavite 5.7 g" `/en/product/marouskovo-pole-moldavite-5-7-g/`, 3 030 Kč / 124 € / 139 $ (vlastní ceny),
+  5,68 g / 28,4 ct, certifikát, 24 fotek, EN termy Medium / No / Raw stones (barva „zelená" — intra nemá labelEn).
+- Nalezeno: zámek syncu (15 min) se během běhu neobnovoval → dlouhý běh + plánovaná úloha = souběh. Opraveno `90181ba`
+  (obnova po každém kameni). **Push až po doběhnutí importu** (deploy by import přerušil).
+- Plánovanou úlohu v Coolify zapnout až po importu a po nasazení `90181ba`.
+- 06:34 UTC Gideonův push (`90181ba`) → redeploy přerušil import po 16 kamenech (navazuje, nic se nerozbilo).
+  `/tmp/fix.txt` v kontejneru = výpis z našeho Dockerfile (oprava práv), neškodný.
+- Gideon: „potřebujeme 8 zmenšenin?" → ne. Šablona používá `full`, `woocommerce_thumbnail`, `woocommerce_gallery_thumbnail`.
+  `fec0e09`: fotky kamenů (příloha s `_bm_source`) jen thumbnail 150 / 300 / 100 / medium_large 768. Lokálně 0,34 s
+  místo 0,74 s na fotku; místo ~70 kB zmenšenin na fotku ~14 kB. Journal a ostatní nahrávání beze změny.
+  Na produkci 400 příloh se starými velikostmi → po nasazení `wp media regenerate <ids s _bm_source> --yes`
+  (WP-CLI staré velikosti maže), pak znovu `wp bm sync`. WPML na produkci anglické kopie příloh nezakládá (402 příloh, vše cs).
+- 07:32 nasazeno `fec0e09`; `wp media regenerate` 400 příloh (3 205 souborů / 58 MB → 2 005 / 30 MB, 105 s). Jeden sirotek
+  `K0003-0029-6-1024x1024.webp` (fotka rozpracovaná při redeployi, chyběl v metadatech) smazán ručně.
+- Import 07:35–09:55 UTC: `nové 299, beze změny 16, chyby 0`. Tempo ~26 s/kámen (zmenšeniny ušetřily ~třetinu, zbytek je
+  stahování 24 fotek z intra). Uploads 648 MB (~2 MB/kámen), DB ~230 MB, disk diega 72 %.
+- **Kontrola kámen po kameni proti katalogu intra** (skript `wp eval-file`, nic nezapisuje): 315/315 v pořádku — název CZ/EN
+  (= `Sync::name`), stav publish, cena CZK + `_price_EUR/USD`, sklad 1, hmotnost, atributy (bm_key = AttrOption.id) lokalita/tvar/
+  barva/stav, počet fotek = katalog (7 560), EN překlad existuje; 0 publikovaných navíc, 0 produktů bez intra id, 0 duplicitních fotek.
+- Vykreslení (server-side s tokenem brány): `/obchod/` 9 karet, stránkování, filtr lokality, detail CZ/EN 24 fotek, ceny
+  3 030 Kč / 124 EUR / 139 USD, hmotnost 5,68 g / 5.68 g, 0 PHP chyb.
+- Plánovaná úloha ověřena ručně jako root: `runuser -u www-data -- wp bm sync` → 3,7 s, 315 beze změny (WP-CLI pod rootem
+  odmítá běžet a soubory v uploads by vlastnil root).
