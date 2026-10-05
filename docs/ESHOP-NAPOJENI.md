@@ -167,3 +167,10 @@ session a CSRF jen přesný prefix `/api/shop/v1/`. Webhook do e-shopu: HMAC SHA
   - Mimo rozsah: hromadné vystavení obchází gate cenotvorby (proto byl K0003-0001 vystaven přes NEEDS_REVIEW) a hromadné
     „prodáno" obchází `applySoldTransition` (bez snapshotu ceny). Katalog e-shopu gate drží sám.
 - Ostrý sync, purge-sample a plánovaný sync zatím NEspuštěny — čeká na nasazení oprav intra a rozhodnutí o názvech.
+- **Názvy (Gideon 5. 10.):** „propiš to tam … klidně v intru; hmotnost zkrať, v popisu přesná". Vzor z návrhu
+  (`sample-products.json`): CZ „Vltavín {lokalita} {g na 1 des.} g", EN „{lokalita} Moldavite {g} g"; lokalita = plný
+  název z číselníku (label / labelEn → label → value), zkratky jako v návrhu („Chlum") se nevymýšlí. Přesná hmotnost
+  zůstává na kartě a v parametrech (`Format::grams`, 2 desetiny).
+  - intra: jednorázové SQL na NAS (jen prázdné `name`/`nameEn`, jen `onShop`), Gideon pak upravuje v intru.
+    Otestováno na lokální DB intra v transakci s ROLLBACK (vlastní název zachován, 12,45 → 12,5).
+  - e-shop: `Sync::name()` — stejný vzor jako pojistka pro kameny vystavené později bez názvu; vlastní název má přednost.
