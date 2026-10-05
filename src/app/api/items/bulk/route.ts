@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma';
 import { NextResponse } from 'next/server';
 import { getSession, logActivity } from '@/lib/auth';
+import { listingDates } from '@/lib/items/listingDates';
 
 const ALLOWED_BULK_FIELDS = ['salePrice', 'purchasePrice', 'onShop', 'onEtsy', 'sold', 'pasShape'];
 
@@ -25,6 +26,14 @@ export async function PATCH(request: Request) {
     }
   }
 
+  // Datum vystavení při false → true (lib/items/listingDates.ts) — potřebuje předchozí stav.
+  const listingIds = updates.filter((u) => u.onShop === true || u.onEtsy === true).map((u) => u.id as number);
+  const prevRows = listingIds.length
+    ? await prisma.item.findMany({ where: { id: { in: listingIds } }, select: { id: true, onShop: true, onEtsy: true } })
+    : [];
+  const prevById = new Map(prevRows.map((p) => [p.id, p] as const));
+  const now = new Date();
+
   const results = await prisma.$transaction(
     updates.map((update) => {
       const { id, ...fields } = update;
@@ -33,6 +42,7 @@ export async function PATCH(request: Request) {
         if (fields[key] !== undefined) data[key] = fields[key];
       }
       if (session.role !== 'ADMIN') delete data.purchasePrice;
+      Object.assign(data, listingDates(prevById.get(id as number), data, now));
       return prisma.item.update({ where: { id: id as number }, data });
     })
   );
