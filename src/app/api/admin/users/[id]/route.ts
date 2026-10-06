@@ -1,6 +1,9 @@
 import { prisma } from '@/lib/prisma';
 import { NextResponse } from 'next/server';
-import { getSession, logActivity } from '@/lib/auth';
+import {
+  getSession, logActivity, normalizeEmail, findUserByEmail, createToken,
+  SESSION_COOKIE_NAME, sessionCookieOptions,
+} from '@/lib/auth';
 import { sendEmail } from '@/lib/email';
 import { tmplPasswordChanged } from '@/lib/emailTemplates';
 import { getClientIp } from '@/lib/rateLimit';
@@ -30,12 +33,12 @@ export async function PATCH(
   }
 
   if (body.email !== undefined) {
-    const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : '';
+    const email = typeof body.email === 'string' ? normalizeEmail(body.email) : '';
     if (!email.includes('@') || email.length < 3) {
       return NextResponse.json({ error: 'Neplatný email' }, { status: 400 });
     }
-    // Check uniqueness (skip if same user keeps the same email)
-    const existing = await prisma.user.findUnique({ where: { email } });
+    // Unikátnost bez ohledu na velikost písmen (skip if same user keeps the same email)
+    const existing = await findUserByEmail(email);
     if (existing && existing.id !== userId) {
       return NextResponse.json({ error: 'Email je už použitý jiným uživatelem' }, { status: 409 });
     }
@@ -74,14 +77,27 @@ export async function PATCH(
     (data as Record<string, unknown>).tokenVersion = { increment: 1 };
   }
 
-  const user = await prisma.user.update({
+  const updated = await prisma.user.update({
     where: { id: userId },
     data,
-    select: { id: true, email: true, name: true, role: true, createdAt: true },
+    select: { id: true, email: true, name: true, role: true, createdAt: true, tokenVersion: true },
   });
+  const { tokenVersion, ...user } = updated;
 
-  const changedFields = Object.keys(data).filter((k) => k !== 'password').join(',') + (data.password ? ',password' : '');
+  const changedFields = Object.keys(data).filter((k) => k !== 'password' && k !== 'tokenVersion').join(',') + (data.password ? ',password' : '');
   await logActivity(session.id, 'admin.user.update', user.email, `Upraveno: ${changedFields}`);
+
+  const response = NextResponse.json(user);
+
+  // Admin měnil SÁM SOBĚ heslo/e-mail/roli → bump tokenVersion zneplatnil
+  // i jeho vlastní session a další request skončil 403 / redirect na login.
+  // V UI to vypadalo jako „změna hesla nefunguje" (Gideon 6. 10. 2026).
+  // Vydáme mu rovnou nový token s novou verzí; cizí sessions zůstávají
+  // zneplatněné (to je záměr).
+  if (securityRelevant && userId === session.id) {
+    const token = createToken({ id: user.id, email: user.email, name: user.name, role: user.role, tokenVersion });
+    response.cookies.set(SESSION_COOKIE_NAME, token, sessionCookieOptions());
+  }
 
   // Notify the user when their password changed (regardless of who did it).
   if (data.password) {
@@ -98,7 +114,7 @@ export async function PATCH(
     }
   }
 
-  return NextResponse.json(user);
+  return response;
 }
 
 export async function DELETE(

@@ -32,8 +32,44 @@ export interface SessionUser {
   tokenVersion?: number; // snapshot at token creation; verified against DB in getSession
 }
 
+/** E-mail pro uložení do DB: trim + malá písmena (6. 10. 2026). */
+export function normalizeEmail(email: string): string {
+  return email.trim().toLowerCase();
+}
+
+/**
+ * Z kandidátů (nalezených case-insensitive) vybere toho pravého: přesná shoda
+ * má přednost, jinak první podle id. Pure — testovatelné bez DB.
+ */
+export function pickUserByEmail<T extends { id: number; email: string }>(candidates: T[], typed: string): T | null {
+  if (candidates.length === 0) return null;
+  const t = typed.trim();
+  const exact = candidates.find((c) => c.email === t);
+  if (exact) return exact;
+  return [...candidates].sort((a, b) => a.id - b.id)[0];
+}
+
+/**
+ * Uživatel podle e-mailu BEZ ohledu na velikost písmen.
+ *
+ * 6. 10. 2026 (Gideon: „když změním heslo uživatele, tak nefunguje"): login
+ * hledal `findUnique({ email })` = přesná shoda. Uživatel založený jako
+ * `Jan.Novak@…` se nepřihlásil jako `jan.novak@…` — a telefon/Mac první
+ * písmeno sám zvětší. Admin edit navíc e-mail lowercasoval, create ne.
+ * `@unique` v Postgresu je case-sensitive, takže historicky mohou existovat
+ * dva účty lišící se jen velikostí písmen → přesná shoda má přednost.
+ */
+export async function findUserByEmail(email: string) {
+  const typed = email.trim();
+  if (!typed) return null;
+  const candidates = await prisma.user.findMany({
+    where: { email: { equals: typed, mode: 'insensitive' } },
+  });
+  return pickUserByEmail(candidates, typed);
+}
+
 export async function authenticateUser(email: string, password: string): Promise<SessionUser | null> {
-  const user = await prisma.user.findUnique({ where: { email } });
+  const user = await findUserByEmail(email);
 
   // Always run bcrypt.compare to prevent user enumeration via timing attacks.
   const hashToCheck = user?.password || getDummyHash();
@@ -45,6 +81,19 @@ export async function authenticateUser(email: string, password: string): Promise
 
 export function createToken(user: SessionUser): string {
   return jwt.sign(user, getJwtSecret(), { algorithm: JWT_ALGO, expiresIn: JWT_EXPIRES_IN });
+}
+
+export const SESSION_COOKIE_NAME = COOKIE_NAME;
+
+/** Jednotné atributy session cookie (login i re-issue po změně vlastního hesla). */
+export function sessionCookieOptions() {
+  return {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'strict' as const,
+    maxAge: 24 * 60 * 60,
+    path: '/',
+  };
 }
 
 export function verifyToken(token: string): SessionUser | null {

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { authenticateUser, createToken, logActivity } from '@/lib/auth';
+import { authenticateUser, createToken, logActivity, SESSION_COOKIE_NAME, sessionCookieOptions } from '@/lib/auth';
 import { checkRateLimit, resetRateLimit, getClientIp } from '@/lib/rateLimit';
 import { issueCsrfToken, CSRF_COOKIE_NAME, csrfCookieOptions } from '@/lib/csrf';
 
@@ -57,13 +57,7 @@ export async function POST(request: Request) {
   await logActivity(user.id, 'auth.login', '', `Přihlášení: ${user.email}`, ip);
 
   const response = NextResponse.json({ user });
-  response.cookies.set('moldavite_session', token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict',
-    maxAge: 24 * 60 * 60,
-    path: '/',
-  });
+  response.cookies.set(SESSION_COOKIE_NAME, token, sessionCookieOptions());
   // Double-submit CSRF token. Clients read this cookie and echo it as
   // x-csrf-token header on state-changing calls.
   response.cookies.set(
