@@ -215,7 +215,8 @@ export default function ItemFormProvider({ item, children }: { item: ItemData; c
       ? 'Dopiš chybějící údaje a spusť „Přepočítat" v zakázce — kámen ve stavu '
         + (item.pricingStatus === 'NEEDS_INPUT' ? 'BEZ VSTUPŮ' : 'K REVIZI') + ' nelze vystavit.'
       : undefined;
-    const vatRate = item.vatRatePct && Number(item.vatRatePct) > 0 ? Number(item.vatRatePct) : 21;
+    // 0 % je platná sazba (firma není plátce DPH, 12. 10. 2026) — fallback jen pro kámen bez zakázky.
+    const vatRate = item.vatRatePct != null && Number.isFinite(Number(item.vatRatePct)) ? Number(item.vatRatePct) : 0;
     return {
       item, formData, setField, patch, saveState, saveNow: handleSave, catalogNumber,
       reviewMode, missingHighlight, publishBlocked, blockedTitle, vatRate,

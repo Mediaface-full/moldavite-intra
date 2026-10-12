@@ -32,7 +32,7 @@ export default function StonePublishingSection() {
   const { item, formData, setField, publishBlocked, blockedTitle, vatRate } = useItemForm();
   const saleIncl = Number(formData.salePrice ?? 0);
   const saleEx = saleIncl > 0 ? saleIncl / (1 + vatRate / 100) : 0;
-  const priceLine = `${fmtCzk(saleEx)} bez DPH · ${fmtCzk(saleIncl)} s DPH`;
+  const priceLine = vatRate > 0 ? `${fmtCzk(saleEx)} bez DPH · ${fmtCzk(saleIncl)} s DPH` : fmtCzk(saleIncl);
 
   return (
     <SectionCard id="publishing" number={5} title="Prodej a kanály" icon="cart" description="Vystavení jde až po spočítání ceny. Prodej zafixuje výpočet ceny pro audit.">

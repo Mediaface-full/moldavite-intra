@@ -38,7 +38,7 @@ export default function OrderPricingTab({
 }) {
   const router = useRouter();
   const [allocation, setAllocation] = useState(order.allocationMethod);
-  const [vat, setVat] = useState(order.vatRatePct ?? '21');
+  const [vat, setVat] = useState(order.vatRatePct ?? '0');
   const [step, setStep] = useState(String(order.roundingStep));
   const [defaultPpg, setDefaultPpg] = useState(order.defaultPurchasePricePerGramCzk ?? '');
   const [configId, setConfigId] = useState<string>(order.pricingConfigId?.toString() ?? '');
@@ -48,7 +48,7 @@ export default function OrderPricingTab({
   const [showRawConfig, setShowRawConfig] = useState(false);
   const dirty =
     allocation !== order.allocationMethod ||
-    vat !== (order.vatRatePct ?? '21') ||
+    vat !== (order.vatRatePct ?? '0') ||
     step !== String(order.roundingStep) ||
     defaultPpg !== (order.defaultPurchasePricePerGramCzk ?? '') ||
     (configId === '' ? null : parseInt(configId, 10)) !== order.pricingConfigId;
@@ -135,7 +135,7 @@ export default function OrderPricingTab({
           </div>
 
           <div>
-            <label className={labelCls}>DPH (%)</label>
+            <label className={labelCls}>DPH (%) · 0 = neplátce</label>
             <input type="number" step="0.01" value={vat} onChange={(e) => setVat(e.target.value)} className={inputCls} />
           </div>
 

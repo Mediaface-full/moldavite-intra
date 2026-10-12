@@ -16,7 +16,7 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
 }
 
 export default function StoneSummaryCard() {
-  const { item, formData, catalogNumber } = useItemForm();
+  const { item, formData, catalogNumber, vatRate } = useItemForm();
   const w = Number(formData.weight);
   const hasW = Number.isFinite(w) && w > 0;
   const size = computeSizeCategory(formData.weight);
@@ -49,7 +49,7 @@ export default function StoneSummaryCard() {
             <span className="tabular-nums">{fmtCzk(formData.purchasePrice)}</span>
             {usedPpg && <span className="text-[11px] text-muted-foreground font-mono ml-1.5">({usedPpg} Kč/g)</span>}
           </Row>
-          <Row label="Doporučená"><span className="tabular-nums">{fmtCzk(item.recommendedPriceInclVatCzk)}</span><span className="text-[11px] text-muted-foreground ml-1">s DPH</span></Row>
+          <Row label="Doporučená"><span className="tabular-nums">{fmtCzk(item.recommendedPriceInclVatCzk)}</span>{vatRate > 0 && <span className="text-[11px] text-muted-foreground ml-1">s DPH</span>}</Row>
           {Number(formData.manualPriceInclVatCzk) > 0 && (
             <Row label="Speciální"><span className="tabular-nums">{fmtCzk(formData.manualPriceInclVatCzk)}</span></Row>
           )}

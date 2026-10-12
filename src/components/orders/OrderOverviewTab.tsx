@@ -29,7 +29,7 @@ export default function OrderOverviewTab({ order }: { order: SerializedOrder }) 
   const totalPurchase = Number(order.totalPurchaseAmountCzk ?? 0);
   // Bez-DPH varianta — pouzij item.computedMinPriceExVatCzk pokud existuje (presnejsi
   // — odpovida cenotvorbe pred zaokrouhlenim), jinak fallback totalRecommended / vatMultiplier.
-  const vatRate = Number(order.vatRatePct ?? 21);
+  const vatRate = Number(order.vatRatePct ?? 0);
   const vatMultiplier = 1 + vatRate / 100;
   const totalExVatStored = order.items.reduce((s, i) => s + Number(i.computedMinPriceExVatCzk ?? 0), 0);
   const totalRecommendedExVat = totalExVatStored > 0 ? totalExVatStored : totalRecommended / vatMultiplier;
@@ -47,8 +47,8 @@ export default function OrderOverviewTab({ order }: { order: SerializedOrder }) 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <KpiTile label="Nákup celkem" value={fmtMoney(totalPurchase)} color="var(--muted-foreground)" />
         <KpiTile label="Společné náklady" value={fmtMoney(totalCosts)} color="var(--info)" />
-        <KpiTile label="Doporučená tržba (bez DPH)" value={fmtMoney(totalRecommendedExVat)} color="var(--muted-foreground)" />
-        <KpiTile label="Doporučená tržba (s DPH)" value={fmtMoney(totalRecommended)} color="var(--success)" />
+        {vatRate > 0 && <KpiTile label="Doporučená tržba (bez DPH)" value={fmtMoney(totalRecommendedExVat)} color="var(--muted-foreground)" />}
+        <KpiTile label={vatRate > 0 ? 'Doporučená tržba (s DPH)' : 'Doporučená tržba'} value={fmtMoney(totalRecommended)} color="var(--success)" />
       </div>
 
       {/* Metadata */}

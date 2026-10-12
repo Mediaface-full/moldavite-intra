@@ -21,6 +21,29 @@ export default function PricingConfigClient({ configs }: { configs: Config[] }) 
   const router = useRouter();
   const [editId, setEditId] = useState<number | null>(null);
   const [creating, setCreating] = useState(false);
+  const [recalcAll, setRecalcAll] = useState<{ running: boolean; message: string | null }>({ running: false, message: null });
+
+  /** Přepočet všech aktivních zakázek — po změně pravidel nebo sazby DPH (POST /api/admin/orders/recalc-all). */
+  async function recalcAllOrders() {
+    if (!confirm('Přepočítat cenotvorbu všech aktivních zakázek (DRAFT / PRICED / PUBLISHED)? Historické (stornované, archivované) zůstanou beze změny.')) return;
+    setRecalcAll({ running: true, message: null });
+    try {
+      const res = await apiFetch('/api/admin/orders/recalc-all', { method: 'POST' });
+      const data = await res.json().catch(() => null) as { total?: number; done?: string[]; failed?: { code: string; error: string }[]; error?: string } | null;
+      if (!res.ok || !data) {
+        setRecalcAll({ running: false, message: `Přepočet selhal: ${data?.error ?? res.status}` });
+        return;
+      }
+      const failed = data.failed ?? [];
+      setRecalcAll({
+        running: false,
+        message: `Přepočítáno ${data.done?.length ?? 0} z ${data.total ?? 0} zakázek${failed.length ? ` · selhalo: ${failed.map((f) => f.code).join(', ')}` : ''}`,
+      });
+      router.refresh();
+    } catch (err) {
+      setRecalcAll({ running: false, message: `Přepočet selhal: ${err instanceof Error ? err.message : String(err)}` });
+    }
+  }
 
   async function activate(id: number) {
     if (!confirm('Aktivovat tuto konfiguraci? Ostatní se deaktivují (existující zakázky se přepočítají až ručně).')) return;
@@ -48,13 +71,27 @@ export default function PricingConfigClient({ configs }: { configs: Config[] }) 
           <h1 className="text-3xl font-bold tracking-tight">Cenotvorba — konfigurace marží</h1>
           <p className="text-sm text-muted-foreground mt-1">Pravidla pro výpočet maržových přirážek podle atributů kamene</p>
         </div>
-        <button
-          onClick={() => setCreating(true)}
-          className="text-white px-4 py-2.5 rounded-lg text-sm font-medium inline-flex items-center gap-2"
-          style={{ background: 'var(--success)' }}
-        >
-          + Nová konfigurace
-        </button>
+        <div className="flex flex-col items-end gap-2">
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={recalcAllOrders}
+              disabled={recalcAll.running}
+              title="Znovu spočítá ceny kamenů ve všech aktivních zakázkách podle aktuálních pravidel a sazby DPH"
+              className="px-4 py-2.5 rounded-lg text-sm font-medium inline-flex items-center gap-2 border border-border bg-card text-foreground hover:border-foreground/40 disabled:opacity-50"
+            >
+              {recalcAll.running ? 'Přepočítávám…' : '↻ Přepočítat všechny zakázky'}
+            </button>
+            <button
+              onClick={() => setCreating(true)}
+              className="text-white px-4 py-2.5 rounded-lg text-sm font-medium inline-flex items-center gap-2"
+              style={{ background: 'var(--success)' }}
+            >
+              + Nová konfigurace
+            </button>
+          </div>
+          {recalcAll.message && <p className="text-xs font-mono text-text-2">{recalcAll.message}</p>}
+        </div>
       </div>
 
       {creating && (

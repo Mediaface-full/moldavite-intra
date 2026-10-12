@@ -79,7 +79,7 @@ export default function StonePricingSection() {
   const markupX = recPerGram && buyPpg && buyPpg > 0 ? recPerGram / buyPpg : null;
   const fmtPerGram = (v: number) => `${fmtInt(v)} Kč/g`;
   const perGramHint = recPerGram
-    ? [exVatPerGram ? `bez DPH ${fmtPerGram(exVatPerGram)}` : null, markupX ? `×${markupX.toFixed(1).replace('.', ',')} oproti nákupu` : null].filter(Boolean).join(' · ')
+    ? [vatRate > 0 && exVatPerGram ? `bez DPH ${fmtPerGram(exVatPerGram)}` : null, markupX ? `×${markupX.toFixed(1).replace('.', ',')} oproti nákupu` : null].filter(Boolean).join(' · ')
     : w > 0 ? 'spočítá se po přepočtu zakázky' : 'chybí hmotnost';
 
   // Speciální cena: UI zadává BEZ DPH, DB drží S DPH (manualPriceInclVatCzk). Raw stav + commit na blur.
@@ -107,7 +107,7 @@ export default function StonePricingSection() {
 
   return (
     <SectionCard id="pricing" number={4} title="Cenotvorba" icon="cash"
-      description={`DPH ${vatRate} % ze zakázky. Vstupy → výpočet cenotvorbou zakázky → výsledná cena pro e-shop a Etsy.`}
+      description={`${vatRate > 0 ? `DPH ${vatRate} % ze zakázky.` : 'Bez DPH — firma není plátce.'} Vstupy → výpočet cenotvorbou zakázky → výsledná cena pro e-shop a Etsy.`}
       actions={<>
         {status && <StatusBadge tone={status.tone} icon={status.icon}>{status.label}</StatusBadge>}
         {item.order && <Link href={`/orders/${item.order.id}`} className="text-[11px] font-mono uppercase tracking-wider text-text-2 font-medium hover:text-foreground">Zakázka {item.order.code} ↗</Link>}
@@ -122,8 +122,8 @@ export default function StonePricingSection() {
         </Col>
 
         <Col step={2} title="Výpočet prodejní ceny" arrow>
-          <Line label="Min. prodejní bez DPH" value={exVat > 0 ? fmtCzk(exVat) : '—'} muted />
-          <PriceFigure label="Doporučená s DPH" value={fmtCzk(rec)} caption={vatAmount > 0 ? `${fmtCzk(exVat)} + ${fmtCzk(vatAmount)} DPH` : undefined} />
+          <Line label={vatRate > 0 ? 'Min. prodejní bez DPH' : 'Min. prodejní (před zaokrouhlením)'} value={exVat > 0 ? fmtCzk(exVat) : '—'} muted />
+          <PriceFigure label={vatRate > 0 ? 'Doporučená s DPH' : 'Doporučená'} value={fmtCzk(rec)} caption={vatAmount > 0 ? `${fmtCzk(exVat)} + ${fmtCzk(vatAmount)} DPH` : undefined} />
           {breakdown && (
             <div className="rounded-lg bg-muted/40 border border-border/60 px-3 py-2">
               <p className="text-[11px] text-text-2 uppercase tracking-wider font-mono font-medium mb-1">Marže podle pravidel</p>
@@ -146,20 +146,22 @@ export default function StonePricingSection() {
 
         <Col step={3} title="Výsledek" result>
           <div>
-            <p className="text-[11px] text-text-2 uppercase tracking-wider font-mono font-medium">Cena speciální (bez DPH)</p>
+            <p className="text-[11px] text-text-2 uppercase tracking-wider font-mono font-medium">{vatRate > 0 ? 'Cena speciální (bez DPH)' : 'Cena speciální'}</p>
             <input type="text" inputMode="decimal" value={manualRaw} onChange={(e) => setManualRaw(e.target.value)} onBlur={commitManual}
               onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }} placeholder="—"
               className="mt-1 w-full bg-background border border-border rounded-lg px-3 h-10 text-base font-mono font-semibold text-right text-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/20" />
             <p className="text-[11px] text-muted-foreground font-mono mt-0.5">
-              {manualNum > 0 ? `= ${fmtCzk(manualNum)} s DPH (× ${vatMultiplier.toFixed(2)})` : 'override pro výjimečné kusy, musí být ≥ doporučená'}
+              {manualNum > 0 && vatRate > 0 ? `= ${fmtCzk(manualNum)} s DPH (× ${vatMultiplier.toFixed(2)})` : 'override pro výjimečné kusy, musí být ≥ doporučená'}
             </p>
             {manualBelow && <p className="text-[10px] font-mono mt-0.5" style={{ color: 'var(--warning)' }}>⚠ pod doporučenou — kámen bude K REVIZI</p>}
           </div>
-          <div className={`${computedBox} justify-between h-auto py-2 text-sm`} title="Speciální cena s DPH — dopočteno">
-            <span className="text-[11px] uppercase tracking-wider font-medium text-text-2">Speciální s DPH</span>
-            <span className="font-sans tabular-nums">{manualNum > 0 ? fmtCzk(manualNum) : '—'}</span>
-          </div>
-          <PriceFigure label="Finální cena s DPH" value={fmtCzk(sale)} tone="ok" size="lg"
+          {vatRate > 0 && (
+            <div className={`${computedBox} justify-between h-auto py-2 text-sm`} title="Speciální cena s DPH — dopočteno">
+              <span className="text-[11px] uppercase tracking-wider font-medium text-text-2">Speciální s DPH</span>
+              <span className="font-sans tabular-nums">{manualNum > 0 ? fmtCzk(manualNum) : '—'}</span>
+            </div>
+          )}
+          <PriceFigure label={vatRate > 0 ? 'Finální cena s DPH' : 'Finální cena'} value={fmtCzk(sale)} tone="ok" size="lg"
             caption={saleMatches ? `✓ odpovídá doporučené` : rec > 0 && sale > 0 ? `doporučená ${fmtCzk(rec)}` : 'spočítá se po přepočtu zakázky'}
             extra={(Number(item.priceEUR) > 0 || Number(item.priceUSD) > 0) ? (
               <p className="mt-2 flex gap-2 font-mono">

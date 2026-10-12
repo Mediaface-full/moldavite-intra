@@ -305,7 +305,7 @@ model Order {
   defaultPurchasePricePerGramSource Decimal?         @db.Decimal(10, 2)
   defaultPurchasePricePerGramCzk    Decimal?         @db.Decimal(10, 2)
   allocationMethod                  AllocationMethod @default(BY_WEIGHT)
-  vatRatePct                        Decimal          @default(21.00) @db.Decimal(5, 2) // 21.00 = 21%
+  vatRatePct                        Decimal          @default(0.00) @db.Decimal(5, 2) // 21.00 = 21 %; default 0 — firma není plátce DPH (12. 10. 2026)
   roundingStep                      Int              @default(10) // 10 / 50 / 100 Kč
 
   // ─── PricingConfig — ID pro UI ("jaká config se použila?")

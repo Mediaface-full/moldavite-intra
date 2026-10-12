@@ -117,7 +117,7 @@ export default async function BoxDetailPage({
   // KPI sums pro kazetu (stejny pattern jako Order Overview).
   const sumRecommendedInclVat = box.items.reduce((s, it) => s + Number(it.finalInternalPriceInclVatCzk ?? 0), 0);
   const sumRecommendedExVatStored = box.items.reduce((s, it) => s + Number(it.computedMinPriceExVatCzk ?? 0), 0);
-  const vatRate = Number(box.order?.vatRatePct ?? 21);
+  const vatRate = Number(box.order?.vatRatePct ?? 0);
   const vatMultiplier = 1 + vatRate / 100;
   const sumRecommendedExVat = sumRecommendedExVatStored > 0
     ? sumRecommendedExVatStored
@@ -216,8 +216,8 @@ export default async function BoxDetailPage({
       {/* KPI tiles — stejny pattern jako Order Overview, ale per kazeta */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
         <KpiTile label="Nákup kazety" value={fmtMoney(boxPurchaseTotal)} color="var(--muted-foreground)" />
-        <KpiTile label="Doporučená tržba (bez DPH)" value={fmtMoney(sumRecommendedExVat)} color="var(--muted-foreground)" />
-        <KpiTile label="Doporučená tržba (s DPH)" value={fmtMoney(sumRecommendedInclVat)} color="var(--success)" />
+        {vatRate > 0 && <KpiTile label="Doporučená tržba (bez DPH)" value={fmtMoney(sumRecommendedExVat)} color="var(--muted-foreground)" />}
+        <KpiTile label={vatRate > 0 ? 'Doporučená tržba (s DPH)' : 'Doporučená tržba'} value={fmtMoney(sumRecommendedInclVat)} color="var(--success)" />
       </div>
 
       {/* Properties — 2 řádky × 3 sloupce */}

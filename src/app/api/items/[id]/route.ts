@@ -193,7 +193,7 @@ export async function PATCH(
             id: ctx.orderId ?? 0,
             defaultPurchasePricePerGramCzk: ctx.order?.defaultPurchasePricePerGramCzk?.toString() ?? null,
             allocationMethod: 'BY_WEIGHT',
-            vatRatePct: '21',
+            vatRatePct: '0',
             roundingStep: 10,
           },
         );

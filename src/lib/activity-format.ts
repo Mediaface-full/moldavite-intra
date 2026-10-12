@@ -21,6 +21,7 @@ export const ACTION_LABELS: Record<string, ActionMeta> = {
   'order.update':           { label: 'Upravena zakázka',          icon: 'edit',        color: 'var(--info)' },
   'order.delete':           { label: 'Smazána zakázka',           icon: 'trash',       color: 'var(--destructive)' },
   'order.recalculate':      { label: 'Přepočet zakázky',          icon: 'recalculate', color: 'var(--primary)' },
+  'order.recalculate_all':  { label: 'Přepočet všech zakázek',    icon: 'recalculate', color: 'var(--primary)' },
   'order.cost.add':         { label: 'Přidán náklad',             icon: 'plus',        color: 'var(--success)' },
   'order.cost.update':      { label: 'Upraven náklad',            icon: 'edit',        color: 'var(--info)' },
   'order.cost.delete':      { label: 'Smazán náklad',             icon: 'trash',       color: 'var(--destructive)' },

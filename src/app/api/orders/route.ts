@@ -66,7 +66,7 @@ export async function POST(request: Request) {
   if (declaredPieces === null || declaredPieces < 0 || !Number.isInteger(declaredPieces)) {
     return NextResponse.json({ error: 'declaredPieces musí být nezáporné celé číslo' }, { status: 422 });
   }
-  const vatRatePct = asFiniteNumber(body.vatRatePct ?? 21);
+  const vatRatePct = asFiniteNumber(body.vatRatePct ?? 0);
   if (vatRatePct === null || vatRatePct < 0 || vatRatePct > 100) {
     return NextResponse.json({ error: 'vatRatePct musí být v rozsahu 0–100' }, { status: 422 });
   }
