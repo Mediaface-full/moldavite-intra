@@ -284,7 +284,7 @@ export default function VoiceInputButton({
           type="button"
           onClick={startRecording}
           style={{ background: 'var(--violet)' }}
-          className="text-white hover:opacity-90 px-3 py-1.5 rounded-md text-xs font-mono uppercase tracking-wider transition-opacity inline-flex items-center gap-1.5"
+          className="text-white hover:opacity-90 px-3 h-9 rounded-lg text-xs font-mono uppercase tracking-wider transition-opacity inline-flex items-center gap-1.5"
           title="Nahraj hlasem atributy kamene"
         >
           <Icon name="sparkles" className="w-3.5 h-3.5" />

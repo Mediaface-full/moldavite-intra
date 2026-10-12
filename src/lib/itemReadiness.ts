@@ -39,6 +39,8 @@ export interface ReadinessItem {
   ok: boolean;
   /** doplněk za labelem, např. „24 fotek" nebo „chybí tvar, barva" */
   detail?: string;
+  /** volitelná položka — ukáže se v seznamu, ale do score/total se nepočítá (video; Gideon 12. 10. 2026) */
+  optional?: boolean;
   /** id sekce, kam odskrolovat při kliku na ✗ */
   anchor?: string;
 }
@@ -65,7 +67,7 @@ export function computeReadiness(i: ReadinessInput): Readiness {
   const items: ReadinessItem[] = [
     { key: 'photos', label: 'Fotky', ok: i.media.photoCount > 0, detail: i.media.photoCount > 0 ? `${i.media.photoCount}` : 'žádné', anchor: 'media' },
     { key: 'photos360', label: '360°', ok: i.media.has360, detail: i.media.has360 ? '24 fotek' : `${i.media.photoCount}/24`, anchor: 'media' },
-    { key: 'video', label: 'Video', ok: i.media.hasVideo, anchor: 'media' },
+    { key: 'video', label: 'Video', ok: i.media.hasVideo, anchor: 'media', optional: true },
     { key: 'film', label: 'Film', ok: i.media.hasFilm, anchor: 'media' },
     { key: 'cert', label: 'Certifikát', ok: hasText(i.certHash), anchor: 'media' },
     { key: 'name', label: 'Název', ok: hasText(i.name), anchor: 'identity' },
@@ -78,5 +80,6 @@ export function computeReadiness(i: ReadinessInput): Readiness {
     { key: 'shop', label: 'E-shop', ok: i.onShop, detail: i.onShop ? 'vystaveno' : 'nevystaveno', anchor: 'publishing' },
     { key: 'etsy', label: 'Etsy', ok: i.onEtsy, detail: i.onEtsy ? 'vystaveno' : 'nevystaveno', anchor: 'publishing' },
   ];
-  return { items, score: items.filter((x) => x.ok).length, total: items.length };
+  const counted = items.filter((x) => !x.optional);
+  return { items, score: counted.filter((x) => x.ok).length, total: counted.length };
 }

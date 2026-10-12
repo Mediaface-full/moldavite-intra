@@ -36,7 +36,7 @@ export default function StonePhotoWithViewer({
   const mainSrc = photos[mainIndex] ?? photos[0] ?? '';
 
   return (
-    <div className="relative">
+    <div className="relative flex flex-col gap-3 h-full flex-1">
       {/* Jen hlavni fotka — 1 image lazy. Klik na ni nebo na tlacitko otevre 360 viewer. */}
       <button
         type="button"
@@ -74,7 +74,7 @@ export default function StonePhotoWithViewer({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="mt-3 w-full bg-card border border-border hover:border-foreground/40 text-foreground px-3 py-2 rounded-lg text-xs font-mono uppercase tracking-wider transition-colors inline-flex items-center justify-center gap-2"
+        className="mt-auto w-full bg-card border border-border hover:border-foreground/40 text-foreground px-3 py-2 rounded-lg text-xs font-mono uppercase tracking-wider transition-colors inline-flex items-center justify-center gap-2"
       >
         <Icon name="merge" className="w-4 h-4" />
         Zobrazit 360° prohlížeč

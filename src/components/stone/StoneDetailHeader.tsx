@@ -115,7 +115,7 @@ export default function StoneDetailHeader({ isAdmin, lastUpdate }: { isAdmin: bo
         </div>
 
         <div className="flex items-center gap-1.5 flex-wrap justify-end text-xs">
-          {isAdmin && <AiButton itemId={item.id} catalogNumber={catalogNumber} size="sm" />}
+          {isAdmin && <AiButton itemId={item.id} catalogNumber={catalogNumber} size="lg" />}
           <VoiceInputButton itemId={item.id} currentVoiceNotes={formData.voiceNotes ?? ''} onApply={applyVoice} />
           <ItemPhotoUploadModal itemId={item.id} catalogNumber={catalogNumber} label="Fotky" />
           <a href={`/api/certificate/${item.id}`} target="_blank" rel="noopener noreferrer"

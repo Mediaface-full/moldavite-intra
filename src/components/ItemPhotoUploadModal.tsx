@@ -96,7 +96,7 @@ export default function ItemPhotoUploadModal({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="bg-card border border-border hover:border-foreground/40 text-foreground px-3 py-1.5 rounded-md text-xs font-mono uppercase tracking-wider inline-flex items-center gap-2 transition-colors"
+        className="bg-card border border-border hover:border-foreground/40 text-foreground px-3 h-9 rounded-lg text-xs font-mono uppercase tracking-wider inline-flex items-center gap-2 transition-colors"
       >
         <Icon name="upload" className="w-3.5 h-3.5" />
         {label}

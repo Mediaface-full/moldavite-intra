@@ -11,11 +11,19 @@ const full: ReadinessInput = {
 };
 
 describe('computeReadiness', () => {
-  it('kompletní kámen → 14/14', () => {
+  it('kompletní kámen → 13/13 (video je volitelné, nepočítá se)', () => {
     const r = computeReadiness(full);
-    expect(r.total).toBe(14);
-    expect(r.score).toBe(14);
+    expect(r.total).toBe(13);
+    expect(r.score).toBe(13);
     expect(r.items.every((x) => x.ok)).toBe(true);
+    expect(r.items.find((x) => x.key === 'video')?.optional).toBe(true);
+  });
+
+  it('chybějící video nesnižuje skóre, v seznamu ale zůstává', () => {
+    const r = computeReadiness({ ...full, media: { ...full.media, hasVideo: false } });
+    expect(r.score).toBe(13);
+    expect(r.total).toBe(13);
+    expect(r.items.find((x) => x.key === 'video')?.ok).toBe(false);
   });
 
   it('prázdný kámen → 0/14, atributy vyjmenují co chybí', () => {

@@ -7,7 +7,7 @@
  */
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { parseDecimalCs, fmtInt } from '@/lib/utils';
+import { parseDecimalCs, fmtInt, fmtNum } from '@/lib/utils';
 import Icon from '../Icon';
 import SaleSnapshotPanel from '../SaleSnapshotPanel';
 import { useItemForm } from './ItemFormProvider';
@@ -22,16 +22,16 @@ const STATUS_META = {
 
 /**
  * Krok cenotvorby: vlastní panel s číslem kroku; mezi kroky výrazná šipka
- * (plný kruh, sedí v mezeře gridu `md:gap-7` → `-right-7`). Výsledek má
- * coral obrys, aby bylo na první pohled vidět, kde se čte finální cena.
+ * (plný kruh, sedí v mezeře gridu `md:gap-7` → `-right-7`). Výsledek je na bílé
+ * kartě s tmavším obrysem (ne coral — Gideon: „červený působí jako alert").
  */
 function Col({ step, title, arrow, result, children }: {
   step: number; title: string; arrow?: boolean; result?: boolean; children: React.ReactNode;
 }) {
   return (
-    <div className={`relative min-w-0 rounded-xl border p-4 ${result ? 'border-primary/50 bg-primary/5' : 'border-border bg-muted/30'}`}>
+    <div className={`relative min-w-0 rounded-xl border p-4 ${result ? 'border-foreground/25 bg-card shadow-sm' : 'border-border bg-muted/30'}`}>
       <p className="flex items-center gap-2 mb-3 pb-2 border-b border-border">
-        <span className={`inline-flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-mono font-semibold ${result ? 'bg-primary text-primary-foreground' : 'bg-foreground text-background'}`}>{step}</span>
+        <span className="inline-flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-mono font-semibold bg-foreground text-background">{step}</span>
         <span className="text-xs text-foreground uppercase tracking-[0.15em] font-mono font-semibold">{title}</span>
       </p>
       <div className="space-y-3">{children}</div>
@@ -115,7 +115,7 @@ export default function StonePricingSection() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-7">
         <Col step={1} title="Vstupy" arrow>
           <Line label="Cena nákupní" value={fmtCzk(purchase)} hint={purchase > 0 ? 'váha × Kč/g' : 'spočítá se po přepočtu zakázky'} />
-          <Line label="Kč / g" value={ppgOverride ? `${ppgOverride} Kč/g` : usedPpg ? `${usedPpg} Kč/g` : '—'}
+          <Line label="Nákupní cena za gram" value={buyPpg && buyPpg > 0 ? `${fmtNum(buyPpg, 2)} Kč/g` : '—'}
             hint={ppgOverride ? 'override na kameni' : 'dědí se z kazety / zakázky — mění se v cenotvorbě zakázky'} />
           <Line label="Cena s náklady" value={fmtCzk(costBasis)} muted
             hint={costBasis > 0 ? (alloc > 0 ? `${fmtCzk(purchase)} + ${fmtCzk(alloc)} alokace nákladů` : 'bez alokace nákladů') : 'spočítá se po přepočtu'} />
@@ -145,8 +145,9 @@ export default function StonePricingSection() {
         </Col>
 
         <Col step={3} title="Výsledek" result>
-          <div>
-            <p className="text-[11px] text-text-2 uppercase tracking-wider font-mono font-medium">{vatRate > 0 ? 'Cena speciální (bez DPH)' : 'Cena speciální'}</p>
+          {/* Speciální cena = ruční override — v tlumeném boxu, vizuálně oddělený od finální ceny níže */}
+          <div className="rounded-lg bg-muted/40 border border-border/60 px-3 py-2">
+            <p className="text-[11px] text-text-2 uppercase tracking-wider font-mono font-medium">{vatRate > 0 ? 'Cena speciální (bez DPH) · override' : 'Cena speciální · override'}</p>
             <input type="text" inputMode="decimal" value={manualRaw} onChange={(e) => setManualRaw(e.target.value)} onBlur={commitManual}
               onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }} placeholder="—"
               className="mt-1 w-full bg-background border border-border rounded-lg px-3 h-10 text-base font-mono font-semibold text-right text-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/20" />
@@ -154,13 +155,16 @@ export default function StonePricingSection() {
               {manualNum > 0 && vatRate > 0 ? `= ${fmtCzk(manualNum)} s DPH (× ${vatMultiplier.toFixed(2)})` : 'override pro výjimečné kusy, musí být ≥ doporučená'}
             </p>
             {manualBelow && <p className="text-[10px] font-mono mt-0.5" style={{ color: 'var(--warning)' }}>⚠ pod doporučenou — kámen bude K REVIZI</p>}
+            {vatRate > 0 && (
+              <div className={`${computedBox} justify-between h-auto py-2 text-sm mt-2`} title="Speciální cena s DPH — dopočteno">
+                <span className="text-[11px] uppercase tracking-wider font-medium text-text-2">Speciální s DPH</span>
+                <span className="font-sans tabular-nums">{manualNum > 0 ? fmtCzk(manualNum) : '—'}</span>
+              </div>
+            )}
           </div>
-          {vatRate > 0 && (
-            <div className={`${computedBox} justify-between h-auto py-2 text-sm`} title="Speciální cena s DPH — dopočteno">
-              <span className="text-[11px] uppercase tracking-wider font-medium text-text-2">Speciální s DPH</span>
-              <span className="font-sans tabular-nums">{manualNum > 0 ? fmtCzk(manualNum) : '—'}</span>
-            </div>
-          )}
+
+          {/* Finální cena — to, co jde na e-shop a Etsy; vlastní zvýrazněný blok s odstupem */}
+          <div className="rounded-lg border px-3 py-3 mt-2" style={{ borderColor: 'color-mix(in srgb, var(--success) 40%, transparent)', background: 'color-mix(in srgb, var(--success) 6%, transparent)' }}>
           <PriceFigure label={vatRate > 0 ? 'Finální cena s DPH' : 'Finální cena'} value={fmtCzk(sale)} tone="ok" size="lg"
             caption={saleMatches ? `✓ odpovídá doporučené` : rec > 0 && sale > 0 ? `doporučená ${fmtCzk(rec)}` : 'spočítá se po přepočtu zakázky'}
             extra={(Number(item.priceEUR) > 0 || Number(item.priceUSD) > 0) ? (
@@ -169,6 +173,7 @@ export default function StonePricingSection() {
                 {Number(item.priceUSD) > 0 && <span className="inline-flex items-baseline gap-1.5 bg-muted border border-border rounded-md px-2.5 py-1"><span className="text-xs font-medium" style={{ color: 'var(--success)' }}>USD</span><span className="text-lg font-semibold tabular-nums">{fmtInt(item.priceUSD!)}</span></span>}
               </p>
             ) : undefined} />
+          </div>
         </Col>
       </div>
 

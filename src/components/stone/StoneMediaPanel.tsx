@@ -40,16 +40,16 @@ export default function StoneMediaPanel({ media }: { media: ItemMediaInfo }) {
     <section id="media" className="bg-card border border-border rounded-xl shadow-sm p-4 scroll-mt-4">
       <div className="grid grid-cols-1 md:grid-cols-[minmax(0,420px)_minmax(0,1fr)] gap-4">
         {/* Hlavní fotka — nebo náhled vybrané miniatury */}
-        <div>
+        <div className="flex flex-col">
           {preview === null || !item.photoPath ? (
             <StonePhotoWithViewer photoPath={item.photoPath} evidNumber={catalogNumber} itemId={item.id} mainPhoto={item.mainPhoto} />
           ) : (
-            <div>
+            <div className="flex flex-col gap-3 h-full">
               <div className="relative aspect-square bg-white rounded-xl overflow-hidden">
                 <SafeImage src={photos[shownIndex]} alt={`Foto ${shownIndex + 1}`} className="absolute inset-0 w-full h-full object-contain" placeholder="iconLabel" />
                 <div className="absolute bottom-3 right-3 bg-black/60 text-white text-[10px] px-2 py-1 rounded-md font-mono">foto {shownIndex + 1}</div>
               </div>
-              <div className="mt-3 flex items-center gap-2">
+              <div className="mt-auto flex items-center gap-2">
                 <button type="button" onClick={() => setAsMain(shownIndex)} disabled={settingMain || shownIndex === mainIndex}
                   className="flex-1 bg-primary hover:bg-primary/90 disabled:opacity-50 text-primary-foreground px-3 py-2 rounded-lg text-xs font-mono uppercase tracking-wider">
                   {shownIndex === mainIndex ? 'Je hlavní foto' : settingMain ? 'Ukládám…' : 'Nastavit jako hlavní'}
@@ -115,7 +115,8 @@ export default function StoneMediaPanel({ media }: { media: ItemMediaInfo }) {
             </div>
           </div>
 
-          <div className="border border-border rounded-lg px-3 py-2 flex items-center justify-between gap-3 text-xs">
+          {/* mt-auto: řádek certifikátu sedí na spodní hraně — zarovnaný s tlačítkem 360° v levém sloupci */}
+          <div className="mt-auto border border-border rounded-lg px-3 py-2 flex items-center justify-between gap-3 text-xs">
             <span className="inline-flex items-center gap-2 min-w-0">
               <Icon name="file" className="w-4 h-4 text-muted-foreground flex-shrink-0" />
               <span className="font-mono uppercase tracking-wider text-[11px] text-text-2 font-medium">Certifikát</span>

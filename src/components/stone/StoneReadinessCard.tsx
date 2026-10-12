@@ -33,10 +33,12 @@ export default function StoneReadinessCard({ media }: { media: ItemMediaInfo }) 
             <a
               href={r.anchor ? `#${r.anchor}` : undefined}
               className={`flex items-center gap-1.5 text-[12px] leading-5 min-w-0 ${r.ok ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
-              title={r.detail}
+              title={r.optional ? `${r.detail ? `${r.detail} · ` : ''}volitelné — nepočítá se do skóre` : r.detail}
             >
-              <Icon name={r.ok ? 'ok' : 'x'} className="w-3.5 h-3.5 flex-shrink-0" style={{ color: r.ok ? 'var(--success)' : 'var(--destructive)' }} />
-              <span className="truncate">{r.label}{r.detail && r.ok && r.key === 'photos' ? ` ${r.detail}` : ''}</span>
+              {/* volitelná položka (video): chybí = šedá pomlčka, ne červený křížek; do skóre se nepočítá */}
+              <Icon name={r.ok ? 'ok' : r.optional ? 'minus' : 'x'} className="w-3.5 h-3.5 flex-shrink-0"
+                style={{ color: r.ok ? 'var(--success)' : r.optional ? 'var(--muted-foreground)' : 'var(--destructive)' }} />
+              <span className="truncate">{r.label}{r.detail && r.ok && r.key === 'photos' ? ` ${r.detail}` : ''}{r.optional && !r.ok ? <span className="text-[10px] text-muted-foreground"> · volitelné</span> : null}</span>
             </a>
           </li>
         ))}
