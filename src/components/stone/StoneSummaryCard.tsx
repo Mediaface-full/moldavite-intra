@@ -55,7 +55,7 @@ export default function StoneSummaryCard() {
           )}
           <div className="flex items-baseline justify-between gap-3 pt-1">
             <span className="text-[11px] uppercase tracking-wider font-mono font-semibold" style={{ color: 'var(--success)' }}>Finální</span>
-            <span className="text-[22px] font-semibold tabular-nums" style={{ color: 'var(--success)' }}>{fmtCzk(formData.salePrice)}</span>
+            <span className="text-[22px] font-semibold tabular-nums" style={{ color: 'var(--success)' }}>{fmtCzk(Number(item.finalInternalPriceInclVatCzk ?? 0) > 0 ? item.finalInternalPriceInclVatCzk : formData.salePrice)}</span>
           </div>
           {(Number(item.priceEUR) > 0 || Number(item.priceUSD) > 0) && (
             <p className="text-sm text-text-2 font-mono font-medium text-right tabular-nums">

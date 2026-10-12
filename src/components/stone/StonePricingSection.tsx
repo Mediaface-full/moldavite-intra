@@ -68,18 +68,21 @@ export default function StonePricingSection() {
   const exVatStored = item.computedMinPriceExVatCzk ? Number(item.computedMinPriceExVatCzk) : null;
   const exVat = exVatStored && exVatStored > 0 ? exVatStored : rec > 0 ? rec / vatMultiplier : 0;
   const vatAmount = rec - exVat;
-  const sale = Number(formData.salePrice);
+  // Finální cena = max(doporučená, speciální) spočtená serverem (to jde na e-shop); salePrice je legacy fallback.
+  const finalStored = Number(item.finalInternalPriceInclVatCzk ?? 0);
+  const sale = finalStored > 0 ? finalStored : Number(formData.salePrice);
   const saleMatches = sale > 0 && rec > 0 && Math.abs(sale - rec) < 0.5;
 
-  // Prodejní cena za gram tohoto kamene (Gideon 12. 10. 2026): doporučená s DPH ÷ hmotnost,
-  // vedle toho bez DPH a násobek oproti nákupní Kč/g — ať je vidět, kam cenotvorba kámen posunula.
-  const recPerGram = w > 0 && rec > 0 ? rec / w : null;
-  const exVatPerGram = w > 0 && exVat > 0 ? exVat / w : null;
-  const buyPpg = ppgOverride ? Number(ppgOverride) : usedPpg ? Number(usedPpg) : null;
-  const markupX = recPerGram && buyPpg && buyPpg > 0 ? recPerGram / buyPpg : null;
+  // Prodejní cena za gram (Gideon 12. 10. 2026): z FINÁLNÍ ceny ÷ hmotnost — ve Výsledku, aby se
+  // přepočítala i po zadání speciální ceny (ta musí být ≥ doporučená, jinak K REVIZI a platí doporučená).
   const fmtPerGram = (v: number) => `${fmtInt(v)} Kč/g`;
-  const perGramHint = recPerGram
-    ? [vatRate > 0 && exVatPerGram ? `bez DPH ${fmtPerGram(exVatPerGram)}` : null, markupX ? `×${markupX.toFixed(1).replace('.', ',')} oproti nákupu` : null].filter(Boolean).join(' · ')
+  const recPerGram = w > 0 && rec > 0 ? rec / w : null;
+  const finalPerGram = w > 0 && sale > 0 ? sale / w : null;
+  const finalExVatPerGram = finalPerGram && vatRate > 0 ? finalPerGram / vatMultiplier : null;
+  const buyPpg = ppgOverride ? Number(ppgOverride) : usedPpg ? Number(usedPpg) : null;
+  const markupX = finalPerGram && buyPpg && buyPpg > 0 ? finalPerGram / buyPpg : null;
+  const perGramHint = finalPerGram
+    ? [finalExVatPerGram ? `bez DPH ${fmtPerGram(finalExVatPerGram)}` : null, markupX ? `×${markupX.toFixed(1).replace('.', ',')} oproti nákupu` : null].filter(Boolean).join(' · ')
     : w > 0 ? 'spočítá se po přepočtu zakázky' : 'chybí hmotnost';
 
   // Speciální cena: UI zadává BEZ DPH, DB drží S DPH (manualPriceInclVatCzk). Raw stav + commit na blur.
@@ -123,7 +126,7 @@ export default function StonePricingSection() {
 
         <Col step={2} title="Výpočet prodejní ceny" arrow>
           <Line label={vatRate > 0 ? 'Min. prodejní bez DPH' : 'Min. prodejní (před zaokrouhlením)'} value={exVat > 0 ? fmtCzk(exVat) : '—'} muted />
-          <PriceFigure label={vatRate > 0 ? 'Doporučená s DPH' : 'Doporučená'} value={fmtCzk(rec)} caption={vatAmount > 0 ? `${fmtCzk(exVat)} + ${fmtCzk(vatAmount)} DPH` : undefined} />
+          <PriceFigure label={vatRate > 0 ? 'Doporučená s DPH' : 'Doporučená'} value={fmtCzk(rec)} caption={[vatAmount > 0 ? `${fmtCzk(exVat)} + ${fmtCzk(vatAmount)} DPH` : null, recPerGram ? fmtPerGram(recPerGram) : null].filter(Boolean).join(' · ') || undefined} />
           {breakdown && (
             <div className="rounded-lg bg-muted/40 border border-border/60 px-3 py-2">
               <p className="text-[11px] text-text-2 uppercase tracking-wider font-mono font-medium mb-1">Marže podle pravidel</p>
@@ -139,9 +142,6 @@ export default function StonePricingSection() {
               {breakdown.onDemand && <p className="mt-1 text-[9px] text-muted-foreground italic">Z aktuální cenotvorby — pro uložení spusť „Přepočítat“.</p>}
             </div>
           )}
-          <div className="rounded-lg border border-border bg-card px-3 py-2">
-            <PriceFigure label="Prodejní cena za gram" value={recPerGram ? fmtPerGram(recPerGram) : '—'} caption={perGramHint} />
-          </div>
         </Col>
 
         <Col step={3} title="Výsledek" result>
@@ -173,6 +173,10 @@ export default function StonePricingSection() {
                 {Number(item.priceUSD) > 0 && <span className="inline-flex items-baseline gap-1.5 bg-muted border border-border rounded-md px-2.5 py-1"><span className="text-xs font-medium" style={{ color: 'var(--success)' }}>USD</span><span className="text-lg font-semibold tabular-nums">{fmtInt(item.priceUSD!)}</span></span>}
               </p>
             ) : undefined} />
+          {/* Prodejní cena za gram z finální ceny — mění se i po zadání speciální ceny */}
+          <div className="mt-3 pt-3 border-t" style={{ borderColor: 'color-mix(in srgb, var(--success) 25%, transparent)' }}>
+            <PriceFigure label="Prodejní cena za gram" value={finalPerGram ? fmtPerGram(finalPerGram) : '—'} caption={perGramHint} />
+          </div>
           </div>
         </Col>
       </div>

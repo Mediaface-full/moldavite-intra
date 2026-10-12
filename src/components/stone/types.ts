@@ -29,6 +29,8 @@ export interface ItemData {
   costBasisCzk?: string | null;
   computedMinPriceExVatCzk?: string | null;
   recommendedPriceInclVatCzk?: string | null;
+  /** max(doporučená, speciální) ze serveru — to jde na e-shop (Etapa 4); na detailu „Finální cena" */
+  finalInternalPriceInclVatCzk?: string | null;
   vatRatePct?: string | null;
   manualPriceInclVatCzk?: string | null;
   pricingStatus?: PricingStatus | null;

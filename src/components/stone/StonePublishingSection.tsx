@@ -30,7 +30,8 @@ function ChannelCard({ title, color, on, blocked, blockedTitle, at, priceLine, o
 
 export default function StonePublishingSection() {
   const { item, formData, setField, publishBlocked, blockedTitle, vatRate } = useItemForm();
-  const saleIncl = Number(formData.salePrice ?? 0);
+  // finální = max(doporučená, speciální) ze serveru; salePrice jen legacy fallback
+  const saleIncl = Number(item.finalInternalPriceInclVatCzk ?? 0) > 0 ? Number(item.finalInternalPriceInclVatCzk) : Number(formData.salePrice ?? 0);
   const saleEx = saleIncl > 0 ? saleIncl / (1 + vatRate / 100) : 0;
   const priceLine = vatRate > 0 ? `${fmtCzk(saleEx)} bez DPH · ${fmtCzk(saleIncl)} s DPH` : fmtCzk(saleIncl);
 

@@ -182,6 +182,7 @@ export default async function ItemDetailPage({
           costBasisCzk: item.costBasisCzk ? item.costBasisCzk.toString() : null,
           computedMinPriceExVatCzk: item.computedMinPriceExVatCzk ? item.computedMinPriceExVatCzk.toString() : null,
           recommendedPriceInclVatCzk: item.recommendedPriceInclVatCzk ? item.recommendedPriceInclVatCzk.toString() : null,
+          finalInternalPriceInclVatCzk: item.finalInternalPriceInclVatCzk ? item.finalInternalPriceInclVatCzk.toString() : null,
           vatRatePct: item.box.order?.vatRatePct ? item.box.order.vatRatePct.toString() : null,
           manualPriceInclVatCzk: item.manualPriceInclVatCzk ? item.manualPriceInclVatCzk.toString() : null,
           purchasePricePerGramCzk: item.purchasePricePerGramCzk ? item.purchasePricePerGramCzk.toString() : null,
