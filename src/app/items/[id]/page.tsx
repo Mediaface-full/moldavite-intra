@@ -1,14 +1,36 @@
 import { prisma } from '@/lib/prisma';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
-import StonePhotoWithViewer from '@/components/StonePhotoWithViewer';
-import ItemDetailForm from '@/components/ItemDetailForm';
-import ItemPhotoUploadModal from '@/components/ItemPhotoUploadModal';
-import MediaToggle from '@/components/MediaToggle';
-import AiButton from '@/components/AiButton';
+import * as fs from 'fs';
+import * as path from 'path';
+import StoneDetail from '@/components/stone/StoneDetail';
 import { requirePageSession } from '@/lib/pageAuth';
 import { resolveMargin } from '@/lib/pricing/margin';
 import type { PricingConfigSnapshot, StoneInput } from '@/lib/pricing/types';
+import type { ItemMediaInfo } from '@/lib/itemReadiness';
+import type { LastUpdateInfo } from '@/components/stone/types';
+
+const PHOTOS_PATH = process.env.PHOTOS_PATH || path.join(process.cwd(), '../kameny/FOTO_MOLDAVITE');
+
+/** Co je na disku v adresáři kamene — pro panel médií a checklist připravenosti. */
+function readMedia(photoPath: string): ItemMediaInfo {
+  const empty: ItemMediaInfo = { photoCount: 0, has360: false, hasVideo: false, hasFilm: false };
+  if (!photoPath || photoPath.includes('..')) return empty;
+  try {
+    const dir = path.resolve(PHOTOS_PATH, photoPath);
+    if (!dir.startsWith(path.resolve(PHOTOS_PATH) + path.sep)) return empty;
+    const files = fs.readdirSync(dir);
+    const photoCount = files.filter((f) => /^\d{2}\.jpe?g$/i.test(f)).length;
+    return {
+      photoCount,
+      has360: photoCount >= 24,
+      hasVideo: files.some((f) => /^video\.(mp4|webm)$/i.test(f)),
+      hasFilm: files.some((f) => /^flim\.jpe?g$/i.test(f)),
+    };
+  } catch {
+    return empty;
+  }
+}
 
 export default async function ItemDetailPage({
   params,
@@ -42,13 +64,11 @@ export default async function ItemDetailPage({
 
   if (!item) notFound();
 
-  const catalogNumber = `${item.box.code}-${item.evidNumber}`;
   const isAdmin = session.role === 'ADMIN';
 
   // Breakdown — bud z DB (ulozene posledni Prepocitat), nebo on-the-fly z aktualniho
   // PricingConfig + item attrs. Fallback resi pripady kdy Prepocitat probehlo PRED
-  // pridanim sloupce priceCalcBreakdown — bez nej by tooltip „pouzite koeficienty"
-  // mlcel a Gideon by musel slepe klikat Prepocitat.
+  // pridanim sloupce priceCalcBreakdown.
   let effectiveBreakdown: unknown = item.priceCalcBreakdown ?? null;
   if (!effectiveBreakdown && item.box.order?.pricingConfig?.rules) {
     const rules = item.box.order.pricingConfig.rules as unknown as PricingConfigSnapshot;
@@ -79,161 +99,92 @@ export default async function ItemDetailPage({
     };
   }
 
+  // Média na disku + poslední úprava (pro hlavičku) — paralelně.
+  const [media, lastLog] = await Promise.all([
+    Promise.resolve(readMedia(item.photoPath)),
+    prisma.activityLog.findFirst({
+      where: { action: 'item.update', target: String(item.id) },
+      orderBy: { createdAt: 'desc' },
+      select: { createdAt: true, user: { select: { name: true, email: true } } },
+    }),
+  ]);
+  const lastUpdate: LastUpdateInfo | null = lastLog
+    ? { at: lastLog.createdAt.toISOString(), by: lastLog.user?.name || lastLog.user?.email || null }
+    : null;
+
   return (
     <div>
-      {/* Breadcrumb — pokud kazeta patri do zakazky, ukaz radici hierarchii:
-          Zakazky / {order.code} / {box.code} / {evidNumber}. Jinak pouvodni
-          plocha hierarchie Kazety / {box.code} / {evidNumber}. */}
-      <div className="flex items-center gap-2 text-sm text-muted-foreground mb-6 flex-wrap">
+      {/* Breadcrumb — pokud kazeta patri do zakazky: Zakazky / {order} / {box} / {evid}; jinak Kazety / {box} / {evid}. */}
+      <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4 flex-wrap">
         {item.box.order ? (
           <>
-            <Link href="/orders" className="hover:text-foreground transition-colors">
-              Zakázky
-            </Link>
+            <Link href="/orders" className="hover:text-foreground transition-colors">Zakázky</Link>
             <span>/</span>
-            <Link
-              href={`/orders/${item.box.order.id}`}
-              className="hover:text-foreground transition-colors"
-              title={item.box.order.title || undefined}
-            >
+            <Link href={`/orders/${item.box.order.id}`} className="hover:text-foreground transition-colors" title={item.box.order.title || undefined}>
               {item.box.order.code}
             </Link>
             <span>/</span>
           </>
         ) : (
           <>
-            <Link href="/boxes" className="hover:text-foreground transition-colors">
-              Kazety
-            </Link>
+            <Link href="/boxes" className="hover:text-foreground transition-colors">Kazety</Link>
             <span>/</span>
           </>
         )}
-        <Link
-          href={`/boxes/${item.box.id}`}
-          className="hover:text-foreground transition-colors"
-        >
-          {item.box.code}
-        </Link>
+        <Link href={`/boxes/${item.box.id}`} className="hover:text-foreground transition-colors">{item.box.code}</Link>
         <span>/</span>
         <span className="text-foreground">{item.evidNumber}</span>
       </div>
 
-      {/* Header */}
-      <div className="flex items-center justify-between mb-8">
-        <h1 className="text-3xl font-bold">
-          Moldavit{' '}
-          <span className="text-primary">{catalogNumber}</span>
-        </h1>
-        <div className="flex items-center gap-2">
-          {item.sold && (
-            <span className="bg-[color-mix(in_srgb,var(--destructive)_15%,transparent)] text-destructive text-xs px-3 py-1 rounded-full border border-[color-mix(in_srgb,var(--destructive)_30%,transparent)]">
-              Prodáno
-            </span>
-          )}
-          {item.onShop && !item.sold && (
-            <span className="bg-primary text-white text-xs px-3 py-1 rounded-full">
-              Eshop
-            </span>
-          )}
-          {item.onEtsy && !item.sold && (
-            <span className="bg-warning text-white text-xs px-3 py-1 rounded-full">
-              Etsy
-            </span>
-          )}
-          {isAdmin && (
-            <AiButton itemId={item.id} catalogNumber={catalogNumber} />
-          )}
-          <ItemPhotoUploadModal itemId={item.id} catalogNumber={catalogNumber} label="Fotky" />
-        </div>
-      </div>
-
-      {/* Certificate + Media buttons */}
-      <div className="flex items-center gap-3 mb-6">
-        <a
-          href={`/api/certificate/${item.id}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="bg-muted border border-border hover:border-ring text-muted-foreground hover:text-foreground px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
-          </svg>
-          Certifikát PDF
-        </a>
-        {item.certHash && (
-          <a
-            href={`/verify/${item.certHash}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-          >
-            Verifikační stránka
-          </a>
-        )}
-      </div>
-
-      {/* Main content */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Left: 360° Viewer */}
-        <div>
-          <StonePhotoWithViewer
-            photoPath={item.photoPath}
-            evidNumber={catalogNumber}
-            itemId={item.id}
-            mainPhoto={item.mainPhoto}
-          />
-        </div>
-
-        {/* Right: Detail Form */}
-        <div>
-          <ItemDetailForm
-            item={{
-              id: item.id,
-              evidNumber: item.evidNumber,
-              name: item.name,
-              nameEn: item.nameEn,
-              description: item.description,
-              descriptionEn: item.descriptionEn,
-              longDescription: item.longDescription,
-              longDescriptionEn: item.longDescriptionEn,
-              location: item.location,
-              storage: item.storage,
-              purchasePrice: item.purchasePrice.toString(),
-              salePrice: item.salePrice.toString(),
-              weight: item.weight.toString(),
-              sold: item.sold,
-              onShop: item.onShop,
-              onEtsy: item.onEtsy,
-              pasShape: item.pasShape,
-              attrDamage: item.attrDamage,
-              attrColor: item.attrColor,
-              attrCollectible: item.attrCollectible,
-              box: { code: item.box.code, id: item.box.id },
-              priceEUR: Number(item.priceEUR),
-              priceUSD: Number(item.priceUSD),
-              costBasisCzk: item.costBasisCzk ? item.costBasisCzk.toString() : null,
-              computedMinPriceExVatCzk: item.computedMinPriceExVatCzk ? item.computedMinPriceExVatCzk.toString() : null,
-              recommendedPriceInclVatCzk: item.recommendedPriceInclVatCzk ? item.recommendedPriceInclVatCzk.toString() : null,
-              vatRatePct: item.box.order?.vatRatePct ? item.box.order.vatRatePct.toString() : null,
-              manualPriceInclVatCzk: item.manualPriceInclVatCzk ? item.manualPriceInclVatCzk.toString() : null,
-              purchasePricePerGramCzk: item.purchasePricePerGramCzk ? item.purchasePricePerGramCzk.toString() : null,
-              pricingStatus: item.pricingStatus,
-              soldAt: item.soldAt ? item.soldAt.toISOString() : null,
-              priceCalcSnapshot: item.priceCalcSnapshot ?? null,
-              priceCalcSnapshotAt: item.priceCalcSnapshotAt ? item.priceCalcSnapshotAt.toISOString() : null,
-              priceCalcBreakdown: effectiveBreakdown,
-              onShopAt: item.onShopAt ? item.onShopAt.toISOString() : null,
-              onEtsyAt: item.onEtsyAt ? item.onEtsyAt.toISOString() : null,
-              voiceNotes: item.voiceNotes ?? '',
-            }}
-          />
-        </div>
-      </div>
-
-      {/* Film + Video - hidden under toggle */}
-      {item.photoPath && (
-        <MediaToggle photoPath={item.photoPath} catalogNumber={catalogNumber} />
-      )}
+      <StoneDetail
+        isAdmin={isAdmin}
+        media={media}
+        lastUpdate={lastUpdate}
+        item={{
+          id: item.id,
+          evidNumber: item.evidNumber,
+          name: item.name,
+          nameEn: item.nameEn,
+          description: item.description,
+          descriptionEn: item.descriptionEn,
+          longDescription: item.longDescription,
+          longDescriptionEn: item.longDescriptionEn,
+          location: item.location,
+          storage: item.storage,
+          purchasePrice: item.purchasePrice.toString(),
+          salePrice: item.salePrice.toString(),
+          weight: item.weight.toString(),
+          sold: item.sold,
+          onShop: item.onShop,
+          onEtsy: item.onEtsy,
+          pasShape: item.pasShape,
+          attrDamage: item.attrDamage,
+          attrColor: item.attrColor,
+          attrCollectible: item.attrCollectible,
+          box: { code: item.box.code, id: item.box.id },
+          order: item.box.order ? { id: item.box.order.id, code: item.box.order.code, title: item.box.order.title } : null,
+          priceEUR: Number(item.priceEUR),
+          priceUSD: Number(item.priceUSD),
+          costBasisCzk: item.costBasisCzk ? item.costBasisCzk.toString() : null,
+          computedMinPriceExVatCzk: item.computedMinPriceExVatCzk ? item.computedMinPriceExVatCzk.toString() : null,
+          recommendedPriceInclVatCzk: item.recommendedPriceInclVatCzk ? item.recommendedPriceInclVatCzk.toString() : null,
+          vatRatePct: item.box.order?.vatRatePct ? item.box.order.vatRatePct.toString() : null,
+          manualPriceInclVatCzk: item.manualPriceInclVatCzk ? item.manualPriceInclVatCzk.toString() : null,
+          purchasePricePerGramCzk: item.purchasePricePerGramCzk ? item.purchasePricePerGramCzk.toString() : null,
+          pricingStatus: item.pricingStatus,
+          soldAt: item.soldAt ? item.soldAt.toISOString() : null,
+          priceCalcSnapshot: item.priceCalcSnapshot ?? null,
+          priceCalcSnapshotAt: item.priceCalcSnapshotAt ? item.priceCalcSnapshotAt.toISOString() : null,
+          priceCalcBreakdown: effectiveBreakdown,
+          onShopAt: item.onShopAt ? item.onShopAt.toISOString() : null,
+          onEtsyAt: item.onEtsyAt ? item.onEtsyAt.toISOString() : null,
+          voiceNotes: item.voiceNotes ?? '',
+          photoPath: item.photoPath,
+          mainPhoto: item.mainPhoto,
+          certHash: item.certHash,
+          updatedAt: item.updatedAt.toISOString(),
+        }}
+      />
     </div>
   );
 }

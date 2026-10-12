@@ -143,7 +143,10 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
                 </p>
               </div>
             </aside>
-            <main className="flex-1 overflow-auto">
+            {/* Bez overflow-auto: scrolluje okno, a `overflow` na předkovi by zabil
+                position: sticky (pravý sloupec detailu kamene). Široké tabulky mají
+                vlastní overflow-x-auto; min-w-0 brání roztažení flex položky. */}
+            <main className="flex-1 min-w-0">
               <div className="p-8">{children}</div>
             </main>
           </>
