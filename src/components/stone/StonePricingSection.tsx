@@ -20,13 +20,26 @@ const STATUS_META = {
   OK: { label: 'Spočítáno', tone: 'ok' as const, icon: 'ok' as const },
 };
 
-function Col({ title, arrow, children }: { title: string; arrow?: boolean; children: React.ReactNode }) {
+/**
+ * Krok cenotvorby: vlastní panel s číslem kroku; mezi kroky výrazná šipka
+ * (plný kruh, sedí v mezeře gridu `md:gap-7` → `-right-7`). Výsledek má
+ * coral obrys, aby bylo na první pohled vidět, kde se čte finální cena.
+ */
+function Col({ step, title, arrow, result, children }: {
+  step: number; title: string; arrow?: boolean; result?: boolean; children: React.ReactNode;
+}) {
   return (
-    <div className="relative min-w-0">
-      <p className="text-[10px] text-muted-foreground uppercase tracking-[0.15em] font-mono mb-3 pb-2 border-b border-border/60 flex items-center gap-2">
-        {title}{arrow && <Icon name="arrow-right" className="w-3 h-3 ml-auto text-muted-foreground/60" />}
+    <div className={`relative min-w-0 rounded-xl border p-4 ${result ? 'border-primary/50 bg-primary/5' : 'border-border bg-muted/30'}`}>
+      <p className="flex items-center gap-2 mb-3 pb-2 border-b border-border">
+        <span className={`inline-flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-mono font-semibold ${result ? 'bg-primary text-primary-foreground' : 'bg-foreground text-background'}`}>{step}</span>
+        <span className="text-xs text-foreground uppercase tracking-[0.15em] font-mono font-semibold">{title}</span>
       </p>
       <div className="space-y-3">{children}</div>
+      {arrow && (
+        <span aria-hidden className="hidden md:flex absolute top-3 -right-7 z-10 h-7 w-7 items-center justify-center rounded-full bg-foreground text-background shadow-sm ring-4 ring-card">
+          <Icon name="arrow-right" className="w-4 h-4" />
+        </span>
+      )}
     </div>
   );
 }
@@ -34,9 +47,9 @@ function Col({ title, arrow, children }: { title: string; arrow?: boolean; child
 function Line({ label, value, hint, muted }: { label: string; value: string; hint?: React.ReactNode; muted?: boolean }) {
   return (
     <div>
-      <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-mono">{label}</p>
+      <p className="text-[11px] text-text-2 uppercase tracking-wider font-mono font-medium">{label}</p>
       <p className={`font-mono text-base ${muted ? 'text-muted-foreground' : 'text-foreground'} tabular-nums`}>{value}</p>
-      {hint && <p className="text-[10px] text-muted-foreground font-mono mt-0.5">{hint}</p>}
+      {hint && <p className="text-[11px] text-muted-foreground font-mono mt-0.5">{hint}</p>}
     </div>
   );
 }
@@ -86,10 +99,10 @@ export default function StonePricingSection() {
       description={`DPH ${vatRate} % ze zakázky. Vstupy → výpočet cenotvorbou zakázky → výsledná cena pro e-shop a Etsy.`}
       actions={<>
         {status && <StatusBadge tone={status.tone} icon={status.icon}>{status.label}</StatusBadge>}
-        {item.order && <Link href={`/orders/${item.order.id}`} className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground hover:text-foreground">Zakázka {item.order.code} ↗</Link>}
+        {item.order && <Link href={`/orders/${item.order.id}`} className="text-[11px] font-mono uppercase tracking-wider text-text-2 font-medium hover:text-foreground">Zakázka {item.order.code} ↗</Link>}
       </>}>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Col title="Vstupy" arrow>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-7">
+        <Col step={1} title="Vstupy" arrow>
           <Line label="Cena nákupní" value={fmtCzk(purchase)} hint={purchase > 0 ? 'váha × Kč/g' : 'spočítá se po přepočtu zakázky'} />
           <Line label="Kč / g" value={ppgOverride ? `${ppgOverride} Kč/g` : usedPpg ? `${usedPpg} Kč/g` : '—'}
             hint={ppgOverride ? 'override na kameni' : 'dědí se z kazety / zakázky — mění se v cenotvorbě zakázky'} />
@@ -97,12 +110,12 @@ export default function StonePricingSection() {
             hint={costBasis > 0 ? (alloc > 0 ? `${fmtCzk(purchase)} + ${fmtCzk(alloc)} alokace nákladů` : 'bez alokace nákladů') : 'spočítá se po přepočtu'} />
         </Col>
 
-        <Col title="Výpočet" arrow>
+        <Col step={2} title="Výpočet" arrow>
           <Line label="Min. prodejní bez DPH" value={exVat > 0 ? fmtCzk(exVat) : '—'} muted />
           <PriceFigure label="Doporučená s DPH" value={fmtCzk(rec)} caption={vatAmount > 0 ? `${fmtCzk(exVat)} + ${fmtCzk(vatAmount)} DPH` : undefined} />
           {breakdown && (
             <div className="rounded-lg bg-muted/40 border border-border/60 px-3 py-2">
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-mono mb-1">Marže podle pravidel</p>
+              <p className="text-[11px] text-text-2 uppercase tracking-wider font-mono font-medium mb-1">Marže podle pravidel</p>
               <ul className="space-y-0.5">
                 {breakdown.rules.map((r, i) => (
                   <li key={i} className="flex items-baseline justify-between gap-2 text-[11px]">
@@ -117,19 +130,19 @@ export default function StonePricingSection() {
           )}
         </Col>
 
-        <Col title="Výsledek">
+        <Col step={3} title="Výsledek" result>
           <div>
-            <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-mono">Cena speciální (bez DPH)</p>
+            <p className="text-[11px] text-text-2 uppercase tracking-wider font-mono font-medium">Cena speciální (bez DPH)</p>
             <input type="text" inputMode="decimal" value={manualRaw} onChange={(e) => setManualRaw(e.target.value)} onBlur={commitManual}
               onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }} placeholder="—"
               className="mt-1 w-full bg-background border border-border rounded-lg px-3 h-10 text-base font-mono font-semibold text-right text-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/20" />
-            <p className="text-[10px] text-muted-foreground font-mono mt-0.5">
+            <p className="text-[11px] text-muted-foreground font-mono mt-0.5">
               {manualNum > 0 ? `= ${fmtCzk(manualNum)} s DPH (× ${vatMultiplier.toFixed(2)})` : 'override pro výjimečné kusy, musí být ≥ doporučená'}
             </p>
             {manualBelow && <p className="text-[10px] font-mono mt-0.5" style={{ color: 'var(--warning)' }}>⚠ pod doporučenou — kámen bude K REVIZI</p>}
           </div>
           <div className={`${computedBox} justify-between h-auto py-2 text-sm`} title="Speciální cena s DPH — dopočteno">
-            <span className="text-[10px] uppercase tracking-wider font-normal">Speciální s DPH</span>
+            <span className="text-[11px] uppercase tracking-wider font-medium text-text-2">Speciální s DPH</span>
             <span>{manualNum > 0 ? fmtCzk(manualNum) : '—'}</span>
           </div>
           <PriceFigure label="Finální cena s DPH" value={fmtCzk(sale)} tone="ok" size="lg"

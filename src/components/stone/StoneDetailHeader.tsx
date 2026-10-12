@@ -66,7 +66,7 @@ export default function StoneDetailHeader({ isAdmin, lastUpdate }: { isAdmin: bo
               Certifikát {item.certHash ? '✓' : '—'}
             </StatusBadge>
           </div>
-          <p className="text-[10px] text-muted-foreground font-mono">
+          <p className="text-[11px] text-muted-foreground font-mono">
             {lastUpdate
               ? `naposledy upraveno ${fmtDate(lastUpdate.at, true)}${lastUpdate.by ? ` · ${lastUpdate.by}` : ''}`
               : `vytvořeno / upraveno ${fmtDate(item.updatedAt, true)}`}
@@ -90,12 +90,12 @@ export default function StoneDetailHeader({ isAdmin, lastUpdate }: { isAdmin: bo
           </button>
           <span className="w-px h-6 bg-border mx-1" />
           <div className="inline-flex items-center gap-2 bg-card border border-border rounded-lg px-3 h-9" title={blockedTitle}>
-            <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">E-shop</span>
+            <span className="text-[11px] font-mono uppercase tracking-wider text-text-2 font-medium">E-shop</span>
             <Switch on={formData.onShop} disabled={publishBlocked} color="var(--success)" label="Vystavit na e-shop" title={blockedTitle}
               onToggle={() => { if (publishBlocked) { alert(blockedTitle); return; } setField('onShop', !formData.onShop); }} />
           </div>
           <div className="inline-flex items-center gap-2 bg-card border border-border rounded-lg px-3 h-9" title={blockedTitle}>
-            <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">Etsy</span>
+            <span className="text-[11px] font-mono uppercase tracking-wider text-text-2 font-medium">Etsy</span>
             <Switch on={formData.onEtsy} disabled={publishBlocked} color="var(--warning)" label="Vystavit na Etsy" title={blockedTitle}
               onToggle={() => { if (publishBlocked) { alert(blockedTitle); return; } setField('onEtsy', !formData.onEtsy); }} />
           </div>

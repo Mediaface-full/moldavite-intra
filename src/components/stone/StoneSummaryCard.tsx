@@ -9,7 +9,7 @@ import { StatusBadge, fmtCzk, fmtDate } from './primitives';
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex items-baseline justify-between gap-3 py-1">
-      <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-mono flex-shrink-0">{label}</span>
+      <span className="text-[11px] text-text-2 uppercase tracking-wider font-mono font-medium flex-shrink-0">{label}</span>
       <span className="text-sm text-foreground text-right min-w-0 truncate">{children}</span>
     </div>
   );
@@ -26,7 +26,7 @@ export default function StoneSummaryCard() {
   return (
     <div className="bg-card border border-border rounded-xl shadow-sm p-4">
       <div className="flex items-center justify-between mb-2">
-        <p className="text-[10px] text-muted-foreground uppercase tracking-[0.15em] font-mono">Souhrn</p>
+        <p className="text-xs text-foreground uppercase tracking-[0.15em] font-mono font-semibold">Souhrn</p>
         <span className="font-mono text-sm text-foreground">{catalogNumber}</span>
       </div>
 
@@ -47,18 +47,18 @@ export default function StoneSummaryCard() {
         <div className="py-2">
           <Row label="Nákup">
             <span className="font-mono">{fmtCzk(formData.purchasePrice)}</span>
-            {usedPpg && <span className="text-[10px] text-muted-foreground font-mono ml-1.5">({usedPpg} Kč/g)</span>}
+            {usedPpg && <span className="text-[11px] text-muted-foreground font-mono ml-1.5">({usedPpg} Kč/g)</span>}
           </Row>
-          <Row label="Doporučená"><span className="font-mono">{fmtCzk(item.recommendedPriceInclVatCzk)}</span><span className="text-[10px] text-muted-foreground ml-1">s DPH</span></Row>
+          <Row label="Doporučená"><span className="font-mono">{fmtCzk(item.recommendedPriceInclVatCzk)}</span><span className="text-[11px] text-muted-foreground ml-1">s DPH</span></Row>
           {Number(formData.manualPriceInclVatCzk) > 0 && (
             <Row label="Speciální"><span className="font-mono">{fmtCzk(formData.manualPriceInclVatCzk)}</span></Row>
           )}
           <div className="flex items-baseline justify-between gap-3 pt-1">
-            <span className="text-[10px] uppercase tracking-wider font-mono" style={{ color: 'var(--success)' }}>Finální</span>
+            <span className="text-[11px] uppercase tracking-wider font-mono font-semibold" style={{ color: 'var(--success)' }}>Finální</span>
             <span className="text-[22px] font-semibold tabular-nums font-mono" style={{ color: 'var(--success)' }}>{fmtCzk(formData.salePrice)}</span>
           </div>
           {(Number(item.priceEUR) > 0 || Number(item.priceUSD) > 0) && (
-            <p className="text-[10px] text-muted-foreground font-mono text-right">
+            <p className="text-[11px] text-muted-foreground font-mono text-right">
               {Number(item.priceEUR) > 0 && `${Math.round(item.priceEUR!)} €`}{Number(item.priceEUR) > 0 && Number(item.priceUSD) > 0 && ' · '}{Number(item.priceUSD) > 0 && `${Math.round(item.priceUSD!)} $`}
             </p>
           )}

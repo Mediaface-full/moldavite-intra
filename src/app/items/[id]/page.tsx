@@ -11,25 +11,39 @@ import type { ItemMediaInfo } from '@/lib/itemReadiness';
 import type { LastUpdateInfo } from '@/components/stone/types';
 
 const PHOTOS_PATH = process.env.PHOTOS_PATH || path.join(process.cwd(), '../kameny/FOTO_MOLDAVITE');
+const PHOTOS_WEB_PATH = process.env.PHOTOS_WEB_PATH || '';
 
-/** Co je na disku v adresáři kamene — pro panel médií a checklist připravenosti. */
+/** Názvy souborů v adresáři kamene pod daným kořenem; prázdné pole, když adresář není nebo cesta utíká ven. */
+function listDir(root: string, photoPath: string): string[] {
+  if (!root) return [];
+  try {
+    const dir = path.resolve(root, photoPath);
+    if (!dir.startsWith(path.resolve(root) + path.sep)) return [];
+    return fs.readdirSync(dir);
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Co je na disku v adresáři kamene — pro panel médií a checklist připravenosti.
+ * Stejně jako výdej obrázků (`/images`) bere v úvahu webovou kopii i originály:
+ * na NASu může kámen mít fotky jen v `/data/photos_web` (12. 10. 2026 — detail
+ * hlásil „žádné fotky", přestože 360° sada v prohlížeči fungovala).
+ */
 function readMedia(photoPath: string): ItemMediaInfo {
   const empty: ItemMediaInfo = { photoCount: 0, has360: false, hasVideo: false, hasFilm: false };
   if (!photoPath || photoPath.includes('..')) return empty;
-  try {
-    const dir = path.resolve(PHOTOS_PATH, photoPath);
-    if (!dir.startsWith(path.resolve(PHOTOS_PATH) + path.sep)) return empty;
-    const files = fs.readdirSync(dir);
-    const photoCount = files.filter((f) => /^\d{2}\.jpe?g$/i.test(f)).length;
-    return {
-      photoCount,
-      has360: photoCount >= 24,
-      hasVideo: files.some((f) => /^video\.(mp4|webm)$/i.test(f)),
-      hasFilm: files.some((f) => /^flim\.jpe?g$/i.test(f)),
-    };
-  } catch {
-    return empty;
-  }
+  const files = new Set([...listDir(PHOTOS_WEB_PATH, photoPath), ...listDir(PHOTOS_PATH, photoPath)].map((f) => f.toLowerCase()));
+  if (files.size === 0) return empty;
+  let photoCount = 0;
+  for (const f of files) if (/^\d{2}\.jpe?g$/.test(f)) photoCount++;
+  return {
+    photoCount,
+    has360: photoCount >= 24,
+    hasVideo: files.has('video.mp4') || files.has('video.webm'),
+    hasFilm: files.has('flim.jpg') || files.has('flim.jpeg'),
+  };
 }
 
 export default async function ItemDetailPage({

@@ -23,7 +23,7 @@ export default function StoneReadinessCard({ media }: { media: ItemMediaInfo }) 
   return (
     <div className="bg-card border border-border rounded-xl shadow-sm p-4">
       <div className="flex items-center justify-between mb-2">
-        <p className="text-[10px] text-muted-foreground uppercase tracking-[0.15em] font-mono">Připravenost</p>
+        <p className="text-xs text-foreground uppercase tracking-[0.15em] font-mono font-semibold">Připravenost</p>
         <span className="font-mono font-semibold text-sm tabular-nums" style={{ color }}>{readiness.score} / {readiness.total}</span>
       </div>
       <div className="h-1 rounded bg-muted mb-3 overflow-hidden"><div className="h-full rounded transition-all" style={{ width: `${pct * 100}%`, background: color }} /></div>
@@ -42,7 +42,7 @@ export default function StoneReadinessCard({ media }: { media: ItemMediaInfo }) 
         ))}
       </ul>
       {readiness.items.some((r) => !r.ok && r.detail && r.key !== 'photos' && r.key !== 'shop' && r.key !== 'etsy') && (
-        <p className="mt-2 text-[10px] text-muted-foreground font-mono leading-snug">
+        <p className="mt-2 text-[11px] text-muted-foreground font-mono leading-snug">
           {readiness.items.filter((r) => !r.ok && r.detail && !['photos', 'shop', 'etsy'].includes(r.key)).map((r) => `${r.label}: ${r.detail}`).join(' · ')}
         </p>
       )}

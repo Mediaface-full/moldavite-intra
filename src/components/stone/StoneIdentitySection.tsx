@@ -26,11 +26,11 @@ export default function StoneIdentitySection() {
       </div>
       <div className="mt-4 pt-4 border-t border-border/60 grid grid-cols-1 md:grid-cols-[auto_auto_minmax(0,1fr)] gap-4 items-end">
         <div>
-          <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-mono mb-1">Katalogové číslo</p>
+          <p className="text-[11px] text-text-2 uppercase tracking-wider font-mono font-medium mb-1">Katalogové číslo</p>
           <p className="font-mono text-sm text-foreground h-9 inline-flex items-center">{catalogNumber}</p>
         </div>
         <div>
-          <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-mono mb-1">Kazeta · zakázka</p>
+          <p className="text-[11px] text-text-2 uppercase tracking-wider font-mono font-medium mb-1">Kazeta · zakázka</p>
           <p className="font-mono text-sm h-9 inline-flex items-center gap-2">
             <Link href={`/boxes/${item.box.id}`} className="text-foreground hover:text-primary transition-colors">{item.box.code}</Link>
             <span className="text-muted-foreground">·</span>

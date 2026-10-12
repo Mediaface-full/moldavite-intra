@@ -44,14 +44,14 @@ export function SectionCard({ id, number, title, description, icon, actions, chi
 }) {
   return (
     <section id={id} className={`bg-card border border-border rounded-xl shadow-sm scroll-mt-4 ${className}`}>
-      <header className="px-5 py-3 border-b border-border flex items-start justify-between gap-4">
+      <header className="px-5 py-3 border-b border-border bg-muted/40 rounded-t-xl flex items-start justify-between gap-4">
         <div className="min-w-0">
-          <h2 className="text-xs font-mono uppercase tracking-[0.15em] text-foreground inline-flex items-center gap-2">
-            <span className="text-muted-foreground">{number}</span>
-            {icon && <Icon name={icon} className="w-3.5 h-3.5 text-muted-foreground" />}
+          <h2 className="text-[13px] font-mono uppercase tracking-[0.15em] text-foreground inline-flex items-center gap-2">
+            <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-foreground text-background text-[11px] font-semibold tracking-normal">{number}</span>
+            {icon && <Icon name={icon} className="w-4 h-4 text-foreground" />}
             <span className="font-semibold">{title}</span>
           </h2>
-          {description && <p className="text-[11px] text-muted-foreground mt-0.5">{description}</p>}
+          {description && <p className="text-xs text-text-2 mt-0.5">{description}</p>}
         </div>
         {actions && <div className="flex items-center gap-2 flex-shrink-0 flex-wrap justify-end">{actions}</div>}
       </header>
@@ -66,14 +66,14 @@ export function Field({ label, icon, missing, hint, children, className = '', la
 }) {
   return (
     <div className={className}>
-      <label className="flex items-center gap-1.5 text-[10px] text-muted-foreground mb-1 uppercase tracking-wider font-mono">
+      <label className="flex items-center gap-1.5 text-[11px] text-text-2 mb-1 uppercase tracking-wider font-mono font-medium">
         {icon && <Icon name={icon} className="w-3.5 h-3.5" />}
         {label}
         {lang && <span style={{ color: 'var(--info)' }} className="font-semibold">({lang})</span>}
         {missing && <span className="text-warning font-bold" title="Chybí — kámen je k revizi">·</span>}
       </label>
       <div className={missing ? 'rounded-lg ring-2 ring-warning/60' : ''}>{children}</div>
-      {hint && <p className="mt-1 text-[10px] text-muted-foreground">{hint}</p>}
+      {hint && <p className="mt-1 text-[11px] text-muted-foreground">{hint}</p>}
     </div>
   );
 }
@@ -106,9 +106,9 @@ export function PriceFigure({ label, value, caption, tone = 'neutral', size = 'm
   const color = tone === 'neutral' ? 'var(--foreground)' : TONE_COLOR[tone];
   return (
     <div>
-      <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-mono">{label}</p>
+      <p className="text-[11px] text-text-2 uppercase tracking-wider font-mono font-medium">{label}</p>
       <p className={`font-semibold tabular-nums leading-tight ${size === 'lg' ? 'text-[28px]' : 'text-[22px]'}`} style={{ color }}>{value}</p>
-      {caption && <p className="text-[10px] text-muted-foreground font-mono mt-0.5">{caption}</p>}
+      {caption && <p className="text-[11px] text-muted-foreground font-mono mt-0.5">{caption}</p>}
       {extra}
     </div>
   );

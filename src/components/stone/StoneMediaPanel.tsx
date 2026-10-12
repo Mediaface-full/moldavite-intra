@@ -67,12 +67,12 @@ export default function StoneMediaPanel({ media }: { media: ItemMediaInfo }) {
         <div className="min-w-0 flex flex-col gap-4">
           <div>
             <div className="flex items-center justify-between mb-2">
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-mono inline-flex items-center gap-1.5">
+              <p className="text-[11px] text-text-2 uppercase tracking-wider font-mono font-medium inline-flex items-center gap-1.5">
                 <Icon name="camera" className="w-3.5 h-3.5" />
                 {visibleCount > 0 ? `${visibleCount} fotek` : 'Žádné fotky'}
                 {media.has360 && <span style={{ color: 'var(--success)' }}>· 360° ✓</span>}
               </p>
-              <p className="text-[10px] text-muted-foreground font-mono">hlavní: {item.mainPhoto || 1}</p>
+              <p className="text-[11px] text-muted-foreground font-mono">hlavní: {item.mainPhoto || 1}</p>
             </div>
             {visibleCount > 0 ? (
               <div className="grid grid-cols-6 lg:grid-cols-8 gap-1.5">
@@ -94,7 +94,7 @@ export default function StoneMediaPanel({ media }: { media: ItemMediaInfo }) {
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-mono mb-1.5">Film {media.hasFilm ? '' : '— chybí'}</p>
+              <p className="text-[11px] text-text-2 uppercase tracking-wider font-mono font-medium mb-1.5">Film {media.hasFilm ? '' : '— chybí'}</p>
               <div className="rounded-lg overflow-hidden border border-border bg-white aspect-[4/3]">
                 {media.hasFilm && item.photoPath ? (
                   <SafeImage src={`/images/${item.photoPath}/flim.jpg`} alt={`Film ${catalogNumber}`} className="w-full h-full object-contain" placeholderLabel="Film není k dispozici" />
@@ -104,7 +104,7 @@ export default function StoneMediaPanel({ media }: { media: ItemMediaInfo }) {
               </div>
             </div>
             <div>
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-mono mb-1.5">Video {media.hasVideo ? '' : '— chybí'}</p>
+              <p className="text-[11px] text-text-2 uppercase tracking-wider font-mono font-medium mb-1.5">Video {media.hasVideo ? '' : '— chybí'}</p>
               <div className="rounded-lg overflow-hidden border border-border bg-black aspect-[4/3] flex items-center justify-center">
                 {media.hasVideo && item.photoPath ? (
                   <VideoPlayer photoPath={item.photoPath} evidNumber={catalogNumber} />
@@ -118,7 +118,7 @@ export default function StoneMediaPanel({ media }: { media: ItemMediaInfo }) {
           <div className="border border-border rounded-lg px-3 py-2 flex items-center justify-between gap-3 text-xs">
             <span className="inline-flex items-center gap-2 min-w-0">
               <Icon name="file" className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-              <span className="font-mono uppercase tracking-wider text-[10px] text-muted-foreground">Certifikát</span>
+              <span className="font-mono uppercase tracking-wider text-[11px] text-text-2 font-medium">Certifikát</span>
               {item.certHash ? (
                 <span className="font-mono text-foreground truncate" title={item.certHash}>{item.certHash}</span>
               ) : (
@@ -126,8 +126,8 @@ export default function StoneMediaPanel({ media }: { media: ItemMediaInfo }) {
               )}
             </span>
             <span className="flex items-center gap-2 flex-shrink-0">
-              <a href={`/api/certificate/${item.id}`} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground font-mono uppercase tracking-wider text-[10px]">PDF</a>
-              {item.certHash && <a href={`/verify/${item.certHash}`} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground font-mono uppercase tracking-wider text-[10px]">Ověření ↗</a>}
+              <a href={`/api/certificate/${item.id}`} target="_blank" rel="noopener noreferrer" className="text-text-2 hover:text-foreground font-mono uppercase tracking-wider text-[11px] font-medium">PDF</a>
+              {item.certHash && <a href={`/verify/${item.certHash}`} target="_blank" rel="noopener noreferrer" className="text-text-2 hover:text-foreground font-mono uppercase tracking-wider text-[11px] font-medium">Ověření ↗</a>}
             </span>
           </div>
         </div>

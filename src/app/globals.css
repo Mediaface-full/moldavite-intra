@@ -125,6 +125,8 @@ html.dark {
   --color-secondary-foreground: var(--foreground);
   --color-muted: var(--muted);
   --color-muted-foreground: var(--text-3);
+  --color-text-2: var(--text-2);          /* popisky polí, meta s vyšším kontrastem (~8:1) */
+  --color-text-3: var(--text-3);
   --color-accent: var(--accent);
   --color-accent-foreground: var(--foreground);
 

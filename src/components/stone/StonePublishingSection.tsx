@@ -15,7 +15,7 @@ function ChannelCard({ title, color, on, blocked, blockedTitle, at, priceLine, o
       <span className="absolute left-0 top-0 bottom-0 w-[3px]" style={{ background: active ? color : 'var(--border)' }} />
       <div className="flex items-start justify-between gap-3 pl-1">
         <div className="min-w-0">
-          <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-mono">{title}</p>
+          <p className="text-[11px] text-text-2 uppercase tracking-wider font-mono font-medium">{title}</p>
           <p className="text-sm font-semibold mt-0.5" style={{ color: active ? color : undefined }}>
             {active ? 'Vystaveno' : 'Nevystaveno'}{active && at ? <span className="text-[11px] font-normal text-muted-foreground font-mono ml-2">od {at}</span> : null}
           </p>
@@ -41,7 +41,7 @@ export default function StonePublishingSection() {
           style={formData.sold ? { background: 'color-mix(in srgb, var(--destructive) 10%, transparent)', borderColor: 'color-mix(in srgb, var(--destructive) 35%, transparent)' } : { background: 'color-mix(in srgb, var(--muted) 50%, transparent)', borderColor: 'var(--border)' }}>
           <span className="absolute left-0 top-0 bottom-0 w-[3px]" style={{ background: formData.sold ? 'var(--destructive)' : 'var(--border)' }} />
           <div className="pl-1">
-            <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-mono">Prodej</p>
+            <p className="text-[11px] text-text-2 uppercase tracking-wider font-mono font-medium">Prodej</p>
             <p className="text-sm font-semibold mt-0.5" style={{ color: formData.sold ? 'var(--destructive)' : undefined }}>
               {formData.sold ? 'Prodáno' : 'Neprodáno'}{formData.sold && item.soldAt ? <span className="text-[11px] font-normal text-muted-foreground font-mono ml-2">{fmtDate(item.soldAt)}</span> : null}
             </p>
@@ -63,7 +63,7 @@ export default function StonePublishingSection() {
         <ChannelCard title="Etsy" color="var(--warning)" on={formData.onEtsy} blocked={publishBlocked} blockedTitle={blockedTitle} at={fmtDate(item.onEtsyAt)} priceLine={priceLine} label="Vystavit na Etsy"
           onToggle={() => { if (publishBlocked) { alert(blockedTitle); return; } setField('onEtsy', !formData.onEtsy); }} />
       </div>
-      <p className="mt-3 text-[10px] text-muted-foreground font-mono flex items-center gap-3 flex-wrap">
+      <p className="mt-3 text-[11px] text-muted-foreground font-mono flex items-center gap-3 flex-wrap">
         <span>Audit:</span>
         <span>e-shop {item.onShopAt ? `vystaveno ${fmtDate(item.onShopAt)}` : 'nikdy nevystaveno'}</span>
         <span>· Etsy {item.onEtsyAt ? `vystaveno ${fmtDate(item.onEtsyAt)}` : 'nikdy nevystaveno'}</span>
