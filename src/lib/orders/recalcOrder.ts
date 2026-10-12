@@ -7,6 +7,7 @@
  */
 import { prisma } from '@/lib/prisma';
 import { calculateOrderPricing } from '@/lib/pricing';
+import { recalcFxForItems } from '@/lib/exchangeRates';
 import type {
   OrderPricingInput,
   PricingConfigSnapshot,
@@ -122,6 +123,14 @@ export async function recalcOrder(orderId: number): Promise<void> {
       },
     });
   });
+
+  // EUR/USD z finální ceny (i speciální) — stejný základ jako e-shop API (Gideon 12. 10. 2026).
+  // Mimo transakci: chybějící kurzy nesmí shodit přepočet cen.
+  try {
+    await recalcFxForItems(result.perStone.map((r) => r.stoneId));
+  } catch (err) {
+    console.error(`[recalcOrder] přepočet EUR/USD pro zakázku ${orderId} selhal:`, err);
+  }
 }
 
 function isValidSnapshot(input: unknown): input is { version: number; missingValuePolicy: string; rules: unknown[] } {
