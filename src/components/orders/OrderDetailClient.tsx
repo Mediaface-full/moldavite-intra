@@ -264,7 +264,7 @@ export default function OrderDetailClient({
         <TabBtn label="Přehled" icon="chart-pie" active={tab === 'overview'} onClick={() => setTab('overview')} />
         <TabBtn label="Náklady" icon="cash" active={tab === 'costs'} onClick={() => setTab('costs')} count={order.costs.length} />
         <TabBtn label="Kameny" icon="gem" active={tab === 'items'} onClick={() => setTab('items')} count={order.items.length} />
-        <TabBtn label="Cenotvorba" icon="calc" active={tab === 'pricing'} onClick={() => setTab('pricing')} />
+        <TabBtn label="Cenotvorba" icon="cash" active={tab === 'pricing'} onClick={() => setTab('pricing')} />
         <TabBtn label="Logy" icon="history" active={tab === 'logs'} onClick={() => setTab('logs')} />
       </div>
 

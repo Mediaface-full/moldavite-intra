@@ -46,16 +46,16 @@ export default function StoneSummaryCard() {
 
         <div className="py-2">
           <Row label="Nákup">
-            <span className="font-mono">{fmtCzk(formData.purchasePrice)}</span>
+            <span className="tabular-nums">{fmtCzk(formData.purchasePrice)}</span>
             {usedPpg && <span className="text-[11px] text-muted-foreground font-mono ml-1.5">({usedPpg} Kč/g)</span>}
           </Row>
-          <Row label="Doporučená"><span className="font-mono">{fmtCzk(item.recommendedPriceInclVatCzk)}</span><span className="text-[11px] text-muted-foreground ml-1">s DPH</span></Row>
+          <Row label="Doporučená"><span className="tabular-nums">{fmtCzk(item.recommendedPriceInclVatCzk)}</span><span className="text-[11px] text-muted-foreground ml-1">s DPH</span></Row>
           {Number(formData.manualPriceInclVatCzk) > 0 && (
-            <Row label="Speciální"><span className="font-mono">{fmtCzk(formData.manualPriceInclVatCzk)}</span></Row>
+            <Row label="Speciální"><span className="tabular-nums">{fmtCzk(formData.manualPriceInclVatCzk)}</span></Row>
           )}
           <div className="flex items-baseline justify-between gap-3 pt-1">
             <span className="text-[11px] uppercase tracking-wider font-mono font-semibold" style={{ color: 'var(--success)' }}>Finální</span>
-            <span className="text-[22px] font-semibold tabular-nums font-mono" style={{ color: 'var(--success)' }}>{fmtCzk(formData.salePrice)}</span>
+            <span className="text-[22px] font-semibold tabular-nums" style={{ color: 'var(--success)' }}>{fmtCzk(formData.salePrice)}</span>
           </div>
           {(Number(item.priceEUR) > 0 || Number(item.priceUSD) > 0) && (
             <p className="text-[11px] text-muted-foreground font-mono text-right">

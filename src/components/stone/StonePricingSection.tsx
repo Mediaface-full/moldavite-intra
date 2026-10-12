@@ -48,7 +48,7 @@ function Line({ label, value, hint, muted }: { label: string; value: string; hin
   return (
     <div>
       <p className="text-[11px] text-text-2 uppercase tracking-wider font-mono font-medium">{label}</p>
-      <p className={`font-mono text-base ${muted ? 'text-muted-foreground' : 'text-foreground'} tabular-nums`}>{value}</p>
+      <p className={`text-base font-medium tabular-nums ${muted ? 'text-muted-foreground' : 'text-foreground'}`}>{value}</p>
       {hint && <p className="text-[11px] text-muted-foreground font-mono mt-0.5">{hint}</p>}
     </div>
   );
@@ -95,7 +95,7 @@ export default function StonePricingSection() {
   const breakdown = parseBreakdown(item.priceCalcBreakdown);
 
   return (
-    <SectionCard id="pricing" number={4} title="Cenotvorba" icon="calc"
+    <SectionCard id="pricing" number={4} title="Cenotvorba" icon="cash"
       description={`DPH ${vatRate} % ze zakázky. Vstupy → výpočet cenotvorbou zakázky → výsledná cena pro e-shop a Etsy.`}
       actions={<>
         {status && <StatusBadge tone={status.tone} icon={status.icon}>{status.label}</StatusBadge>}
@@ -143,7 +143,7 @@ export default function StonePricingSection() {
           </div>
           <div className={`${computedBox} justify-between h-auto py-2 text-sm`} title="Speciální cena s DPH — dopočteno">
             <span className="text-[11px] uppercase tracking-wider font-medium text-text-2">Speciální s DPH</span>
-            <span>{manualNum > 0 ? fmtCzk(manualNum) : '—'}</span>
+            <span className="font-sans tabular-nums">{manualNum > 0 ? fmtCzk(manualNum) : '—'}</span>
           </div>
           <PriceFigure label="Finální cena s DPH" value={fmtCzk(sale)} tone="ok" size="lg"
             caption={saleMatches ? `✓ odpovídá doporučené` : rec > 0 && sale > 0 ? `doporučená ${fmtCzk(rec)}` : 'spočítá se po přepočtu zakázky'}
