@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { apiFetch } from '@/lib/apiFetch';
-import { formatWeight } from '@/lib/utils';
+import { formatWeight, fmtInt } from '@/lib/utils';
 import type { SerializedOrder, SerializedItem } from './OrderDetailClient';
 import Icon, { type IconName } from '../Icon';
 
@@ -30,7 +30,7 @@ const STATUS_ICON: Record<string, IconName> = {
 function fmt(n: unknown): string {
   const v = Number(n ?? 0);
   if (!Number.isFinite(v) || v === 0) return '—';
-  return `${Math.round(v).toLocaleString('cs-CZ')} Kč`;
+  return `${fmtInt(v)} Kč`;
 }
 
 /**

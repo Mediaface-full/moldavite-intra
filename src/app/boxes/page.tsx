@@ -4,6 +4,7 @@ import ScanNewBoxButton from '@/components/ScanNewBoxButton';
 import { CASSETTE_TYPE_META } from '@/lib/cassetteType';
 import Icon from '@/components/Icon';
 import { requirePageSession } from '@/lib/pageAuth';
+import { fmtInt } from '@/lib/utils';
 
 export default async function BoxesPage() {
   await requirePageSession();
@@ -26,7 +27,7 @@ export default async function BoxesPage() {
 
   function fmtMoney(n: number): string {
     if (!Number.isFinite(n) || n === 0) return '—';
-    return `${Math.round(n).toLocaleString('cs-CZ')} Kč`;
+    return `${fmtInt(n)} Kč`;
   }
 
   return (

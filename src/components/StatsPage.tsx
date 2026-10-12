@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { apiFetch } from '@/lib/apiFetch';
-import { formatWeight } from '@/lib/utils';
+import { formatWeight, formatPrice, narrowThousands } from '@/lib/utils';
 
 interface Stats {
   overview: {
@@ -28,8 +28,8 @@ interface Stats {
   }>;
 }
 
-const fmt = (n: number) => new Intl.NumberFormat('cs-CZ').format(n);
-const fmtCZK = (n: number) => new Intl.NumberFormat('cs-CZ', { style: 'currency', currency: 'CZK', minimumFractionDigits: 0 }).format(n);
+const fmt = (n: number) => narrowThousands(new Intl.NumberFormat('cs-CZ').format(n));
+const fmtCZK = (n: number) => formatPrice(n);
 
 export default function StatsPage() {
   const [stats, setStats] = useState<Stats | null>(null);

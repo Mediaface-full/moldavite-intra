@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { apiFetch } from '@/lib/apiFetch';
-import { formatWeight, formatWeightStrict, parseDecimalCs } from '@/lib/utils';
+import { formatWeight, formatWeightStrict, parseDecimalCs, fmtInt } from '@/lib/utils';
 import type { SerializedOrder } from './OrderDetailClient';
 import Icon from '../Icon';
 import SellerPicker from '../SellerPicker';
@@ -14,7 +14,7 @@ import DecimalInput from '../DecimalInput';
 function fmtMoney(n: unknown): string {
   const v = Number(n ?? 0);
   if (!Number.isFinite(v) || v === 0) return '—';
-  return `${Math.round(v).toLocaleString('cs-CZ')} Kč`;
+  return `${fmtInt(v)} Kč`;
 }
 function fmtDate(d: Date | string | null): string {
   return d ? new Date(d).toLocaleDateString('cs-CZ') : '—';

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { apiFetch } from '@/lib/apiFetch';
 import type { SerializedOrder, SerializedCost } from './OrderDetailClient';
 import Icon, { type IconName } from '../Icon';
+import { fmtInt } from '@/lib/utils';
 
 const TYPE_KEYS: Array<{ key: string; label: string; icon: IconName }> = [
   { key: 'transport', label: 'Doprava',     icon: 'truck' },
@@ -24,7 +25,7 @@ const ALLOC_LABELS: Record<string, string> = {
 
 function fmtMoney(n: unknown): string {
   const v = Number(n ?? 0);
-  return `${Math.round(v).toLocaleString('cs-CZ')} Kč`;
+  return `${fmtInt(v)} Kč`;
 }
 
 export default function OrderCostsTab({ order }: { order: SerializedOrder }) {

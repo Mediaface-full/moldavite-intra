@@ -10,6 +10,7 @@
  * - Effective PPG: items.purchasePrice ÷ items.weight vs Box PPG
  */
 import Icon from './Icon';
+import { fmtInt } from '@/lib/utils';
 
 type BoxItem = {
   weight: string | number | null;
@@ -82,10 +83,10 @@ export default function BoxIntegrityCheck({
       checks.push({
         severity: 'info',
         label: 'Nákupní cena',
-        text: `Σ nákupních cen kamenů (${Math.round(sumPurchase).toLocaleString('cs-CZ')} Kč) ≠ deklarovaná cena kazety (${Math.round(declAmount).toLocaleString('cs-CZ')} Kč). Rozdíl: ${diff > 0 ? '+' : ''}${Math.round(diff).toLocaleString('cs-CZ')} Kč.`,
+        text: `Σ nákupních cen kamenů (${fmtInt(sumPurchase)} Kč) ≠ deklarovaná cena kazety (${fmtInt(declAmount)} Kč). Rozdíl: ${diff > 0 ? '+' : ''}${fmtInt(diff)} Kč.`,
       });
     } else {
-      checks.push({ severity: 'ok', label: 'Nákupní cena', text: `${Math.round(sumPurchase).toLocaleString('cs-CZ')} Kč ≈ ${Math.round(declAmount).toLocaleString('cs-CZ')} Kč ✓` });
+      checks.push({ severity: 'ok', label: 'Nákupní cena', text: `${fmtInt(sumPurchase)} Kč ≈ ${fmtInt(declAmount)} Kč ✓` });
     }
   }
 

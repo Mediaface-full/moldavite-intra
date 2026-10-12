@@ -58,7 +58,7 @@ export default function StoneSummaryCard() {
             <span className="text-[22px] font-semibold tabular-nums" style={{ color: 'var(--success)' }}>{fmtCzk(formData.salePrice)}</span>
           </div>
           {(Number(item.priceEUR) > 0 || Number(item.priceUSD) > 0) && (
-            <p className="text-[11px] text-muted-foreground font-mono text-right">
+            <p className="text-sm text-text-2 font-mono font-medium text-right tabular-nums">
               {Number(item.priceEUR) > 0 && `${Math.round(item.priceEUR!)} €`}{Number(item.priceEUR) > 0 && Number(item.priceUSD) > 0 && ' · '}{Number(item.priceUSD) > 0 && `${Math.round(item.priceUSD!)} $`}
             </p>
           )}

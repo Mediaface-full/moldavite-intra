@@ -68,7 +68,7 @@ export default function StoneAttributesSection() {
       </div>
       <div className="mt-4 grid grid-cols-1 md:grid-cols-[auto_minmax(0,1fr)] gap-4 items-start">
         <Field label="Sbírkový" icon="star">
-          <label className="inline-flex items-center gap-2 cursor-pointer h-9">
+          <label className="inline-flex items-center gap-2 cursor-pointer h-[26px]">
             <input type="checkbox" checked={formData.attrCollectible} onChange={(e) => setField('attrCollectible', e.target.checked)} className="w-4 h-4 rounded border-border text-primary focus:ring-ring/20" />
             <span className="text-sm text-foreground">Sbírkový kámen</span>
           </label>

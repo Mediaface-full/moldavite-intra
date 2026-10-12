@@ -3,7 +3,7 @@
 import React, { useState, useCallback, useRef, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { getThumbnailUrl, getCatalogNumber } from '@/lib/utils';
+import { getThumbnailUrl, getCatalogNumber, fmtInt } from '@/lib/utils';
 import { pasShapeCz } from '@/lib/pasShapes';
 import SafeImage from './SafeImage';
 import AiButton from './AiButton';
@@ -451,7 +451,7 @@ export default function ItemsTable({ items: initialItems, boxCode, isAdmin = tru
                     >
                       {(() => {
                         const v = typeof item.purchasePrice === 'string' ? parseFloat(item.purchasePrice) : item.purchasePrice;
-                        return v > 0 ? Math.round(v).toLocaleString('cs-CZ') : '—';
+                        return v > 0 ? fmtInt(v) : '—';
                       })()}
                     </span>
                   </td>
@@ -465,7 +465,7 @@ export default function ItemsTable({ items: initialItems, boxCode, isAdmin = tru
                   >
                     {(() => {
                       const v = typeof item.salePrice === 'string' ? parseFloat(item.salePrice) : item.salePrice;
-                      return v > 0 ? Math.round(v).toLocaleString('cs-CZ') : '—';
+                      return v > 0 ? fmtInt(v) : '—';
                     })()}
                   </span>
                 </td>

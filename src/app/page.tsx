@@ -10,6 +10,7 @@ import Donut from '@/components/charts/Donut';
 import ClickableRow from '@/components/ClickableRow';
 import Icon from '@/components/Icon';
 import { actionMeta, describeDetails, friendlyTarget } from '@/lib/activity-format';
+import { fmtInt } from '@/lib/utils';
 
 export default async function DashboardPage() {
   const session = await requirePageSession();
@@ -362,7 +363,7 @@ export default async function DashboardPage() {
                     <td className="px-4 py-2 text-right font-mono">{Number(item.weight).toFixed(2)} g</td>
                     <td className="px-4 py-2 text-right font-mono">
                       {Number(item.salePrice) > 0
-                        ? `${Math.round(Number(item.salePrice)).toLocaleString('cs-CZ')} Kč`
+                        ? `${fmtInt(Number(item.salePrice))} Kč`
                         : '—'}
                     </td>
                   </ClickableRow>

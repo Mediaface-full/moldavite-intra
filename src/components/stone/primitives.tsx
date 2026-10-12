@@ -5,6 +5,7 @@
  * SectionCard, StatusBadge, Field (5 typů polí přes třídy), PriceFigure, formátování.
  */
 import Icon, { type IconName } from '../Icon';
+import { fmtInt } from '@/lib/utils';
 
 export type Tone = 'ok' | 'warn' | 'danger' | 'info' | 'neutral' | 'primary';
 
@@ -86,7 +87,7 @@ export const computedBox = 'w-full bg-muted/60 border border-dashed border-borde
 
 export function fmtCzk(v: string | number | null | undefined): string {
   const n = typeof v === 'number' ? v : Number(v);
-  return v != null && v !== '' && Number.isFinite(n) && n > 0 ? `${Math.round(n).toLocaleString('cs-CZ')} Kč` : '—';
+  return v != null && v !== '' && Number.isFinite(n) && n > 0 ? `${fmtInt(n)} Kč` : '—';
 }
 
 export function fmtDate(iso?: string | null, withTime = false): string | null {

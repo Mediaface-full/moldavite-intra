@@ -29,13 +29,40 @@ export function getGifUrl(photoPath: string): string {
   return getPhotoUrl(photoPath, 'export.gif');
 }
 
+/**
+ * Oddělovač tisíců = ÚZKÁ nezlomitelná mezera (U+202F), ne běžná NBSP z Intl.
+ * V JetBrains Mono má NBSP šířku celé číslice („1 954 Kč" vypadalo jako dvě čísla),
+ * U+202F je poloviční; v Space Grotesk čtvrtinová. Změřeno v prohlížeči 12. 10. 2026.
+ * Používat pro VŠECHNA čísla v UI — nikdy holé `toLocaleString('cs-CZ')`.
+ */
+export const NARROW_NBSP = ' ';
+
+/** Nahradí NBSP z Intl formátování úzkou mezerou — pro už zformátované řetězce. */
+export function narrowThousands(s: string): string {
+  return s.replace(/ /g, NARROW_NBSP);
+}
+const narrowGroups = narrowThousands;
+
+/** Celé číslo s úzkými oddělovači tisíců: fmtInt(1954.4) → "1 954". */
+export function fmtInt(n: number | string): string {
+  const v = typeof n === 'string' ? Number(n) : n;
+  return narrowGroups(Math.round(v).toLocaleString('cs-CZ'));
+}
+
+/** Číslo s danými desetinnými místy (česká čárka, úzké tisíce): fmtNum(1793.39, 2) → "1 793,39". */
+export function fmtNum(n: number | string, digits = 0): string {
+  const v = typeof n === 'string' ? Number(n) : n;
+  return narrowGroups(v.toLocaleString('cs-CZ', { minimumFractionDigits: digits, maximumFractionDigits: digits }));
+}
+
 export function formatPrice(price: number | string): string {
   const num = typeof price === 'string' ? parseFloat(price) : price;
+  // Úzká mezera jen uvnitř čísla (group); mezera před „Kč" zůstává běžná NBSP.
   return new Intl.NumberFormat('cs-CZ', {
     style: 'currency',
     currency: 'CZK',
     minimumFractionDigits: 0,
-  }).format(num);
+  }).formatToParts(num).map((p) => (p.type === 'group' ? NARROW_NBSP : p.value)).join('');
 }
 
 /**

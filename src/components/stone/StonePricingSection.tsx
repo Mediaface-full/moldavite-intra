@@ -7,7 +7,7 @@
  */
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { parseDecimalCs } from '@/lib/utils';
+import { parseDecimalCs, fmtInt } from '@/lib/utils';
 import Icon from '../Icon';
 import SaleSnapshotPanel from '../SaleSnapshotPanel';
 import { useItemForm } from './ItemFormProvider';
@@ -71,6 +71,17 @@ export default function StonePricingSection() {
   const sale = Number(formData.salePrice);
   const saleMatches = sale > 0 && rec > 0 && Math.abs(sale - rec) < 0.5;
 
+  // Prodejní cena za gram tohoto kamene (Gideon 12. 10. 2026): doporučená s DPH ÷ hmotnost,
+  // vedle toho bez DPH a násobek oproti nákupní Kč/g — ať je vidět, kam cenotvorba kámen posunula.
+  const recPerGram = w > 0 && rec > 0 ? rec / w : null;
+  const exVatPerGram = w > 0 && exVat > 0 ? exVat / w : null;
+  const buyPpg = ppgOverride ? Number(ppgOverride) : usedPpg ? Number(usedPpg) : null;
+  const markupX = recPerGram && buyPpg && buyPpg > 0 ? recPerGram / buyPpg : null;
+  const fmtPerGram = (v: number) => `${fmtInt(v)} Kč/g`;
+  const perGramHint = recPerGram
+    ? [exVatPerGram ? `bez DPH ${fmtPerGram(exVatPerGram)}` : null, markupX ? `×${markupX.toFixed(1).replace('.', ',')} oproti nákupu` : null].filter(Boolean).join(' · ')
+    : w > 0 ? 'spočítá se po přepočtu zakázky' : 'chybí hmotnost';
+
   // Speciální cena: UI zadává BEZ DPH, DB drží S DPH (manualPriceInclVatCzk). Raw stav + commit na blur.
   const manualNum = Number(formData.manualPriceInclVatCzk);
   const manualExVat = Number.isFinite(manualNum) && manualNum > 0 ? manualNum / vatMultiplier : 0;
@@ -110,7 +121,7 @@ export default function StonePricingSection() {
             hint={costBasis > 0 ? (alloc > 0 ? `${fmtCzk(purchase)} + ${fmtCzk(alloc)} alokace nákladů` : 'bez alokace nákladů') : 'spočítá se po přepočtu'} />
         </Col>
 
-        <Col step={2} title="Výpočet" arrow>
+        <Col step={2} title="Výpočet prodejní ceny" arrow>
           <Line label="Min. prodejní bez DPH" value={exVat > 0 ? fmtCzk(exVat) : '—'} muted />
           <PriceFigure label="Doporučená s DPH" value={fmtCzk(rec)} caption={vatAmount > 0 ? `${fmtCzk(exVat)} + ${fmtCzk(vatAmount)} DPH` : undefined} />
           {breakdown && (
@@ -128,6 +139,9 @@ export default function StonePricingSection() {
               {breakdown.onDemand && <p className="mt-1 text-[9px] text-muted-foreground italic">Z aktuální cenotvorby — pro uložení spusť „Přepočítat“.</p>}
             </div>
           )}
+          <div className="rounded-lg border border-border bg-card px-3 py-2">
+            <PriceFigure label="Prodejní cena za gram" value={recPerGram ? fmtPerGram(recPerGram) : '—'} caption={perGramHint} />
+          </div>
         </Col>
 
         <Col step={3} title="Výsledek" result>
@@ -148,9 +162,9 @@ export default function StonePricingSection() {
           <PriceFigure label="Finální cena s DPH" value={fmtCzk(sale)} tone="ok" size="lg"
             caption={saleMatches ? `✓ odpovídá doporučené` : rec > 0 && sale > 0 ? `doporučená ${fmtCzk(rec)}` : 'spočítá se po přepočtu zakázky'}
             extra={(Number(item.priceEUR) > 0 || Number(item.priceUSD) > 0) ? (
-              <p className="mt-1 flex gap-2 text-[11px] font-mono">
-                {Number(item.priceEUR) > 0 && <span className="bg-muted border border-border rounded px-2 py-0.5"><span style={{ color: 'var(--info)' }}>EUR</span> {Math.round(item.priceEUR!)}</span>}
-                {Number(item.priceUSD) > 0 && <span className="bg-muted border border-border rounded px-2 py-0.5"><span style={{ color: 'var(--success)' }}>USD</span> {Math.round(item.priceUSD!)}</span>}
+              <p className="mt-2 flex gap-2 font-mono">
+                {Number(item.priceEUR) > 0 && <span className="inline-flex items-baseline gap-1.5 bg-muted border border-border rounded-md px-2.5 py-1"><span className="text-xs font-medium" style={{ color: 'var(--info)' }}>EUR</span><span className="text-lg font-semibold tabular-nums">{fmtInt(item.priceEUR!)}</span></span>}
+                {Number(item.priceUSD) > 0 && <span className="inline-flex items-baseline gap-1.5 bg-muted border border-border rounded-md px-2.5 py-1"><span className="text-xs font-medium" style={{ color: 'var(--success)' }}>USD</span><span className="text-lg font-semibold tabular-nums">{fmtInt(item.priceUSD!)}</span></span>}
               </p>
             ) : undefined} />
         </Col>

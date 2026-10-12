@@ -18,6 +18,7 @@ import BoxNameInline from '@/components/BoxNameInline';
 import BoxPpgField from '@/components/BoxPpgField';
 import BoxIntegrityCheck from '@/components/BoxIntegrityCheck';
 import { requirePageSession } from '@/lib/pageAuth';
+import { fmtInt } from '@/lib/utils';
 
 export default async function BoxDetailPage({
   params,
@@ -129,7 +130,7 @@ export default async function BoxDetailPage({
 
   const fmtMoney = (n: number): string => {
     if (!Number.isFinite(n) || n === 0) return '—';
-    return `${Math.round(n).toLocaleString('cs-CZ')} Kč`;
+    return `${fmtInt(n)} Kč`;
   };
 
   return (

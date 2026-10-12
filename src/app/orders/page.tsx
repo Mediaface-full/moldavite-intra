@@ -5,11 +5,12 @@ import Link from 'next/link';
 import ClickableRow from '@/components/ClickableRow';
 import NewOrderButton from '@/components/orders/NewOrderButton';
 import Icon, { type IconName } from '@/components/Icon';
+import { fmtInt } from '@/lib/utils';
 
 function fmtMoney(n: unknown): string {
   const v = Number(n ?? 0);
   if (!Number.isFinite(v) || v === 0) return '—';
-  return `${Math.round(v).toLocaleString('cs-CZ')} Kč`;
+  return `${fmtInt(v)} Kč`;
 }
 function fmtDate(d: Date | null): string {
   return d ? new Date(d).toLocaleDateString('cs-CZ') : '—';
