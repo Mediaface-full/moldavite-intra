@@ -63,7 +63,6 @@ export const ACTION_LABELS: Record<string, ActionMeta> = {
   'auth.login':             { label: 'Přihlášení',                icon: 'user',        color: 'var(--success)' },
   'auth.logout':            { label: 'Odhlášení',                 icon: 'user',        color: 'var(--muted-foreground)' },
   'certificate.generate':   { label: 'Vygenerován certifikát',    icon: 'file',        color: 'var(--info)' },
-  'certificate.issue_bulk': { label: 'Certifikáty vystaveny hromadně', icon: 'file', color: 'var(--success)' },
   'certificate.zip':        { label: 'ZIP certifikátů',            icon: 'download',    color: 'var(--info)' },
   // AI / Vševěd
   'ai.generate':            { label: 'AI generování textu',       icon: 'sparkles',    color: 'var(--violet)' },
