@@ -8,6 +8,7 @@ import BoxPhotoUpload from '@/components/BoxPhotoUpload';
 import BoxPlacement from '@/components/BoxPlacement';
 import CassetteTypePicker from '@/components/CassetteTypePicker';
 import AiBulkButton from '@/components/AiBulkButton';
+import { isMissingTexts } from '@/lib/ai/bulkFields';
 import BoxDeleteButton from '@/components/BoxDeleteButton';
 import BoxMoveToOrderButton from '@/components/BoxMoveToOrderButton';
 import GenerateItemsButton from '@/components/GenerateItemsButton';
@@ -190,8 +191,10 @@ export default async function BoxDetailPage({
           />
           {isAdmin && (
             <AiBulkButton
+              boxId={box.id}
               boxCode={box.code}
-              items={box.items.map(i => ({ id: i.id, evidNumber: i.evidNumber }))}
+              totalCount={box.items.length}
+              missingCount={box.items.filter((i) => isMissingTexts(i)).length}
             />
           )}
           {isAdmin && (

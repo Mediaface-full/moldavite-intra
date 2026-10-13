@@ -65,6 +65,7 @@ export const ACTION_LABELS: Record<string, ActionMeta> = {
   'certificate.generate':   { label: 'Vygenerován certifikát',    icon: 'file',        color: 'var(--info)' },
   // AI / Vševěd
   'ai.generate':            { label: 'AI generování textu',       icon: 'sparkles',    color: 'var(--violet)' },
+  'ai.generate_bulk':       { label: 'AI texty hromadně',           icon: 'sparkles',    color: 'var(--violet)' },
   'vseved.chat':            { label: 'Vševěd chat',               icon: 'sparkles',    color: 'var(--violet)' },
   'vseved.upload':          { label: 'Vševěd upload zdroje',      icon: 'upload',      color: 'var(--violet)' },
   'vseved.delete':          { label: 'Vševěd smazaný zdroj',      icon: 'trash',       color: 'var(--destructive)' },
