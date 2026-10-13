@@ -7,7 +7,8 @@
  * Server-only (Prisma, API klíč).
  */
 import { prisma } from '@/lib/prisma';
-import { getPasShape } from '@/lib/pasShapes';
+import { getPasShape, type PasShape } from '@/lib/pasShapes';
+import { fmtNum } from '@/lib/utils';
 import { retrieveChunks } from '@/lib/vseved/retrieve';
 import type { RetrievedChunk } from '@/lib/vseved/types';
 import {
@@ -65,6 +66,28 @@ function buildHtml(desc: string, bullets: string[] | string): string {
   return html;
 }
 
+/**
+ * {parametry}: jen ZNÁMÁ fakta o kusu — neznámé se vynechají, aby model nepsal „tvar nelze
+ * určit" (13. 10. 2026). Hmotnost česky s čárkou.
+ */
+export function buildItemParams(item: CertificateLikeItem, shape: PasShape | null | undefined): string {
+  const lines: string[] = [];
+  const w = Number(item.weight);
+  if (Number.isFinite(w) && w > 0) lines.push(`- Hmotnost: ${fmtNum(w, 2)} g (${fmtNum(w * 5, 2)} ct)`);
+  if (item.location) lines.push(`- Lokalita (místo nálezu): ${item.location}, Česká republika`);
+  if (shape) lines.push(`- Tvar: ${shape.cz} (anglicky ${shape.en}) — ${shape.descCz}`);
+  if (item.attrColor && item.attrColor.length) lines.push(`- Barva: ${item.attrColor.join(', ')}`);
+  if (item.attrDamage) lines.push(`- Stav povrchu / poškození: ${item.attrDamage}`);
+  if (item.attrCollectible) lines.push('- Sbírkový kus (nadstandardní kvalita)');
+  return lines.length
+    ? lines.join('\n')
+    : '- (k tomuto kameni zatím nejsou zadané parametry — piš obecně o pravém českém vltavínu, bez konkrétních údajů)';
+}
+
+type CertificateLikeItem = {
+  weight: unknown; location: string | null; attrColor: string[] | null; attrDamage: string | null; attrCollectible: boolean | null;
+};
+
 export async function generateTextsForItem(itemId: number, prompt: string): Promise<GenerateOutcome> {
   if (!geminiConfigured()) return { ok: false, status: 500, error: 'Gemini API key not configured' };
 
@@ -74,8 +97,10 @@ export async function generateTextsForItem(itemId: number, prompt: string): Prom
   const catalogNumber = `${item.box.code}-${item.evidNumber}`;
   const shape = getPasShape(item.pasShape);
 
+  const weightNum = Number(item.weight);
   const filledPrompt = prompt
-    .replace(/\{hmotnost\}/g, `${item.weight}g`)
+    .replace(/\{parametry\}/g, buildItemParams(item, shape))
+    .replace(/\{hmotnost\}/g, Number.isFinite(weightNum) && weightNum > 0 ? `${fmtNum(weightNum, 2)} g` : 'neuvedena')
     .replace(/\{misto_nalezu\}/g, item.location || 'Česká republika')
     .replace(/\{katalogove_cislo\}/g, catalogNumber)
     .replace(/\{cena_czk\}/g, `${item.salePrice} CZK`)

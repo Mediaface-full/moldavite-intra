@@ -8,6 +8,7 @@ import { NextResponse } from 'next/server';
 import { getSession, logActivity } from '@/lib/auth';
 import { checkRateLimit } from '@/lib/rateLimit';
 import { generateTextsForItem, geminiConfigured, literatureLogSuffix } from '@/lib/ai/generateForItem';
+import { DEFAULT_PROMPT } from '@/lib/ai/defaultPrompt';
 
 export async function POST(request: Request) {
   const session = await getSession();
@@ -32,10 +33,12 @@ export async function POST(request: Request) {
 
   const body = await request.json();
   const itemId = Number(body?.itemId);
-  const prompt = typeof body?.prompt === 'string' ? body.prompt : '';
-  if (!Number.isInteger(itemId) || itemId <= 0 || !prompt) {
-    return NextResponse.json({ error: 'Invalid itemId nebo prompt' }, { status: 422 });
+  // Bez promptu = výchozí brief (lib/ai/defaultPrompt.ts) — stejný jako v modalu a v hromadném běhu.
+  const prompt = typeof body?.prompt === 'string' && body.prompt.trim() ? body.prompt : DEFAULT_PROMPT;
+  if (!Number.isInteger(itemId) || itemId <= 0) {
+    return NextResponse.json({ error: 'Invalid itemId' }, { status: 422 });
   }
+  if (prompt.length > 20_000) return NextResponse.json({ error: 'Prompt je příliš dlouhý' }, { status: 422 });
 
   const outcome = await generateTextsForItem(itemId, prompt);
   if (!outcome.ok) {

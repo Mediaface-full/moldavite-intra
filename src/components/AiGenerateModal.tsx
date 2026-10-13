@@ -6,6 +6,7 @@ import { apiFetch } from '@/lib/apiFetch';
 import { DEFAULT_PROMPT } from '@/lib/ai/defaultPrompt';
 
 const TAGS = [
+  { tag: '{parametry}', label: 'Parametry kusu' },
   { tag: '{katalogove_cislo}', label: 'Kat. číslo' },
   { tag: '{hmotnost}', label: 'Hmotnost' },
   { tag: '{misto_nalezu}', label: 'Místo nálezu' },
