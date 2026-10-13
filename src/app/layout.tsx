@@ -113,6 +113,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
                     </div>
                     <NavLink href="/export" icon="export">Exporty</NavLink>
                     <NavLink href="/admin/thumbnails" icon="thumbnails">Obrázky</NavLink>
+                    <NavLink href="/admin/certificates" icon="file">Certifikáty</NavLink>
                     <NavLink href="/admin/users" icon="users">Uživatelé</NavLink>
                     <NavLink href="/admin/pricing-config" icon="pricing">Cenotvorba</NavLink>
                     <NavLink href="/admin/attributes" icon="attributes">Atributy</NavLink>
