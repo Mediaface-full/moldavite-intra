@@ -26,9 +26,15 @@ const BATCH_URL = `https://generativelanguage.googleapis.com/v1beta/models/${EMB
 // gemini-embedding-001 paid Tier 1: 100 RPM + 30 000 TPM.
 // 1 chunk per call + 6s delay = 10 RPM × ~1500 tokens = 15K TPM (pod limit).
 // Pro 50-chunk knihu = 50 × 6s = 5 minut ingest. Pomale ale stabilni.
-// Az Gideon hit Tier 2 ($250 spent → 100K TPM), zvedneme MAX_BATCH a snizime delay.
-const MAX_BATCH = 1;
-const BATCH_DELAY_MS = 6000;
+// Tier 2 (dle docs 13. 10. 2026: 100 USD zaplacených + 3 dny, přepíná se samo) má vyšší
+// limity — pak stačí na NASu nastavit env VSEVED_EMBED_BATCH (např. 5) a
+// VSEVED_EMBED_DELAY_MS (např. 1500) bez nového buildu. Mimo rozsah → výchozí hodnoty.
+function envInt(name: string, fallback: number, min: number, max: number): number {
+  const v = Number(process.env[name]);
+  return Number.isInteger(v) && v >= min && v <= max ? v : fallback;
+}
+const MAX_BATCH = envInt('VSEVED_EMBED_BATCH', 1, 1, 100);
+const BATCH_DELAY_MS = envInt('VSEVED_EMBED_DELAY_MS', 6000, 0, 60_000);
 const MAX_RETRIES = 5;
 
 type TaskType = 'RETRIEVAL_DOCUMENT' | 'RETRIEVAL_QUERY';
