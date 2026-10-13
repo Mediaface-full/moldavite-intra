@@ -79,7 +79,7 @@ export default function LibraryTable({ initialDocuments }: { initialDocuments: D
           style={{ background: 'var(--success)' }}
           className="text-white px-4 py-2 rounded-lg text-sm font-medium hover:opacity-90 transition-opacity"
         >
-          + Nahrát knihu
+          + Nahrát zdroj (TXT / EPUB)
         </button>
       </div>
 
@@ -99,7 +99,7 @@ export default function LibraryTable({ initialDocuments }: { initialDocuments: D
             {documents.length === 0 && (
               <tr>
                 <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground text-sm">
-                  Knihovna je prázdná. Nahraj první knihu výše.
+                  Zatím žádné zdroje. Nahraj první TXT nebo EPUB tlačítkem výše.
                 </td>
               </tr>
             )}

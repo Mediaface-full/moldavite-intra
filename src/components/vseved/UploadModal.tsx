@@ -108,7 +108,7 @@ export default function UploadModal({
         className="bg-card border border-border rounded-xl shadow-2xl max-w-md w-full p-6"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="text-lg font-semibold mb-4">Nahrát knihu</h2>
+        <h2 className="text-lg font-semibold mb-4">Nahrát zdroj pro AI (TXT / EPUB)</h2>
         <form onSubmit={handleSubmit} className="space-y-3">
           {/* Drag & drop zone */}
           <div>

@@ -20,7 +20,7 @@ export default async function VsevedPage() {
           </p>
         </div>
         <Link href="/vseved/library" className="text-sm text-primary hover:underline">
-          📚 Spravovat knihovnu
+          📚 Spravovat zdroje (TXT / EPUB)
         </Link>
       </div>
 

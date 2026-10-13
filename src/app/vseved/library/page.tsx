@@ -25,7 +25,7 @@ export default async function VsevedLibraryPage() {
     <div className="p-6 max-w-5xl mx-auto">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-semibold">Vševěd — Knihovna</h1>
+          <h1 className="text-2xl font-semibold">Vševěd — Zdroje pro AI (TXT / EPUB)</h1>
           <p className="text-sm text-muted-foreground mt-1">
             Odborné knihy pro RAG. Po nahrání se text rozseká, embedne přes Gemini a uloží do pgvector indexu.
           </p>

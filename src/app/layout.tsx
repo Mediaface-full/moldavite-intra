@@ -104,6 +104,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
                   </p>
                   <NavLink href="/vseved" icon="sparkles">Ptej se</NavLink>
                   <NavLink href="/vseved/knihy" icon="file">Knihy</NavLink>
+                  <NavLink href="/vseved/library" icon="file">Zdroje AI</NavLink>
                 </div>
 
                 {session.role === 'ADMIN' && (
