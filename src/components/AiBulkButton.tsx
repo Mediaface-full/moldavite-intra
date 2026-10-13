@@ -34,6 +34,7 @@ interface BulkJob {
   cancelled: boolean;
   error?: string;
   results: BulkItemResult[];
+  current?: { catalogNumber: string; note: string; since: string } | null;
 }
 
 interface Props {
@@ -156,6 +157,11 @@ export default function AiBulkButton({ boxId, boxCode, missingCount, totalCount 
             <span className="text-[11px] text-muted-foreground font-mono whitespace-nowrap">
               {job.ok} uloženo · {job.skipped} přeskočeno · {job.failed} selhalo{job.warnings ? ` · ${job.warnings} k překontrolování` : ''}
             </span>
+            {job.current && (
+              <span className="text-[11px] font-mono text-text-2 truncate" title={job.current.note}>
+                · {job.current.catalogNumber}: {job.current.note}
+              </span>
+            )}
           </div>
           <button type="button" onClick={cancel} className="text-xs text-muted-foreground hover:text-foreground whitespace-nowrap">
             {job.cancelled ? 'Ruším po aktuálním kameni…' : 'Zastavit'}

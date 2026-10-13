@@ -6,16 +6,22 @@
  * zkusí znovu, a chyba nese Googlem vrácený důvod (který limit, free tier …).
  * `fetchImpl` je injektovatelný kvůli testům.
  */
+export interface GeminiRetryInfo { attempt: number; attempts: number; waitMs: number; status: number; reason: string }
+
 export interface GeminiRetryOptions {
   /** celkový počet pokusů (1 = bez retry) */
   attempts: number;
   /** horní mez čekání mezi pokusy v ms */
   maxWaitMs: number;
+  /** volá se před každým čekáním — hromadný běh z toho plní „co se právě děje" v liště */
+  onRetry?: (info: GeminiRetryInfo) => void;
 }
 
 /** Modal (synchronní request, DSM proxy 60 s): krátce. Hromadný běh: trpělivě. */
 export const RETRY_SINGLE: GeminiRetryOptions = { attempts: 2, maxWaitMs: 12_000 };
-export const RETRY_BULK: GeminiRetryOptions = { attempts: 4, maxWaitMs: 65_000 };
+export const RETRY_BULK: GeminiRetryOptions = { attempts: 3, maxWaitMs: 45_000 };
+/** Jedno volání Gemini nesmí viset donekonečna (13. 10. 2026: lišta „0 / 20, nic se neděje"). */
+export const GEMINI_TIMEOUT_MS = 90_000;
 
 export interface GeminiFailure {
   ok: false;
@@ -82,6 +88,7 @@ export async function callGemini(
     try {
       res = await fetchImpl(GEMINI_URL, {
         method: 'POST',
+        signal: AbortSignal.timeout(GEMINI_TIMEOUT_MS),
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           contents: [{ parts: [{ text: prompt }] }],
@@ -96,7 +103,8 @@ export async function callGemini(
       });
     } catch (err) {
       console.error('[gemini] call failed', err);
-      return { ok: false, status: 500, quota: false, error: 'Gemini API call failed (síť)' };
+      const timedOut = err instanceof Error && (err.name === 'TimeoutError' || err.name === 'AbortError');
+      return { ok: false, status: 500, quota: false, error: timedOut ? `Gemini neodpověděl do ${GEMINI_TIMEOUT_MS / 1000} s` : 'Gemini API call failed (síť)' };
     }
 
     if (res.ok) {
@@ -110,9 +118,15 @@ export async function callGemini(
     last = { ok: false, status: res.status, quota, error: `Gemini API error ${res.status}: ${reason}`, retryAfterSec };
     console.error(`[gemini] ${res.status} (pokus ${attempt}/${retry.attempts}): ${reason}`);
 
+    // Denní kvóta (quotaId …PerDay…) se čekáním nespraví — rovnou skončit s jasnou zprávou.
+    if (quota && /PerDay/i.test(reason)) {
+      last.error += ' — denní kvóta Gemini vyčerpána, obnoví se ráno (cca 9:00 našeho času)';
+      break;
+    }
     const retryable = res.status === 429 || res.status === 503;
     if (!retryable || attempt === retry.attempts) break;
     const waitMs = Math.min(retry.maxWaitMs, (retryAfterSec ?? 15 * attempt) * 1000);
+    retry.onRetry?.({ attempt, attempts: retry.attempts, waitMs, status: res.status, reason });
     await sleep(waitMs);
   }
   return last ?? { ok: false, status: 500, quota: false, error: 'Gemini API call failed' };

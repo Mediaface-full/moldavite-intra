@@ -56,4 +56,17 @@ describe('callGemini retry', () => {
     if (!r.ok) expect(r.quota).toBe(false);
     expect(waits).toEqual([]);
   });
+  it('onRetry hlásí čekání; denní kvóta (PerDay) se neopakuje', async () => {
+    const infos: Array<{ attempt: number; waitMs: number }> = [];
+    const ok = JSON.stringify({ candidates: [{ content: { parts: [{ text: '{}' }] } }] });
+    await callGemini('p', { attempts: 3, maxWaitMs: 60_000, onRetry: (i) => infos.push({ attempt: i.attempt, waitMs: i.waitMs }) }, mockFetch([{ status: 429, body: quotaBody }, { status: 200, body: ok }]), async () => {});
+    expect(infos).toEqual([{ attempt: 1, waitMs: 37_000 }]);
+
+    const daily = quotaBody.replace('GenerateRequestsPerMinutePerProjectPerModel-FreeTier', 'GenerateRequestsPerDayPerProjectPerModel-FreeTier');
+    const waits: number[] = [];
+    const r = await callGemini('p', { attempts: 3, maxWaitMs: 60_000 }, mockFetch([{ status: 429, body: daily }]), async (ms) => { waits.push(ms); });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toContain('denní kvóta');
+    expect(waits).toEqual([]);
+  });
 });

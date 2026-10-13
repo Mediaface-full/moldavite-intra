@@ -49,6 +49,8 @@ export interface BulkJob {
   finishedAt: string | null;
   error?: string;
   results: BulkItemResult[];
+  /** co se právě děje (kámen + fáze) — lišta ukazuje místo němého „0 / 20" */
+  current?: { catalogNumber: string; note: string; since: string } | null;
 }
 
 const jobs = new Map<string, BulkJob>();
@@ -79,7 +81,7 @@ export function startBulkJob(opts: {
   const job: BulkJob = {
     id: randomUUID(), userId: opts.userId, boxCode: opts.boxCode, overwrite: opts.overwrite,
     total: opts.itemIds.length, done: 0, ok: 0, skipped: 0, failed: 0, warnings: 0,
-    running: true, cancelled: false, startedAt: new Date().toISOString(), finishedAt: null, results: [],
+    running: true, cancelled: false, startedAt: new Date().toISOString(), finishedAt: null, results: [], current: null,
   };
   jobs.set(job.id, job);
   active = job;
@@ -91,6 +93,7 @@ export function startBulkJob(opts: {
     })
     .finally(() => {
       job.running = false;
+      job.current = null;
       job.finishedAt = new Date().toISOString();
       if (active === job) active = null;
       prune();
@@ -130,7 +133,15 @@ async function run(job: BulkJob, opts: { userId: number; itemIds: number[]; prom
 }
 
 async function processItem(job: BulkJob, itemId: number, opts: { userId: number; prompt: string; overwrite: boolean }): Promise<BulkItemResult> {
-  const outcome = await generateTextsForItem(itemId, opts.prompt, RETRY_BULK);
+  const head = await prisma.item.findUnique({ where: { id: itemId }, select: { evidNumber: true, box: { select: { code: true } } } });
+  const catNo = head ? `${head.box.code}-${head.evidNumber}` : `#${itemId}`;
+  const setCurrent = (note: string) => { job.current = { catalogNumber: catNo, note, since: new Date().toISOString() }; };
+  setCurrent('generuji…');
+  const outcome = await generateTextsForItem(itemId, opts.prompt, {
+    ...RETRY_BULK,
+    onRetry: (i) => setCurrent(`čekám ${Math.round(i.waitMs / 1000)} s na limit Gemini (pokus ${i.attempt}/${i.attempts}): ${i.reason}`),
+  });
+  job.current = null;
   if (!outcome.ok) {
     return { itemId, catalogNumber: outcome.catalogNumber ?? String(itemId), status: 'failed', error: outcome.error, quota: outcome.quota };
   }
