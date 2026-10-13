@@ -46,3 +46,6 @@ next-env.d.ts
 
 # temporary helper scripts
 _tmp_*
+
+# Vševěd — lokální upload zdrojů (na NASu volume přes VSEVED_UPLOAD_DIR)
+vseved-uploads/
