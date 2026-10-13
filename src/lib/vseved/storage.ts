@@ -56,8 +56,16 @@ export async function deleteDocumentFile(documentId: number, format: 'txt' | 'ep
  * Pouziva se pro DISPLAY title pri uploadu, ne pro skutecny filename na disku.
  * Max 200 chars.
  */
+/**
+ * Název nahrávaného souboru se používá JEN jako popisek v DB (`sourceFile`); na disk se ukládá
+ * `<id>.<format>`. Kontrola je tedy jen proti nesmyslům a traversal textu, ne proti FS.
+ * 13. 10. 2026: původní `[A-Za-z0-9._\- ()]` odmítal diakritiku („Vltavíny a Tektity.txt" —
+ * Gideon: „nesmysl") → povolena písmena všech abeced (\p{L}\p{M}), čísla, mezery, `._-()'&,`.
+ */
 export function isSafeFilename(filename: string): boolean {
   if (typeof filename !== 'string') return false;
   if (filename.length === 0 || filename.length > 200) return false;
-  return /^[A-Za-z0-9._\- ()]+$/.test(filename) && !filename.includes('..');
+  if (filename.includes('..') || /[/\\]/.test(filename)) return false;
+  if (/[\x00-\x1f\x7f]/.test(filename)) return false;
+  return /^[\p{L}\p{M}\p{N}._\- ()'&,]+$/u.test(filename);
 }

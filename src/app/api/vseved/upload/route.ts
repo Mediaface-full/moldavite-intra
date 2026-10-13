@@ -54,7 +54,7 @@ export async function POST(request: Request) {
   // Validate filename + derive format
   const originalName = file.name || 'unknown';
   if (!isSafeFilename(originalName)) {
-    return NextResponse.json({ error: 'Nepripustny nazev souboru (jen pismena, cisla, pomlcky, mezery)' }, { status: 422 });
+    return NextResponse.json({ error: 'Nepřípustný název souboru (povolena písmena včetně diakritiky, čísla, mezery, tečky, pomlčky, závorky; ne lomítka ani „..")' }, { status: 422 });
   }
   const lower = originalName.toLowerCase();
   let format: 'txt' | 'epub';
