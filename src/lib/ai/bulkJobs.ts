@@ -13,6 +13,7 @@ import { randomUUID } from 'node:crypto';
 import { prisma } from '@/lib/prisma';
 import { logActivity } from '@/lib/auth';
 import { generateTextsForItem, literatureLogSuffix } from './generateForItem';
+import { RETRY_BULK } from './geminiClient';
 import { AI_TEXT_FIELDS, pickFieldsToSave, type TextFields } from './bulkFields';
 
 export const MAX_ITEMS = 300;
@@ -24,6 +25,8 @@ export interface BulkItemResult {
   catalogNumber: string;
   status: 'ok' | 'skipped' | 'failed';
   error?: string;
+  /** selhání kvůli limitu Gemini (429) — po opakovaných se běh ukončí */
+  quota?: boolean;
   savedFields?: string[];
   maxOverlapWords?: number;
   overlapWarning?: boolean;
@@ -97,15 +100,25 @@ export function startBulkJob(opts: {
 }
 
 async function run(job: BulkJob, opts: { userId: number; itemIds: number[]; prompt: string; overwrite: boolean }): Promise<void> {
-  for (const itemId of opts.itemIds) {
+  let quotaStreak = 0;
+  for (let i = 0; i < opts.itemIds.length; i++) {
     if (job.cancelled) break;
-    const r = await processItem(job, itemId, opts);
+    const r = await processItem(job, opts.itemIds[i], opts);
     job.results.push(r);
     job.done++;
     if (r.status === 'ok') job.ok++;
     else if (r.status === 'skipped') job.skipped++;
     else job.failed++;
     if (r.overlapWarning) job.warnings++;
+    // Limit Gemini (429) i po opakování: po dvou kamenech za sebou běh ukončit — další by
+    // dopadly stejně (13. 10. 2026: 20× 429 v řadě na produkci). Zbytek zůstane bez textů.
+    quotaStreak = r.status === 'failed' && r.quota ? quotaStreak + 1 : 0;
+    if (quotaStreak >= 2) {
+      const remaining = opts.itemIds.length - (i + 1);
+      job.error = `Gemini odmítá kvůli limitu (429): ${r.error ?? ''} — běh ukončen, ${remaining} kamenů nezpracováno. Zkus později, nebo zkontroluj tarif Gemini účtu (AI Studio → Projects).`;
+      job.cancelled = true;
+      break;
+    }
     await new Promise((res) => setTimeout(res, ITEM_DELAY_MS));
   }
   await logActivity(
@@ -117,9 +130,9 @@ async function run(job: BulkJob, opts: { userId: number; itemIds: number[]; prom
 }
 
 async function processItem(job: BulkJob, itemId: number, opts: { userId: number; prompt: string; overwrite: boolean }): Promise<BulkItemResult> {
-  const outcome = await generateTextsForItem(itemId, opts.prompt);
+  const outcome = await generateTextsForItem(itemId, opts.prompt, RETRY_BULK);
   if (!outcome.ok) {
-    return { itemId, catalogNumber: outcome.catalogNumber ?? String(itemId), status: 'failed', error: outcome.error };
+    return { itemId, catalogNumber: outcome.catalogNumber ?? String(itemId), status: 'failed', error: outcome.error, quota: outcome.quota };
   }
   const { result, literature, catalogNumber } = outcome;
   const current = await prisma.item.findUnique({

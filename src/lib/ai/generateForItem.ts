@@ -16,12 +16,9 @@ import {
   DEFAULT_TOP_K, OVERLAP_WARN_WORDS,
 } from './literatureContext';
 
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
-const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+import { callGemini, geminiConfigured, RETRY_SINGLE, type GeminiRetryOptions } from './geminiClient';
 
-export function geminiConfigured(): boolean {
-  return GEMINI_API_KEY.length > 0;
-}
+export { geminiConfigured };
 
 export interface GeneratedTexts {
   name_cz: string;
@@ -42,7 +39,7 @@ export interface LiteratureInfo {
 
 export type GenerateOutcome =
   | { ok: true; result: GeneratedTexts; literature: LiteratureInfo; catalogNumber: string }
-  | { ok: false; status: number; error: string; rawText?: string; catalogNumber?: string };
+  | { ok: false; status: number; error: string; rawText?: string; catalogNumber?: string; quota?: boolean; retryAfterSec?: number };
 
 // Escape HTML to prevent XSS from AI-returned content (Gemini can return <script>…).
 const esc = (s: unknown): string =>
@@ -88,7 +85,7 @@ type CertificateLikeItem = {
   weight: unknown; location: string | null; attrColor: string[] | null; attrDamage: string | null; attrCollectible: boolean | null;
 };
 
-export async function generateTextsForItem(itemId: number, prompt: string): Promise<GenerateOutcome> {
+export async function generateTextsForItem(itemId: number, prompt: string, retry: GeminiRetryOptions = RETRY_SINGLE): Promise<GenerateOutcome> {
   if (!geminiConfigured()) return { ok: false, status: 500, error: 'Gemini API key not configured' };
 
   const item = await prisma.item.findUnique({ where: { id: itemId }, include: { box: true } });
@@ -132,33 +129,12 @@ export async function generateTextsForItem(itemId: number, prompt: string): Prom
     console.error('[ai/generate] kontext z literatury selhal, generuji bez něj:', err);
   }
 
-  let rawText = '';
-  try {
-    const geminiRes = await fetch(GEMINI_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: promptWithContext }] }],
-        generationConfig: {
-          temperature: 0.7,
-          // 2.5-flash počítá do limitu i „thinking" tokeny — s 2048 odpověď občas končila
-          // v půlce JSONu (13. 10. 2026: 2 ze 3 pokusů). JSON mód = bez ```json plotů a prózy.
-          maxOutputTokens: 8192,
-          responseMimeType: 'application/json',
-        },
-      }),
-    });
-    if (!geminiRes.ok) {
-      const err = await geminiRes.text();
-      console.error('[ai/generate] Gemini API error', geminiRes.status, err);
-      return { ok: false, status: 502, error: `Gemini API error: ${geminiRes.status}`, catalogNumber };
-    }
-    const geminiData = await geminiRes.json();
-    rawText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || '';
-  } catch (err) {
-    console.error('[ai/generate] Gemini call failed', err);
-    return { ok: false, status: 500, error: 'Gemini API call failed', catalogNumber };
+  // Gemini s retry na 429/503 (lib/ai/geminiClient.ts); 429 nese důvod od Googlu (který limit).
+  const gem = await callGemini(promptWithContext, retry);
+  if (!gem.ok) {
+    return { ok: false, status: gem.status === 429 ? 429 : 502, error: gem.error, catalogNumber, quota: gem.quota, retryAfterSec: gem.retryAfterSec };
   }
+  const rawText = gem.text;
 
   // Parse JSON (JSON mód vrací čistý JSON; fallback na ```json … ``` kdyby ne)
   let parsed: Record<string, unknown>;
