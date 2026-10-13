@@ -118,8 +118,16 @@ export async function PATCH(
     const existing = await prisma.item.findUnique({ where: { id: itemId }, select: { recommendedPriceInclVatCzk: true } });
     const recommended = existing?.recommendedPriceInclVatCzk ? Number(existing.recommendedPriceInclVatCzk) : null;
     if (manual !== null && recommended !== null && manual < recommended) {
-      data.pricingStatus = 'NEEDS_REVIEW';
-      data.finalInternalPriceInclVatCzk = recommended; // safe fallback
+      // Pod doporučenou smí jít jen ADMIN (Gideon 13. 10. 2026); pak speciální cena platí
+      // (stejně to počítá lib/pricing/calculate.ts). Ostatní role: odmítnout, nic neukládat.
+      if (session.role !== 'ADMIN') {
+        return NextResponse.json(
+          { error: `Speciální cena ${manual} Kč je pod doporučenou ${recommended} Kč — pod doporučenou může jít jen administrátor` },
+          { status: 422 },
+        );
+      }
+      data.pricingStatus = 'OK';
+      data.finalInternalPriceInclVatCzk = manual;
     } else if (manual !== null && recommended !== null && manual >= recommended) {
       data.pricingStatus = 'OK';
       data.finalInternalPriceInclVatCzk = manual;
@@ -343,6 +351,9 @@ export async function PATCH(
         // User vidi stary status; muze rucne spustit Prepocitat v zakazce.
         console.error('Auto-recalc order failed after item PATCH:', err);
       }
+    } else if (data.manualPriceInclVatCzk !== undefined) {
+      // Kámen bez zakázky: recalcOrder neběží, EUR/USD z finální ceny obnovit přímo.
+      await recalcItemPrices(itemId).catch((err) => console.error('[items PATCH] recalcItemPrices failed:', err));
     }
   }
 

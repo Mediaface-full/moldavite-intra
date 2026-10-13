@@ -55,7 +55,7 @@ function Line({ label, value, hint, muted }: { label: string; value: string; hin
 }
 
 export default function StonePricingSection() {
-  const { item, formData, setField, vatRate } = useItemForm();
+  const { item, formData, setField, vatRate, isAdmin } = useItemForm();
   const vatMultiplier = 1 + vatRate / 100;
 
   const purchase = Number(formData.purchasePrice);
@@ -74,7 +74,7 @@ export default function StonePricingSection() {
   const saleMatches = sale > 0 && rec > 0 && Math.abs(sale - rec) < 0.5;
 
   // Prodejní cena za gram (Gideon 12. 10. 2026): z FINÁLNÍ ceny ÷ hmotnost — ve Výsledku, aby se
-  // přepočítala i po zadání speciální ceny (ta musí být ≥ doporučená, jinak K REVIZI a platí doporučená).
+  // přepočítala i po zadání speciální ceny (pod doporučenou smí jít jen admin — pak platí speciální).
   const fmtPerGram = (v: number) => `${fmtInt(v)} Kč/g`;
   const recPerGram = w > 0 && rec > 0 ? rec / w : null;
   const finalPerGram = w > 0 && sale > 0 ? sale / w : null;
@@ -152,9 +152,13 @@ export default function StonePricingSection() {
               onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }} placeholder="—"
               className="mt-1 w-full bg-background border border-border rounded-lg px-3 h-10 text-base font-mono font-semibold text-right text-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/20" />
             <p className="text-[11px] text-muted-foreground font-mono mt-0.5">
-              {manualNum > 0 && vatRate > 0 ? `= ${fmtCzk(manualNum)} s DPH (× ${vatMultiplier.toFixed(2)})` : 'override pro výjimečné kusy, musí být ≥ doporučená'}
+              {manualNum > 0 && vatRate > 0 ? `= ${fmtCzk(manualNum)} s DPH (× ${vatMultiplier.toFixed(2)})` : isAdmin ? 'override pro výjimečné kusy — jako admin můžeš i pod doporučenou' : 'override pro výjimečné kusy; pod doporučenou může jít jen admin'}
             </p>
-            {manualBelow && <p className="text-[10px] font-mono mt-0.5" style={{ color: 'var(--warning)' }}>⚠ pod doporučenou — kámen bude K REVIZI</p>}
+            {manualBelow && (
+              <p className="text-[10px] font-mono mt-0.5" style={{ color: 'var(--warning)' }}>
+                {isAdmin ? `⚠ pod doporučenou o ${fmtCzk(rec - manualNum)} — platí speciální cena (tvoje rozhodnutí)` : '⚠ pod doporučenou — uložení odmítne, povoleno jen adminovi'}
+              </p>
+            )}
             {vatRate > 0 && (
               <div className={`${computedBox} justify-between h-auto py-2 text-sm mt-2`} title="Speciální cena s DPH — dopočteno">
                 <span className="text-[11px] uppercase tracking-wider font-medium text-text-2">Speciální s DPH</span>

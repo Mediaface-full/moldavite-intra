@@ -132,8 +132,8 @@ describe('edge: záporná marže clamps na 0', () => {
   });
 });
 
-describe('edge: manualPrice < recommendedPrice → NEEDS_REVIEW', () => {
-  it('finalInternalPrice fallne na recommendedPrice, status NEEDS_REVIEW', () => {
+describe('edge: manualPrice < recommendedPrice → platí speciální (admin), status OK, info issue', () => {
+  it('finalInternalPrice = manual, status OK, issue MANUAL_BELOW_MIN (13. 10. 2026: admin smí pod doporučenou)', () => {
     const r = calculateOrderPricing({
       order: baseOrder(),
       stones: [baseStone({
@@ -144,8 +144,8 @@ describe('edge: manualPrice < recommendedPrice → NEEDS_REVIEW', () => {
       costs: [],
       config: EMPTY_CONFIG,
     });
-    expect(r.perStone[0].status).toBe('NEEDS_REVIEW');
-    expect(r.perStone[0].finalInternalPriceInclVatCzk).toBe('130.00'); // recommended, ne manual
+    expect(r.perStone[0].status).toBe('OK');
+    expect(r.perStone[0].finalInternalPriceInclVatCzk).toBe('100.00'); // manual platí, ne recommended
     expect(r.perStone[0].issues.some((i) => i.code === 'MANUAL_BELOW_MIN')).toBe(true);
   });
 });
@@ -218,7 +218,7 @@ describe('edge: chybí povinná evidenční pole → NEEDS_REVIEW', () => {
     expect(r.perStone[0].finalInternalPriceInclVatCzk).not.toBeNull();
   });
 
-  it('chybějící pole + manualPrice < recommended → NEEDS_REVIEW (oba issues)', () => {
+  it('chybějící pole + manualPrice < recommended → NEEDS_REVIEW kvůli polím, oba issues, final = manual', () => {
     const r = calculateOrderPricing({
       order: baseOrder(),
       stones: [baseStone({
@@ -231,6 +231,7 @@ describe('edge: chybí povinná evidenční pole → NEEDS_REVIEW', () => {
       config: EMPTY_CONFIG,
     });
     expect(r.perStone[0].status).toBe('NEEDS_REVIEW');
+    expect(r.perStone[0].finalInternalPriceInclVatCzk).toBe('50.00');
     expect(r.perStone[0].issues.some((i) => i.code === 'MANUAL_BELOW_MIN')).toBe(true);
     expect(r.perStone[0].issues.some((i) => i.code === 'MISSING_REQUIRED_FIELD')).toBe(true);
   });

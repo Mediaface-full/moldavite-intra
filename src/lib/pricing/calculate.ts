@@ -193,23 +193,25 @@ function computeStone(
   const minPriceInclVat = addVat(minPriceExVat, vatRatePct);
   const recommendedPriceInclVat = ceilToStep(minPriceInclVat, order.roundingStep);
 
-  // Final internal price = MAX(recommended, manual ?? recommended)
+  // Final internal price = manual ?? recommended.
+  // Do 13. 10. 2026 platilo MAX(recommended, manual) a manual pod doporučenou → NEEDS_REVIEW.
+  // Gideon: admin smí jít vědomě pod doporučenou (slevy, rychlý prodej) — speciální cena pak
+  // PLATÍ, status zůstává OK, jen informační issue. Kdo smí pod doporučenou zadat, hlídá
+  // PATCH /api/items/[id] (jen ADMIN); engine roli nezná.
   let finalInternal: Decimal;
   let status: PricingStatus = 'OK';
 
   if (manual === null) {
     finalInternal = recommendedPriceInclVat;
-  } else if (manual.gte(recommendedPriceInclVat)) {
-    finalInternal = manual;
   } else {
-    // Manual cena spadla pod recommended → NEEDS_REVIEW
-    issues.push({
-      severity: 'warn',
-      code: 'MANUAL_BELOW_MIN',
-      message: `Speciální cena ${moneyString(manual)} je pod doporučeným minimem ${moneyString(recommendedPriceInclVat)}`,
-    });
-    finalInternal = recommendedPriceInclVat; // bezpečně použij doporučenou
-    status = 'NEEDS_REVIEW';
+    finalInternal = manual;
+    if (manual.lt(recommendedPriceInclVat)) {
+      issues.push({
+        severity: 'warn',
+        code: 'MANUAL_BELOW_MIN',
+        message: `Speciální cena ${moneyString(manual)} je pod doporučenou ${moneyString(recommendedPriceInclVat)} — platí speciální (rozhodnutí admina)`,
+      });
+    }
   }
 
   if (hasMarginError && status === 'OK') {

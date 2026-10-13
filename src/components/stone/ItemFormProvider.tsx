@@ -60,6 +60,8 @@ interface ItemFormContextValue {
   publishBlocked: boolean;
   blockedTitle: string | undefined;
   vatRate: number;
+  /** ADMIN smí zadat speciální cenu pod doporučenou (13. 10. 2026) */
+  isAdmin: boolean;
   weightRaw: string;
   setWeightRaw: (v: string) => void;
   commitWeight: () => void;
@@ -74,7 +76,7 @@ export function useItemForm(): ItemFormContextValue {
   return v;
 }
 
-export default function ItemFormProvider({ item, children }: { item: ItemData; children: React.ReactNode }) {
+export default function ItemFormProvider({ item, isAdmin = false, children }: { item: ItemData; isAdmin?: boolean; children: React.ReactNode }) {
   const router = useRouter();
   const [formData, setFormData] = useState<ItemFormData>(() => fromItem(item));
   const [saveState, setSaveState] = useState<SaveState>('idle');
@@ -219,7 +221,7 @@ export default function ItemFormProvider({ item, children }: { item: ItemData; c
     const vatRate = item.vatRatePct != null && Number.isFinite(Number(item.vatRatePct)) ? Number(item.vatRatePct) : 0;
     return {
       item, formData, setField, patch, saveState, saveNow: handleSave, catalogNumber,
-      reviewMode, missingHighlight, publishBlocked, blockedTitle, vatRate,
+      reviewMode, missingHighlight, publishBlocked, blockedTitle, vatRate, isAdmin,
       weightRaw, setWeightRaw, commitWeight, applyVoice,
     };
   }, [item, formData, setField, patch, saveState, handleSave, weightRaw, commitWeight, applyVoice]);

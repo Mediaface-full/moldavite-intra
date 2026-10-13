@@ -22,7 +22,7 @@ export default function StoneDetail({ item, media, lastUpdate, isAdmin }: {
   item: ItemData; media: ItemMediaInfo; lastUpdate: LastUpdateInfo | null; isAdmin: boolean;
 }) {
   return (
-    <ItemFormProvider item={item}>
+    <ItemFormProvider item={item} isAdmin={isAdmin}>
       <StoneDetailHeader isAdmin={isAdmin} lastUpdate={lastUpdate} />
       <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-6 items-start">
         <div className="min-w-0 space-y-5 order-2 xl:order-1">
