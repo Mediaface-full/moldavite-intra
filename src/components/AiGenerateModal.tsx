@@ -38,6 +38,7 @@ const TAGS = [
   { tag: '{tvar_en}', label: 'Tvar EN' },
   { tag: '{tvar_popis_cz}', label: 'Popis tvaru CZ' },
   { tag: '{tvar_popis_en}', label: 'Popis tvaru EN' },
+  { tag: '{kontext}', label: 'Kontext z knih' },
 ];
 
 interface AiResult {
@@ -61,6 +62,7 @@ export default function AiGenerateModal({ itemId, catalogNumber, onClose, onAppl
   const [prompt, setPrompt] = useState(DEFAULT_PROMPT);
   const [generating, setGenerating] = useState(false);
   const [result, setResult] = useState<AiResult | null>(null);
+  const [literature, setLiterature] = useState<{ used: number; titles: string[]; maxOverlapWords?: number; overlapWarning?: boolean } | null>(null);
   const [error, setError] = useState('');
   const [applying, setApplying] = useState(false);
 
@@ -81,6 +83,7 @@ export default function AiGenerateModal({ itemId, catalogNumber, onClose, onAppl
       const data = await res.json();
       if (data.success && data.result) {
         setResult(data.result);
+        setLiterature(data.literature ?? null);
       } else {
         setError(data.error || 'Generování selhalo');
         if (data.rawText) {
@@ -163,6 +166,11 @@ export default function AiGenerateModal({ itemId, catalogNumber, onClose, onAppl
               ))}
             </div>
 
+            <p className="mt-3 text-[11px] text-muted-foreground leading-snug">
+              Ke každému generování se automaticky přidají nejbližší pasáže z knih ve <span className="text-foreground">Vševěd → Zdroje</span> jako
+              faktický podklad (parafráze, bez citací). Značka <code className="font-mono">{'{kontext}'}</code> určí místo v promptu; bez ní jdou pasáže před prompt.
+            </p>
+
             {error && (
               <pre className="mt-3 text-sm text-destructive bg-[color-mix(in_srgb,var(--destructive)_10%,transparent)] border border-[color-mix(in_srgb,var(--destructive)_30%,transparent)] rounded-lg px-3 py-2 whitespace-pre-wrap">{error}</pre>
             )}
@@ -184,6 +192,19 @@ export default function AiGenerateModal({ itemId, catalogNumber, onClose, onAppl
         ) : (
           /* Step 2: Preview & Approve */
           <div className="p-5">
+            {literature && (
+              <p className="text-[11px] text-muted-foreground mb-3">
+                {literature.used > 0
+                  ? `Podklad: ${literature.used} pasáží z literatury (${literature.titles.join(', ')})`
+                  : 'Bez podkladu z literatury — ve Vševěd → Zdroje není nic zpracovaného nebo nic relevantního.'}
+              </p>
+            )}
+            {literature && literature.overlapWarning && (
+              <p className="text-xs mb-3 px-3 py-2 rounded-lg border font-medium"
+                style={{ color: 'var(--warning)', borderColor: 'color-mix(in srgb, var(--warning) 40%, transparent)', background: 'color-mix(in srgb, var(--warning) 8%, transparent)' }}>
+                ⚠ Text obsahuje sled {literature.maxOverlapWords} slov shodný s knihou — před uložením přeformuluj (autorská práva), nebo vygeneruj znovu.
+              </p>
+            )}
             <div className="grid grid-cols-2 gap-4 mb-4">
               {/* CZ */}
               <div>

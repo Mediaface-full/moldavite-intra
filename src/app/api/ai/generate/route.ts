@@ -3,6 +3,12 @@ import { NextResponse } from 'next/server';
 import { getSession, logActivity } from '@/lib/auth';
 import { getPasShape } from '@/lib/pasShapes';
 import { checkRateLimit } from '@/lib/rateLimit';
+import { retrieveChunks } from '@/lib/vseved/retrieve';
+import {
+  buildLiteratureQuery, selectChunks, formatLiteratureContext, injectContext, maxOverlapWithChunks,
+  DEFAULT_TOP_K, OVERLAP_WARN_WORDS,
+} from '@/lib/ai/literatureContext';
+import type { RetrievedChunk } from '@/lib/vseved/types';
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
 const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
@@ -60,17 +66,43 @@ export async function POST(request: Request) {
     .replace(/\{tvar_popis_cz\}/g, shape?.descCz || '')
     .replace(/\{tvar_popis_en\}/g, shape?.descEn || '');
 
+  // Odborný kontext z knih ve Vševěd → Zdroje (Gideon 13. 10. 2026): všechny READY zdroje,
+  // bez označování. Bez zdrojů se embedding nevolá a prompt zůstává jako dřív; chyba
+  // vyhledávání generování neshodí (jen bez kontextu).
+  let literature: { used: number; titles: string[]; maxOverlapWords: number; overlapWarning: boolean } =
+    { used: 0, titles: [], maxOverlapWords: 0, overlapWarning: false };
+  let usedChunks: RetrievedChunk[] = [];
+  let promptWithContext = injectContext(filledPrompt, '');
+  try {
+    const readyDocs = await prisma.vsevedDocument.count({ where: { status: 'READY' } });
+    if (readyDocs > 0) {
+      const query = buildLiteratureQuery({
+        location: item.location, shapeCz: shape?.cz, shapeDescCz: shape?.descCz,
+        attrColor: item.attrColor, attrDamage: item.attrDamage, attrCollectible: item.attrCollectible,
+        weightGrams: item.weight?.toString(),
+      });
+      usedChunks = selectChunks(await retrieveChunks(query, DEFAULT_TOP_K * 2), DEFAULT_TOP_K);
+      promptWithContext = injectContext(filledPrompt, formatLiteratureContext(usedChunks));
+      literature = { ...literature, used: usedChunks.length, titles: [...new Set(usedChunks.map((c) => c.documentTitle))] };
+    }
+  } catch (err) {
+    console.error('[ai/generate] kontext z literatury selhal, generuji bez něj:', err);
+  }
+
   try {
     const geminiRes = await fetch(GEMINI_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         contents: [{
-          parts: [{ text: filledPrompt }],
+          parts: [{ text: promptWithContext }],
         }],
         generationConfig: {
           temperature: 0.7,
-          maxOutputTokens: 2048,
+          // 2.5-flash počítá do limitu i „thinking" tokeny — s 2048 odpověď občas končila
+          // v půlce JSONu (13. 10. 2026: 2 ze 3 pokusů). JSON mód = bez ```json plotů a prózy.
+          maxOutputTokens: 8192,
+          responseMimeType: 'application/json',
         },
       }),
     });
@@ -133,9 +165,18 @@ export async function POST(request: Request) {
       catalogNumber,
     };
 
-    await logActivity(session.id, 'ai.generate', catalogNumber, `AI generování pro ${catalogNumber}`);
+    // Hlídač opisování: nejdelší shodný sled slov výstupu s použitými pasážemi (autorská práva knih).
+    if (usedChunks.length) {
+      const maxOverlapWords = maxOverlapWithChunks(
+        [result.name_cz, result.name_en, result.desc_cz, result.desc_en, result.long_desc_cz, result.long_desc_en],
+        usedChunks,
+      );
+      literature = { ...literature, maxOverlapWords, overlapWarning: maxOverlapWords >= OVERLAP_WARN_WORDS };
+    }
 
-    return NextResponse.json({ success: true, result });
+    await logActivity(session.id, 'ai.generate', catalogNumber, `AI generování pro ${catalogNumber}${literature.used ? ` · ${literature.used} pasáží z literatury, max. shoda ${literature.maxOverlapWords} slov` : ''}`);
+
+    return NextResponse.json({ success: true, result, literature });
 
   } catch (err) {
     console.error('[ai/generate] Gemini call failed', err);
