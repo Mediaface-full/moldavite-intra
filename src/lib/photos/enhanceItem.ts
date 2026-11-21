@@ -88,10 +88,11 @@ export async function enhanceItemPhotos(
   const results: SlotOutcome[] = [];
   const edited: { slot: number; image: Buffer; score: number }[] = [];
   let quota = false;
+  const tiers: string[] = [];
 
-  // Po dvou souběžně — Pro model ~20 s na fotku; 4 fotky najednou zbytečně tlačí na limit
-  for (let i = 0; i < todo.length; i += 2) {
-    await Promise.all(todo.slice(i, i + 2).map(async (slot) => {
+  // Všechny fotky kamene (max 4) souběžně — Flex odpovídá i minuty, po jedné by běh trval hodiny
+  for (let i = 0; i < todo.length; i += 4) {
+    await Promise.all(todo.slice(i, i + 4).map(async (slot) => {
       const src = findSource(item.photoPath, slot);
       if (!src) { results.push({ slot, status: 'failed', error: 'zdrojová fotka zmizela' }); return; }
       try {
@@ -101,6 +102,7 @@ export async function enhanceItemPhotos(
         if (!r.ok) { if (r.quota) quota = true; results.push({ slot, status: 'failed', error: r.error }); return; }
         const score = silhouetteScore(await stoneMask(original), await stoneMask(r.image));
         edited.push({ slot, image: r.image, score });
+        tiers.push(r.tier);
       } catch (err) {
         results.push({ slot, status: 'failed', error: err instanceof Error ? err.message : String(err) });
       }
@@ -145,7 +147,8 @@ export async function enhanceItemPhotos(
     const suspect = results.filter((r) => r.status === 'suspect').length;
     await logActivity(opts.userId, 'ai.photos', catalogNumber,
       `AI úprava fotek: ${ok} použito v e-shopu${suspect ? `, ${suspect} ke kontrole (obrys se liší od originálu)` : ''}` +
-      `${results.some((r) => r.status === 'failed') ? `, ${results.filter((r) => r.status === 'failed').length} selhalo` : ''} · ${IMAGE_MODEL}`);
+      `${results.some((r) => r.status === 'failed') ? `, ${results.filter((r) => r.status === 'failed').length} selhalo` : ''} · ${IMAGE_MODEL}` +
+      ` · ${tiers.filter((t) => t === 'flex').length}× flex, ${tiers.filter((t) => t !== 'flex').length}× standard`);
   }
 
   results.sort((a, b) => slots.indexOf(a.slot) - slots.indexOf(b.slot));
