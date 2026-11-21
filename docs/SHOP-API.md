@@ -84,8 +84,16 @@ Uložené `Item.priceEUR/priceUSD` se NEPOUŽÍVAJÍ (počítají se ze `salePri
 API je převede na `id`. Hodnota bez záznamu v číselníku se vynechá (a kámen jde do `skipped`
 s `unknown_attr`, pokud chybí povinná lokalita/tvar/barva/stav).
 
-**Fotky:** `01`–`24` ve složce `photoPath` (`.webp` generuje `/images` on-demand), hlavní
-(`mainPhoto`) první. Jen soubory, které na disku existují. `video.mp4`, pokud existuje.
+**Fotky (od 21. 11. 2026):** **max 4**, hlavní (`mainPhoto`) první. Výběr: ruční `Item.shopPhotos`,
+jinak automaticky z 360° otočky — hlavní, +45°, +90° (profil), +180° (záda); viz `lib/photos/shopSelection.ts`.
+URL je originál `…/NN.webp`, nebo AI úprava `…/ai/NN-<hash>.webp`, pokud prošla kontrolou obrysu nebo
+ji admin schválil (`lib/photos/aiPhotos.ts`). Nová AI úprava = nová URL (otisk v názvu) → e-shop ji
+stáhne jako novou fotku (BM `Media::existing` páruje podle URL). Jen soubory, které na disku existují.
+`video.mp4`, pokud existuje.
+
+**`updatedAt`** je aspoň `2026-11-21T12:00:00Z` (`SHOP_PHOTOS_SINCE`): e-shop přeskakuje kameny se
+stejným `updatedAt`, takže po nasazení výběru 4 fotek jednou přesynchronizuje všechny. Změna výběru
+nebo AI fotek mění `Item.updatedAt` sama.
 
 ## `POST /api/shop/v1/reservations`
 

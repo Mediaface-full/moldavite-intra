@@ -208,6 +208,12 @@ model Item {
   certHash          String    @default("") // hash pro verifikační stránku
   certIssuedAt      DateTime? // datum vydání certifikátu
   mainPhoto         Int       @default(1) // index hlavního obrázku (1-24)
+  // Fotky pro e-shop (max 4, sloty 1–24). Prázdné = automatický výběr z různých úhlů
+  // (lib/photos/shopSelection.ts). Hlavní fotka je v e-shopu vždy první.
+  shopPhotos        Int[]     @default([])
+  // AI úpravy fotek pro e-shop: { "<slot>": { file, status, score, model, createdAt } }
+  // Soubor leží v <PHOTOS_PATH>/<photoPath>/ai/. Originály se nikdy nepřepisují. Viz lib/photos/aiPhotos.ts.
+  aiPhotos          Json?
   photoPath         String    @default("") // relativní cesta k fotkám
   rangeFolder       String    @default("") // e.g. "0001-0005"
   pasShape          String    @default("") // Primary Aerodynamic Shape — klíč z lib/pasShapes.ts

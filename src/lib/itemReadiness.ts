@@ -13,6 +13,13 @@ export interface ItemMediaInfo {
   has360: boolean;
   hasVideo: boolean;
   hasFilm: boolean;
+  /** fotky pro e-shop (max 4) + AI úpravy — jen detail kamene, readiness je nepoužívá */
+  shop?: {
+    slots: number[];
+    auto: boolean;
+    missing: number[];
+    ai: Record<string, { file: string; status: 'ok' | 'suspect' | 'approved' | 'rejected'; score: number }>;
+  };
 }
 
 export interface ReadinessInput {

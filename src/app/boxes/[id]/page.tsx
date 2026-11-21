@@ -8,6 +8,8 @@ import BoxPhotoUpload from '@/components/BoxPhotoUpload';
 import BoxPlacement from '@/components/BoxPlacement';
 import CassetteTypePicker from '@/components/CassetteTypePicker';
 import AiBulkButton from '@/components/AiBulkButton';
+import AiPhotosButton from '@/components/AiPhotosButton';
+import { shopPhotoStats } from '@/lib/photos/missing';
 import { isMissingTexts } from '@/lib/ai/bulkFields';
 import BoxDeleteButton from '@/components/BoxDeleteButton';
 import BoxMoveToOrderButton from '@/components/BoxMoveToOrderButton';
@@ -197,6 +199,19 @@ export default async function BoxDetailPage({
               missingCount={box.items.filter((i) => isMissingTexts(i)).length}
             />
           )}
+          {isAdmin && (() => {
+            // E-shopové fotky neprodaných kamenů (max 4 na kámen) a kolik z nich nemá AI úpravu
+            const stats = box.items.filter((i) => !i.sold).map((i) => shopPhotoStats(i));
+            return (
+              <AiPhotosButton
+                scope="box"
+                boxId={box.id}
+                label={box.code}
+                photoCount={stats.reduce((n, s) => n + s.slots.length, 0)}
+                missingCount={stats.reduce((n, s) => n + s.missing.length, 0)}
+              />
+            );
+          })()}
           {isAdmin && (
             <BoxMoveToOrderButton
               boxId={box.id}
