@@ -9,6 +9,8 @@ import { resolveMargin } from '@/lib/pricing/margin';
 import type { PricingConfigSnapshot, StoneInput } from '@/lib/pricing/types';
 import type { ItemMediaInfo } from '@/lib/itemReadiness';
 import type { LastUpdateInfo } from '@/components/stone/types';
+import { shopPhotoStats } from '@/lib/photos/missing';
+import { parseAiPhotos } from '@/lib/photos/aiPhotos';
 
 const PHOTOS_PATH = process.env.PHOTOS_PATH || path.join(process.cwd(), '../kameny/FOTO_MOLDAVITE');
 const PHOTOS_WEB_PATH = process.env.PHOTOS_WEB_PATH || '';
@@ -115,7 +117,10 @@ export default async function ItemDetailPage({
 
   // Média na disku + poslední úprava (pro hlavičku) — paralelně.
   const [media, lastLog] = await Promise.all([
-    Promise.resolve(readMedia(item.photoPath)),
+    Promise.resolve({
+      ...readMedia(item.photoPath),
+      shop: (({ slots, auto, missing }) => ({ slots, auto, missing, ai: parseAiPhotos(item.aiPhotos) }))(shopPhotoStats(item)),
+    }),
     prisma.activityLog.findFirst({
       where: { action: 'item.update', target: String(item.id) },
       orderBy: { createdAt: 'desc' },

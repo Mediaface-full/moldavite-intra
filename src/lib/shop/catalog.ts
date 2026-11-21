@@ -9,12 +9,20 @@ import path from 'path';
 import { prisma } from '@/lib/prisma';
 import { getLatestRates } from '@/lib/rates';
 import { WEBP_SOURCE_EXTS } from '@/lib/imageFormats';
+import { resolveShopSlots } from '@/lib/photos/shopSelection';
+import { parseAiPhotos, shopPhotoFile } from '@/lib/photos/aiPhotos';
 
 export const SHOP_API_VERSION = 1;
 export const SHOP_DICT_KEYS = ['location', 'pasShape', 'attrColor', 'attrDamage'] as const;
 export type ShopDictKey = (typeof SHOP_DICT_KEYS)[number];
 export const SOLD_VISIBLE_DAYS = 365;
 const PHOTO_SLOTS = 24;
+/**
+ * Od 21. 11. 2026 jde do e-shopu max 4 fotek (výběr z různých úhlů) místo všech 24. E-shop přeskakuje
+ * kameny se stejným `updatedAt` (BM Sync) — bez posunu by si nový výběr nikdy nestáhl. `updatedAt`
+ * v katalogu je proto aspoň tohle datum: e-shop jednou přesynchronizuje všechny kameny.
+ */
+export const SHOP_PHOTOS_SINCE = new Date('2026-11-21T12:00:00Z');
 
 export type DictOption = { id: number; attrKey: string; value: string; label: string | null; labelEn: string | null; sortOrder: number; active: boolean };
 export type ShopDictEntry = { id: number; value: string; cs: string; en: string; order: number };
@@ -36,6 +44,7 @@ export type CatalogSourceItem = {
   sold: boolean; soldAt: Date | null;
   certHash: string; certIssuedAt: Date | null;
   photoPath: string; mainPhoto: number;
+  shopPhotos?: number[]; aiPhotos?: unknown;
   storage: string;
   updatedAt: Date;
   activeReservation?: boolean;
@@ -97,7 +106,9 @@ function idLookup(options: DictOption[]): (key: ShopDictKey, value: string) => n
   return (key, value) => map.get(`${key}:${value.trim().toLowerCase()}`) ?? null;
 }
 
-export type PhotoResolver = (photoPath: string, mainPhoto: number) => { photos: string[]; video: string | null };
+export type PhotoResolver = (
+  photoPath: string, mainPhoto: number, opts?: { shopPhotos?: number[]; aiPhotos?: unknown },
+) => { photos: string[]; video: string | null };
 
 /**
  * Sestaví položku katalogu nebo vrátí důvod vyřazení.
@@ -124,13 +135,13 @@ export function buildCatalogItem(
 
   const weightG = num(item.weight);
   const weightCt = num(item.weightCt) || Math.round(weightG * 5 * 100) / 100;
-  const { photos, video } = ctx.photos(item.photoPath, item.mainPhoto);
+  const { photos, video } = ctx.photos(item.photoPath, item.mainPhoto, { shopPhotos: item.shopPhotos, aiPhotos: item.aiPhotos });
 
   return {
     id: item.id,
     sku: skuOf(item),
     state: item.sold ? 'sold' : item.activeReservation ? 'reserved' : 'available',
-    updatedAt: item.updatedAt.toISOString(),
+    updatedAt: (item.updatedAt > SHOP_PHOTOS_SINCE ? item.updatedAt : SHOP_PHOTOS_SINCE).toISOString(),
     listedAt: item.onShopAt ? item.onShopAt.toISOString() : null,
     soldAt: item.soldAt ? item.soldAt.toISOString() : null,
     name: { cs: item.name, en: item.nameEn || item.name },
@@ -149,7 +160,9 @@ export function buildCatalogItem(
 }
 
 /**
- * Fotky z disku: sloty 01–24, hlavní (mainPhoto) první. URL vede na veřejnou route /images (`NN.webp`).
+ * Fotky z disku: max 4 sloty vybrané `resolveShopSlots` (ruční výběr, jinak auto z různých úhlů),
+ * hlavní (mainPhoto) první. Slot s použitelnou AI úpravou dostane `ai/NN-<hash>.webp`, jinak originál
+ * `NN.webp`. URL vede na veřejnou route /images.
  *
  * Slot existuje, právě když by ho /images route vydala — stejné kořeny a přípony jako tam:
  * PHOTOS_WEB_PATH (webové varianty, mají přednost) NEBO PHOTOS_PATH (originály), soubor `NN.webp`
@@ -164,7 +177,7 @@ export function diskPhotoResolver(
   webRoot = process.env.PHOTOS_WEB_PATH || '',
 ): PhotoResolver {
   const roots = [webRoot, photosRoot].filter(Boolean).map((r) => path.resolve(r));
-  return (photoPath, mainPhoto) => {
+  return (photoPath, mainPhoto, opts) => {
     if (!photoPath || photoPath.includes('..') || photoPath.includes('\0') || photoPath.includes('\\')) {
       return { photos: [], video: null };
     }
@@ -181,10 +194,15 @@ export function diskPhotoResolver(
       const nn = String(n).padStart(2, '0');
       if (['webp', ...WEBP_SOURCE_EXTS.map((e) => e.slice(1))].some((ext) => exists(`${nn}.${ext}`))) slots.push(n);
     }
-    const main = Number.isInteger(mainPhoto) && slots.includes(mainPhoto) ? mainPhoto : slots[0];
-    const ordered = main ? [main, ...slots.filter((n) => n !== main)] : [];
+    const { slots: ordered } = resolveShopSlots(slots, mainPhoto, opts?.shopPhotos);
+    const ai = parseAiPhotos(opts?.aiPhotos);
     return {
-      photos: ordered.map((n) => `${baseUrl}/images/${segs}/${String(n).padStart(2, '0')}.webp`),
+      photos: ordered.map((n) => {
+        const f = shopPhotoFile(n, ai);
+        // AI soubor musí na disku opravdu být (smazaný ručně / jiný kořen) — jinak originál
+        const rel = f.ai && !exists(f.rel.replace(/\.webp$/, '.jpg')) ? shopPhotoFile(n, {}).rel : f.rel;
+        return `${baseUrl}/images/${segs}/${rel}`;
+      }),
       video: exists('video.mp4') ? `${baseUrl}/images/${segs}/video.mp4` : null,
     };
   };

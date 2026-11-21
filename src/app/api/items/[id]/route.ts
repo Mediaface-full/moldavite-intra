@@ -5,6 +5,7 @@ import { recalcItemPrices } from '@/lib/exchangeRates';
 import { resolvePpg } from '@/lib/pricing/resolve';
 import { applySoldTransition } from '@/lib/items/markSold';
 import { recalcOrder } from '@/lib/orders/recalcOrder';
+import { parseShopPhotos } from '@/lib/photos/shopSelection';
 
 // Pole co user smi PATCHovat z UI.
 // ZAMERNE VYPUSTENE: purchasePrice, salePrice, purchasePricePerGramCzk
@@ -14,7 +15,7 @@ import { recalcOrder } from '@/lib/orders/recalcOrder';
 const ALLOWED_FIELDS = [
   'name', 'nameEn', 'description', 'descriptionEn', 'longDescription', 'longDescriptionEn',
   'location', 'storage',
-  'weight', 'onShop', 'onEtsy', 'sold', 'mainPhoto', 'upgatesId', 'etsyId',
+  'weight', 'onShop', 'onEtsy', 'sold', 'mainPhoto', 'shopPhotos', 'upgatesId', 'etsyId',
   'pasShape',
   'orderId',
   'manualPriceInclVatCzk',
@@ -67,6 +68,16 @@ export async function PATCH(
   // Admin-only fields
   if (session.role !== 'ADMIN') {
     delete data.purchasePrice;
+  }
+
+  // Fotky pro e-shop: max 4 sloty 1–24, [] = automatický výběr (lib/photos/shopSelection.ts)
+  if (data.shopPhotos !== undefined) {
+    const parsed = parseShopPhotos(data.shopPhotos);
+    if (!parsed) return NextResponse.json({ error: 'shopPhotos: max 4 různá čísla fotek 1–24' }, { status: 422 });
+    data.shopPhotos = parsed;
+  }
+  if (data.mainPhoto !== undefined && !(Number.isInteger(data.mainPhoto) && (data.mainPhoto as number) >= 1 && (data.mainPhoto as number) <= 24)) {
+    return NextResponse.json({ error: 'mainPhoto: číslo fotky 1–24' }, { status: 422 });
   }
 
   // Validate: can't enable shop/etsy without weight and price

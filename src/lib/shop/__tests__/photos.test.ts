@@ -45,6 +45,25 @@ describe('diskPhotoResolver', () => {
     expect(diskPhotoResolver(BASE, orig, web)(P, 3).photos[0]).toMatch(/03\.webp$/);
     expect(diskPhotoResolver(BASE, orig, web)(P, 9).photos[0]).toMatch(/01\.webp$/);
   });
+  it('celá otočka 24 fotek → max 4 z různých úhlů, hlavní první', () => {
+    const R = 'K0002/0001-0005/0002';
+    for (let n = 1; n <= 24; n++) touch(orig, `${R}/${String(n).padStart(2, '0')}.jpg`);
+    const r = diskPhotoResolver(BASE, orig, web)(R, 1);
+    expect(r.photos.map((u) => u.slice(-7))).toEqual(['01.webp', '04.webp', '07.webp', '13.webp']);
+    expect(diskPhotoResolver(BASE, orig, web)(R, 2, { shopPhotos: [20, 2] }).photos.map((u) => u.slice(-7))).toEqual(['02.webp', '20.webp']);
+  });
+  it('AI úprava: ok/approved → ai/…webp, suspect → originál, chybějící soubor → originál', () => {
+    const R = 'K0003/0001-0005/0003';
+    for (let n = 1; n <= 24; n++) touch(orig, `${R}/${String(n).padStart(2, '0')}.jpg`);
+    touch(orig, `${R}/ai/01-aaaaaaaa.jpg`); touch(orig, `${R}/ai/04-bbbbbbbb.jpg`); touch(orig, `${R}/ai/07-cccccccc.jpg`);
+    const e = (file: string, status: string) => ({ file, status, score: 0.9, model: 'm', createdAt: '' });
+    const aiPhotos = {
+      1: e('01-aaaaaaaa.jpg', 'ok'), 4: e('04-bbbbbbbb.jpg', 'suspect'), 7: e('07-cccccccc.jpg', 'approved'),
+      13: e('13-dddddddd.jpg', 'ok'), // soubor neexistuje
+    };
+    const r = diskPhotoResolver(BASE, orig, web)(R, 1, { aiPhotos });
+    expect(r.photos.map((u) => u.split(`${R}/`)[1])).toEqual(['ai/01-aaaaaaaa.webp', '04.webp', 'ai/07-cccccccc.webp', '13.webp']);
+  });
   it('traversal a prázdná cesta → nic', () => {
     const res = diskPhotoResolver(BASE, orig, web);
     for (const bad of ['', '../secret', 'K0001/../../secret', 'a\\b', 'a\0b']) {
