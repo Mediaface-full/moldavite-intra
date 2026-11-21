@@ -22,12 +22,13 @@ interface PhotoJob {
 
 type Props =
   | { scope: 'item'; itemId: number; label: string; missingCount: number; photoCount: number }
-  | { scope: 'box'; boxId: number; label: string; missingCount: number; photoCount: number };
+  | { scope: 'box'; boxId: number; label: string; missingCount: number; photoCount: number }
+  | { scope: 'all'; label: string; missingCount: number; photoCount: number };
 
 const POLL_MS = 3000;
-/** gemini-3-pro-image, výstup 2K — ceník ai.google.dev/gemini-api/docs/pricing k 21. 11. 2026 */
-const USD_PER_PHOTO = 0.134;
-const SEC_PER_PHOTO = 12; // po dvou souběžně, ~20–25 s na fotku
+/** gemini-3-pro-image, výstup 2K, režim Flex — ceník ai.google.dev/gemini-api/docs/pricing k 21. 11. 2026 */
+const USD_PER_PHOTO = 0.067;
+const SEC_PER_PHOTO = 10; // 4 fotky kamene souběžně, Flex ~25–60 s na fotku
 
 const fmtUsd = (n: number) => n.toLocaleString('cs-CZ', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
@@ -66,7 +67,7 @@ export default function AiPhotosButton(props: Props) {
     const photos = overwrite ? props.photoCount : props.missingCount;
     const cost = `${fmtUsd(photos * USD_PER_PHOTO)} USD`;
     const mins = Math.max(1, Math.ceil((photos * SEC_PER_PHOTO) / 60));
-    const what = props.scope === 'item' ? `kamene ${props.label}` : `kazety ${props.label}`;
+    const what = props.scope === 'item' ? `kamene ${props.label}` : props.scope === 'box' ? `kazety ${props.label}` : 'všech neprodaných kamenů skladu';
     const msg = overwrite
       ? `Znovu AI upravit VŠECH ${photos} e-shopových fotek ${what}? Dosavadní AI verze se nahradí.\n\nCena cca ${cost}, ${mins} min. Originály zůstávají beze změny.`
       : `AI upravit ${photos} e-shopových fotek ${what} (vyčistit, bílé pozadí, sjednotit)?\n\nCena cca ${cost}, ${mins} min, běží na pozadí. Originály zůstávají beze změny.`;
@@ -75,7 +76,7 @@ export default function AiPhotosButton(props: Props) {
     try {
       const res = await apiFetch('/api/ai/photos', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(props.scope === 'item' ? { itemId: props.itemId, overwrite } : { boxId: props.boxId, overwrite }),
+        body: JSON.stringify(props.scope === 'item' ? { itemId: props.itemId, overwrite } : props.scope === 'box' ? { boxId: props.boxId, overwrite } : { all: true, overwrite }),
       });
       const d = await res.json().catch(() => null);
       if (!res.ok || !d?.jobId) { setError(d?.error || (d?.total === 0 ? 'Není co upravovat' : 'Nelze spustit')); return; }
@@ -97,7 +98,7 @@ export default function AiPhotosButton(props: Props) {
       <span className="inline-flex items-center gap-1.5">
         <button
           type="button"
-          onClick={() => start(nothingMissing)}
+          onClick={() => start(nothingMissing && props.scope !== 'all')}
           disabled={running || starting || props.photoCount === 0}
           title={props.photoCount === 0 ? 'Bez fotek' : 'AI vyčistí a sjednotí fotky, které jdou do e-shopu (max 4 na kámen). Originály se nemění.'}
           style={{ color: 'var(--violet)', borderColor: 'color-mix(in srgb, var(--violet) 30%, transparent)' }}
@@ -110,9 +111,10 @@ export default function AiPhotosButton(props: Props) {
             ? `AI fotky · ${job!.done} / ${job!.total}`
             : starting ? 'Spouštím…'
             : nothingMissing ? 'AI fotky · znovu'
-            : props.scope === 'item' ? `AI vylepšit fotky · ${props.missingCount}` : `AI fotky · chybí ${props.missingCount}`}
+            : props.scope === 'item' ? `AI vylepšit fotky · ${props.missingCount}`
+            : props.scope === 'all' ? `AI fotky celý sklad · chybí ${props.missingCount}` : `AI fotky · chybí ${props.missingCount}`}
         </button>
-        {!running && !nothingMissing && props.photoCount > props.missingCount && (
+        {!running && props.scope !== 'all' && !nothingMissing && props.photoCount > props.missingCount && (
           <button type="button" onClick={() => start(true)} disabled={starting}
             title="Upraví znovu všechny e-shopové fotky a nahradí dosavadní AI verze"
             className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground hover:text-foreground underline-offset-2 hover:underline">

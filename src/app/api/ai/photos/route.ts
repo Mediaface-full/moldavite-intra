@@ -1,10 +1,11 @@
 /**
  * POST /api/ai/photos — ADMIN. AI úprava e-shopových fotek (max 4 na kámen) na pozadí.
- *   body: { itemId: number } | { boxId: number }, overwrite?: boolean
+ *   body: { itemId: number } | { boxId: number } | { all: true }, overwrite?: boolean
+ *   all = všechny neprodané kameny skladu (kazeta po kazetě, v pořadí kazet).
  *   overwrite=false: jen fotky, které AI úpravu ještě nemají.
  *   202 { jobId, total } · 200 { jobId: null, total: 0 } když není co · 409 když už běh běží.
  * GET — běžící běh (tlačítko po reloadu naváže): { job }.
- * Logika: lib/photos/photoJobs.ts + enhanceItem.ts. Cena ~0,134 USD/fotka (gemini-3-pro-image, 2K).
+ * Logika: lib/photos/photoJobs.ts + enhanceItem.ts. Cena 0,067 USD/fotka (gemini-3-pro-image, 2K, Flex).
  */
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
@@ -29,14 +30,17 @@ export async function POST(request: Request) {
   const limit = checkRateLimit(`ai-photos:${session.id}`, 20, 10 * 60 * 1000);
   if (!limit.ok) return NextResponse.json({ error: `Příliš mnoho spuštění. Zkus to za ${limit.retryAfterSec} s.` }, { status: 429 });
 
-  let body: { itemId?: unknown; boxId?: unknown; overwrite?: unknown };
+  let body: { itemId?: unknown; boxId?: unknown; all?: unknown; overwrite?: unknown };
   try { body = await request.json(); } catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }); }
   const overwrite = body.overwrite === true;
   const select = { id: true, evidNumber: true, photoPath: true, mainPhoto: true, shopPhotos: true, aiPhotos: true, box: { select: { code: true } } } as const;
 
   let label: string;
   let items: Array<{ id: number; photoPath: string; mainPhoto: number; shopPhotos: number[]; aiPhotos: unknown }>;
-  if (body.itemId !== undefined) {
+  if (body.all === true) {
+    label = 'celý sklad';
+    items = await prisma.item.findMany({ where: { sold: false }, orderBy: [{ box: { code: 'asc' } }, { evidNumber: 'asc' }], select });
+  } else if (body.itemId !== undefined) {
     const itemId = Number(body.itemId);
     if (!Number.isInteger(itemId) || itemId <= 0) return NextResponse.json({ error: 'itemId musí být kladné celé číslo' }, { status: 422 });
     const item = await prisma.item.findUnique({ where: { id: itemId }, select });

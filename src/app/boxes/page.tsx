@@ -5,9 +5,12 @@ import { CASSETTE_TYPE_META } from '@/lib/cassetteType';
 import Icon from '@/components/Icon';
 import { requirePageSession } from '@/lib/pageAuth';
 import { fmtInt } from '@/lib/utils';
+import AiPhotosButton from '@/components/AiPhotosButton';
+import { shopPhotoStats } from '@/lib/photos/missing';
 
 export default async function BoxesPage() {
-  await requirePageSession();
+  const session = await requirePageSession();
+  const isAdmin = session.role === 'ADMIN';
   const boxes = await prisma.box.findMany({
     include: {
       _count: { select: { items: true } },
@@ -25,6 +28,11 @@ export default async function BoxesPage() {
     orderBy: { code: 'asc' },
   });
 
+  // AI fotky pro celý sklad (Gideon 21. 11.: po kazetách „max po 20“) — jen admin, čte disk
+  const photoStats = isAdmin
+    ? (await prisma.item.findMany({ where: { sold: false }, select: { photoPath: true, mainPhoto: true, shopPhotos: true, aiPhotos: true } })).map((i) => shopPhotoStats(i))
+    : [];
+
   function fmtMoney(n: number): string {
     if (!Number.isFinite(n) || n === 0) return '—';
     return `${fmtInt(n)} Kč`;
@@ -40,7 +48,17 @@ export default async function BoxesPage() {
           <h1 className="text-3xl font-bold tracking-tight">Kazety</h1>
           <p className="text-sm text-muted-foreground mt-1">Správa kazet s moldavity</p>
         </div>
-        <ScanNewBoxButton />
+        <div className="flex items-center gap-2 flex-wrap justify-end">
+          {isAdmin && (
+            <AiPhotosButton
+              scope="all"
+              label="celý sklad"
+              photoCount={photoStats.reduce((n, s) => n + s.slots.length, 0)}
+              missingCount={photoStats.reduce((n, s) => n + s.missing.length, 0)}
+            />
+          )}
+          <ScanNewBoxButton />
+        </div>
       </div>
 
       <div className="bg-card border border-border rounded-xl shadow-sm overflow-hidden">

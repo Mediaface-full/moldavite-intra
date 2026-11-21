@@ -8,11 +8,18 @@
  *  - gemini-3-pro-image drží tvar i povrch, odstraní tmel a pozadí, ~20 s na fotku;
  *  - s VZOROVOU fotkou (pro sjednocení) model do profilu nakreslil kámen ze vzoru → vzor se NEPOSÍLÁ,
  *    sjednocení dělá jednotné zadání + lib/photos/stoneImage.ts composeSet.
+ *
+ * Režim Flex (21. 11. 2026, Gideon „zkus 1“): stejný model, poloviční cena (0,067 USD/fotka 2K),
+ * odpověď za vteřiny až minuty, Google ho při přetížení odmítne (503/429). Ověřeno naostro:
+ * `service_tier: "flex"` → usageMetadata.serviceTier "flex", 26 s. Při odmítnutí Flexu jde poslední
+ * pokus standardně (plná cena), aby hromadný běh nestál. `GEMINI_IMAGE_TIER=standard` Flex vypne.
  */
 import { parseGeminiError, type GeminiRetryOptions } from './geminiClient';
 
 export const IMAGE_MODEL = process.env.GEMINI_IMAGE_MODEL || 'gemini-3-pro-image';
-export const IMAGE_TIMEOUT_MS = 120_000;
+export const IMAGE_TIER: 'flex' | 'standard' = process.env.GEMINI_IMAGE_TIER === 'standard' ? 'standard' : 'flex';
+/** Flex může odpovídat i minuty (Google: cíl 1–15 min) — běh je na pozadí, takže trpělivě. */
+export const IMAGE_TIMEOUT_MS = IMAGE_TIER === 'flex' ? 15 * 60_000 : 120_000;
 
 export const PHOTO_PROMPT = `This is a product photo of a natural moldavite — a genuine, one-of-a-kind natural gemstone — for an e-shop.
 Retouch it as a professional product photographer would:
@@ -24,7 +31,7 @@ Retouch it as a professional product photographer would:
 Return only the edited photo.`;
 
 export type GeminiImageResult =
-  | { ok: true; image: Buffer; mimeType: string }
+  | { ok: true; image: Buffer; mimeType: string; tier: string }
   | { ok: false; status: number; quota: boolean; error: string };
 
 export async function editPhoto(
@@ -36,20 +43,24 @@ export async function editPhoto(
   const key = process.env.GEMINI_API_KEY || '';
   if (!key && fetchImpl === fetch) return { ok: false, status: 500, quota: false, error: 'Gemini API key not configured' };
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(IMAGE_MODEL)}:generateContent`;
-  const body = JSON.stringify({
+  const makeBody = (tier: 'flex' | 'standard') => JSON.stringify({
+    ...(tier === 'flex' ? { service_tier: 'flex' } : {}),
     contents: [{ parts: [{ inline_data: { mime_type: 'image/jpeg', data: jpeg.toString('base64') } }, { text: PHOTO_PROMPT }] }],
     generationConfig: { responseModalities: ['IMAGE'], imageConfig: { aspectRatio: '1:1', imageSize: '2K' } },
   });
 
   let last: GeminiImageResult = { ok: false, status: 500, quota: false, error: 'Gemini API call failed' };
-  for (let attempt = 1; attempt <= Math.max(1, retry.attempts); attempt++) {
+  const attempts = Math.max(1, retry.attempts);
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    // Flex je „sheddable“: poslední pokus po odmítnutí jde standardně
+    const tier = IMAGE_TIER === 'flex' && (attempt < attempts || attempts === 1) ? 'flex' : 'standard';
     let res: Response;
     try {
       res = await fetchImpl(url, {
         method: 'POST',
         signal: AbortSignal.timeout(IMAGE_TIMEOUT_MS),
         headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
-        body,
+        body: makeBody(tier),
       });
     } catch (err) {
       const timedOut = err instanceof Error && (err.name === 'TimeoutError' || err.name === 'AbortError');
@@ -58,10 +69,12 @@ export async function editPhoto(
       return last;
     }
     if (res.ok) {
-      const data = await res.json() as { candidates?: Array<{ finishReason?: string; content?: { parts?: Array<{ inlineData?: { data: string; mimeType: string }; text?: string }> } }> };
+      const data = await res.json() as { usageMetadata?: { serviceTier?: string }; candidates?: Array<{ finishReason?: string; content?: { parts?: Array<{ inlineData?: { data: string; mimeType: string }; text?: string }> } }> };
       const cand = data.candidates?.[0];
       const part = cand?.content?.parts?.find((p) => p.inlineData?.data);
-      if (part?.inlineData) return { ok: true, image: Buffer.from(part.inlineData.data, 'base64'), mimeType: part.inlineData.mimeType };
+      if (part?.inlineData) {
+        return { ok: true, image: Buffer.from(part.inlineData.data, 'base64'), mimeType: part.inlineData.mimeType, tier: data.usageMetadata?.serviceTier ?? tier };
+      }
       const text = cand?.content?.parts?.find((p) => p.text)?.text;
       return { ok: false, status: 502, quota: false, error: `Gemini nevrátil obrázek (${cand?.finishReason ?? 'bez důvodu'})${text ? `: ${text.slice(0, 160)}` : ''}` };
     }

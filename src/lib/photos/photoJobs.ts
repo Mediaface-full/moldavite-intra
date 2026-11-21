@@ -9,7 +9,7 @@ import { prisma } from '@/lib/prisma';
 import { RETRY_BULK } from '@/lib/ai/geminiClient';
 import { enhanceItemPhotos, type SlotOutcome } from './enhanceItem';
 
-export const MAX_ITEMS = 300;
+export const MAX_ITEMS = 1000; // celý sklad (Gideon 21. 11.: po kazetách „max po 20“)
 const KEEP_FINISHED = 20;
 
 export interface PhotoJobItem {
