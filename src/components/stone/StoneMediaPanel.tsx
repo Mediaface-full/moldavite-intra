@@ -180,7 +180,7 @@ export default function StoneMediaPanel({ media }: { media: ItemMediaInfo }) {
                         foto {slot} · {!ai ? 'bez AI' : ai.status === 'suspect' ? `kontrola ${Math.round(ai.score * 100)} %` : ai.status === 'approved' ? 'AI schválena' : 'AI ✓'}
                       </p>
                       {isAdmin && ai && (
-                        <div className="flex gap-2 text-[10px] font-mono uppercase tracking-wider">
+                        <div className="flex flex-wrap gap-x-2 text-[10px] font-mono uppercase tracking-wider">
                           {ai.status === 'suspect' && (
                             <button type="button" disabled={deciding === slot} onClick={() => decide(slot, 'approve')} className="text-text-2 hover:text-foreground">Schválit</button>
                           )}
