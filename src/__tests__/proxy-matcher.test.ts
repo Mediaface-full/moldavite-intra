@@ -173,3 +173,21 @@ describe('proxy — noční záloha z DSM cronu (x-cron-secret bez cookie)', () 
     finally { if (prev !== undefined) process.env.CRON_SECRET = prev; }
   });
 });
+
+describe('proxy — Etsy OAuth callback (jen přesná cesta + GET)', () => {
+  it('GET /api/etsy/oauth/callback bez cookie projde do handleru', () => {
+    const res = proxy(new NextRequest('https://app.example.com/api/etsy/oauth/callback?code=x&state=y'));
+    expect(res.headers.get('x-middleware-next')).toBe('1');
+  });
+  it('POST /api/etsy/oauth/callback bez cookie → neprojde', () => {
+    const res = proxy(new NextRequest('https://app.example.com/api/etsy/oauth/callback', { method: 'POST' }));
+    expect(res.headers.get('x-middleware-next')).toBeNull();
+    expect([401, 403]).toContain(res.status);
+  });
+  it('GET /api/etsy/oauth/callbackx a /api/etsy/oauth/start bez cookie → neprojde', () => {
+    for (const p of ['/api/etsy/oauth/callbackx', '/api/etsy/oauth/start', '/api/etsy/settings']) {
+      const res = proxy(new NextRequest(`https://app.example.com${p}`));
+      expect(res.headers.get('x-middleware-next')).toBeNull();
+    }
+  });
+});
