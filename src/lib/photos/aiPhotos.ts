@@ -12,7 +12,8 @@
  *     suspect  obrys se od originálu liší (AI mohla kámen překreslit) → e-shop dostane ORIGINÁL,
  *              dokud ji člověk neschválí
  *     approved člověk ji po kontrole schválil → e-shop dostane AI verzi
- *     rejected člověk ji zamítl → e-shop dostane originál (soubor se smaže)
+ *     rejected člověk ji zamítl → e-shop dostane originál, soubor se smaže, záznam zůstává
+ *              (hromadný běh ji nepřegeneruje; znovu jen „znovu vše“ na kameni)
  */
 
 export type AiPhotoStatus = 'ok' | 'suspect' | 'approved' | 'rejected';

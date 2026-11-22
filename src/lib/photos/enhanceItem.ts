@@ -81,7 +81,8 @@ export async function enhanceItemPhotos(
   if (!slots.length) return { ok: false, catalogNumber, slots: [], error: 'Kámen nemá fotky' };
 
   const existing = parseAiPhotos(item.aiPhotos);
-  const todo = slots.filter((s) => opts.overwrite || !existing[String(s)] || existing[String(s)].status === 'rejected');
+  // Zamítnutou fotku (člověk chtěl originál) hromadný běh znovu nepřegeneruje — jen „znovu vše“ (overwrite).
+  const todo = slots.filter((s) => opts.overwrite || !existing[String(s)]);
   if (!todo.length) return { ok: true, catalogNumber, slots: slots.map((slot) => ({ slot, status: 'skipped' as const })) };
 
   const edit = opts.editImpl ?? editPhoto;
@@ -175,12 +176,14 @@ export async function decideAiPhoto(itemId: number, slot: number, action: 'appro
   if (!item) return { ok: false, error: 'Kámen nenalezen' };
   const ai = parseAiPhotos(item.aiPhotos);
   const e = ai[String(slot)];
-  if (!e) return { ok: false, error: 'Tahle fotka nemá AI úpravu' };
+  if (!e || e.status === 'rejected') return { ok: false, error: 'Tahle fotka nemá AI úpravu' };
   if (action === 'approve') ai[String(slot)] = { ...e, status: 'approved' };
   else {
+    // Soubor pryč, záznam zůstane jako „rejected“ → e-shop dostane originál a hromadný běh slot
+    // nebere jako chybějící (22. 11. 2026: jinak by „AI fotky celý sklad“ zamítnuté fotky přegeneroval).
     const dir = itemDir(photosRoot(), item.photoPath);
     if (dir) removeAiFile(dir, e.file);
-    delete ai[String(slot)];
+    ai[String(slot)] = { ...e, status: 'rejected' };
   }
   await prisma.item.update({ where: { id: itemId }, data: { aiPhotos: ai as unknown as Prisma.InputJsonValue } });
   await logActivity(userId, 'ai.photos', `${item.box.code}-${item.evidNumber}`,

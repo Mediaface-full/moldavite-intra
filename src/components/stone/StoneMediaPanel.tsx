@@ -161,7 +161,9 @@ export default function StoneMediaPanel({ media }: { media: ItemMediaInfo }) {
               </div>
               <div className="grid grid-cols-4 gap-2">
                 {shopSlots.map((slot, k) => {
-                  const ai = shop.ai[String(slot)];
+                  const ai0 = shop.ai[String(slot)];
+                  const rejected = ai0?.status === 'rejected';
+                  const ai = rejected ? undefined : ai0; // zamítnutá: soubor smazaný, ukazuje se originál
                   const showAi = !!ai && !showOriginal[slot];
                   const nn = String(slot).padStart(2, '0');
                   const src = showAi ? `/images/${item.photoPath}/ai/${ai.file}?w=384` : `/images/${item.photoPath}/${nn}.jpg?w=384`;
@@ -177,7 +179,7 @@ export default function StoneMediaPanel({ media }: { media: ItemMediaInfo }) {
                       </button>
                       <p className="text-[10px] font-mono leading-tight" style={{ color: !ai ? 'var(--muted-foreground)' : usable ? 'var(--success)' : 'var(--warning)' }}
                         title={ai ? `Shoda obrysu s originálem ${Math.round(ai.score * 100)} %` : undefined}>
-                        foto {slot} · {!ai ? 'bez AI' : ai.status === 'suspect' ? `kontrola ${Math.round(ai.score * 100)} %` : ai.status === 'approved' ? 'AI schválena' : 'AI ✓'}
+                        foto {slot} · {rejected ? 'AI zamítnuta' : !ai ? 'bez AI' : ai.status === 'suspect' ? `kontrola ${Math.round(ai.score * 100)} %` : ai.status === 'approved' ? 'AI schválena' : 'AI ✓'}
                       </p>
                       {isAdmin && ai && (
                         <div className="flex flex-wrap gap-x-2 text-[10px] font-mono uppercase tracking-wider">
@@ -191,9 +193,9 @@ export default function StoneMediaPanel({ media }: { media: ItemMediaInfo }) {
                   );
                 })}
               </div>
-              {Object.values(shop.ai).some((a) => a.status === 'suspect') && (
+              {shopSlots.some((s) => shop.ai[String(s)]?.status === 'suspect') && (
                 <p className="text-[11px] mt-2" style={{ color: 'var(--warning)' }}>
-                  U fotky „ke kontrole“ se obrys kamene na AI verzi liší od originálu — AI mohla kámen pozměnit. Do e-shopu zatím jde originál. Porovnej kliknutím a schval, nebo zahoď.
+                  U fotky „ke kontrole“ se obrys kamene na AI verzi liší od originálu — AI mohla kámen pozměnit. Do e-shopu zatím jde originál. Porovnej kliknutím a schval, nebo zahoď (všechny najednou: Správa → Kontrola AI fotek).
                 </p>
               )}
             </div>

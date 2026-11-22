@@ -10,7 +10,7 @@ export function shopPhotoStats(item: Src): { available: number[]; slots: number[
   const available = availableSlots(item.photoPath);
   const { slots, auto } = resolveShopSlots(available, item.mainPhoto, item.shopPhotos);
   const ai = parseAiPhotos(item.aiPhotos);
-  return { available, slots, auto, missing: slots.filter((s) => !ai[String(s)] || ai[String(s)].status === 'rejected') };
+  return { available, slots, auto, missing: slots.filter((s) => !ai[String(s)]) };
 }
 
 export const missingAiSlots = (item: Src): number[] => shopPhotoStats(item).missing;
