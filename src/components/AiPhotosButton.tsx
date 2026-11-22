@@ -161,7 +161,8 @@ export default function AiPhotosButton(props: Props) {
               <>
                 <p className="text-[11px] text-text-2 uppercase tracking-wider font-mono font-medium mb-1.5">Zkontrolovat</p>
                 <p className="text-xs text-muted-foreground mb-2">
-                  „Ke kontrole“ = obrys kamene na AI fotce se liší od originálu (AI mohla kámen pozměnit). Do e-shopu zatím jde originál — na detailu kamene AI verzi schval, nebo zahoď.
+                  „Ke kontrole“ = obrys kamene na AI fotce se liší od originálu (AI mohla kámen pozměnit). Do e-shopu zatím jde originál.{' '}
+                  <Link href="/admin/ai-fotky" className="text-foreground underline underline-offset-2">Zkontrolovat všechny na jedné stránce →</Link>
                 </p>
                 <ul className="max-h-64 overflow-y-auto divide-y divide-border border border-border rounded-lg">
                   {review.map((r) => (
