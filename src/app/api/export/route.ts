@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma';
+import { exportPhotoPaths } from '@/lib/photos/exportPhotos';
 import { NextResponse } from 'next/server';
 import { getSession, logActivity } from '@/lib/auth';
 import { getPasShape } from '@/lib/pasShapes';
@@ -53,14 +54,10 @@ export async function GET() {
 
   for (const item of items) {
     const catalogNumber = `${item.box.code}-${item.evidNumber}`;
-    const mainPhotoNum = String(item.mainPhoto || 1).padStart(2, '0');
-    // WebP (14. 9. 2026): Upgates WebP podporuje (JPG/PNG/WebP/SVG). Soubory
-    // .webp na disku nejsou — /images route je vyrobí on-demand z .jpg a kešuje
-    // (viz lib/imageFormats.ts). Etsy export zůstává .jpg (Etsy WebP nebere).
-    const imageUrl = `${baseUrl}/images/${item.photoPath}/${mainPhotoNum}.webp`;
-    const images360 = Array.from({ length: 24 }, (_, i) =>
-      `${baseUrl}/images/${item.photoPath}/${String(i + 1).padStart(2, '0')}.webp`
-    );
+    // Fotky = stejný výběr jako e-shop (22. 11. 2026): max 4 z různých úhlů, AI verze kde je schválená.
+    // WebP (14. 9. 2026): Upgates WebP podporuje; /images ho vyrobí on-demand z .jpg (lib/imageFormats.ts).
+    const photos = exportPhotoPaths(item, 'webp').map((p) => `${baseUrl}/images/${p}`);
+    const imageUrl = photos[0] ?? '';
 
     // Pick price based on primary currency (from pre-calculated DB fields)
     const priceCZK = Number(item.salePrice);
@@ -120,7 +117,7 @@ export async function GET() {
     xml += `    <MANUFACTURER>Bohemian Moldavite</MANUFACTURER>\n`;
     xml += `    <IMGURL>${xmlEsc(imageUrl)}</IMGURL>\n`;
 
-    for (const img of images360) {
+    for (const img of photos.slice(1)) {
       xml += `    <IMGURL_ALTERNATIVE>${xmlEsc(img)}</IMGURL_ALTERNATIVE>\n`;
     }
 

@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma';
 import { NextResponse } from 'next/server';
 import { getSession, logActivity } from '@/lib/auth';
 import { getPasShape } from '@/lib/pasShapes';
+import { exportPhotoPaths } from '@/lib/photos/exportPhotos';
 import { etsyTags, DEFAULT_ETSY_MATERIALS } from '@/lib/etsy/content';
 
 export async function GET() {
@@ -62,11 +63,10 @@ export async function GET() {
     const tags = etsyTags([], shape ? item.pasShape : '').join(',');
     const materials = DEFAULT_ETSY_MATERIALS.join(',');
 
-    const mainIdx = item.mainPhoto || 1;
-    const mainImg = `${baseUrl}/images/${item.photoPath}/${String(mainIdx).padStart(2, '0')}.jpg`;
-    const otherImgs = [1, 2, 3, 4, 5, 6].filter(i => i !== mainIdx).slice(0, 4)
-      .map(i => `${baseUrl}/images/${item.photoPath}/${String(i).padStart(2, '0')}.jpg`);
-    const images = [mainImg, ...otherImgs].slice(0, 5);
+    // Stejné fotky jako e-shop a Etsy API (max 4, AI verze kde je schválená), .jpg — Etsy WebP nebere.
+    // CSV má 5 sloupců obrázků → pátý zůstane prázdný.
+    const photos = exportPhotoPaths(item, 'jpg').map((p) => `${baseUrl}/images/${p}`);
+    const images = [...photos, '', '', '', '', ''].slice(0, 5);
 
     const esc = (s: string) => `"${s.replace(/"/g, '""')}"`;
 
