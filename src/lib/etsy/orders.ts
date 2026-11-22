@@ -18,6 +18,8 @@ import { enqueueEtsyJob, kickEtsy } from './queue';
 
 export type SellOutcome = 'sold' | 'sold_with_reservation' | 'already_sold';
 export interface OrderDeps {
+  /** Uvolní claim po selhání zpracování → opakované doručení / polling objednávku zpracuje znovu (review C1). */
+  releaseClaim: (receiptId: number) => Promise<void>;
   claimOrder: (receiptId: number, listingIds: number[], paidAt: Date) => Promise<boolean>;
   finishOrder: (receiptId: number, data: { itemIds: number[]; conflict: boolean; conflictNote: string | null }) => Promise<void>;
   mapItems: (tx: EtsyReceipt['transactions']) => Promise<Array<{ listingId: number; itemId: number | null }>>;
@@ -27,9 +29,21 @@ export interface OrderDeps {
   notifyShop: (ids: number[]) => Promise<void>;
 }
 
+/** Obchod a objednávka z resource_url webhooku — jen podle cesty (doména Etsy se v dokumentaci liší); URL se nikdy nevolá. */
+export function parseReceiptResource(url: string | undefined | null): { shopId: number; receiptId: number } | null {
+  let path = '';
+  try { path = new URL(url ?? '').pathname; } catch { return null; }
+  const m = /^\/v3\/application\/shops\/(\d+)\/receipts\/(\d+)\/?$/.exec(path);
+  return m ? { shopId: Number(m[1]), receiptId: Number(m[2]) } : null;
+}
 export function receiptIdFromResourceUrl(url: string | undefined | null): number | null {
-  const m = /^https:\/\/api\.etsy\.com\/v3\/application\/shops\/\d+\/receipts\/(\d+)(?:[/?]|$)/.exec(url ?? '');
-  return m ? Number(m[1]) : null;
+  return parseReceiptResource(url)?.receiptId ?? null;
+}
+
+/** Polling: pevné okno 72 h podle vytvoření objednávky (review I7 — pozdě zaplacené objednávky; duplicity se levně přeskočí). */
+export const POLL_LOOKBACK_SEC = 72 * 3600;
+export function pollWindowStartSec(nowMs: number): number {
+  return Math.floor(nowMs / 1000) - POLL_LOOKBACK_SEC;
 }
 
 export async function handleEtsyReceiptWith(receipt: EtsyReceipt, source: 'webhook' | 'poll', d: OrderDeps): Promise<{ status: 'sold' | 'duplicate' | 'conflict' | 'ignored'; itemIds: number[] }> {
@@ -38,9 +52,10 @@ export async function handleEtsyReceiptWith(receipt: EtsyReceipt, source: 'webho
   const listingIds = receipt.transactions.map((t) => t.listing_id);
   if (!(await d.claimOrder(receipt.receipt_id, listingIds, paidAt))) return { status: 'duplicate', itemIds: [] };
 
-  const mapped = await d.mapItems(receipt.transactions);
   const sold: number[] = [];
   const notes: string[] = [];
+  try {
+  const mapped = await d.mapItems(receipt.transactions);
   for (const m of mapped) {
     if (m.itemId === null) {
       await d.log('etsy.unknown_listing', `Etsy objednávka ${receipt.receipt_id}: listing ${m.listingId} intra nezná (${source})`);
@@ -55,6 +70,12 @@ export async function handleEtsyReceiptWith(receipt: EtsyReceipt, source: 'webho
     sold.push(m.itemId);
     if (r.outcome === 'sold_with_reservation') await d.alert('sold_with_reservation', { catalogNumber: r.catalogNumber, receiptId: receipt.receipt_id });
   }
+  } catch (err) {
+    // Prodej je idempotentní pro stejnou objednávku (sellItem pozná kámen prodaný touto objednávkou),
+    // takže claim lze vždy uvolnit a zpracovat znovu — jinak by se zaplacený kámen nikdy nezapsal.
+    await d.releaseClaim(receipt.receipt_id);
+    throw err;
+  }
   const conflict = notes.length > 0;
   await d.finishOrder(receipt.receipt_id, { itemIds: sold, conflict, conflictNote: conflict ? notes.join('; ') : null });
   if (sold.length) await d.notifyShop(sold);
@@ -66,8 +87,10 @@ export async function handleEtsyReceiptWith(receipt: EtsyReceipt, source: 'webho
 class AlreadySold extends Error {}
 
 async function sellItemDb(itemId: number, receiptId: number, paidAt: Date): Promise<{ outcome: SellOutcome; catalogNumber: string; shopOrder: string }> {
-  const head = await prisma.item.findUnique({ where: { id: itemId }, select: { evidNumber: true, shopOrderNumber: true, box: { select: { code: true } } } });
+  const head = await prisma.item.findUnique({ where: { id: itemId }, select: { evidNumber: true, shopOrderNumber: true, sold: true, etsyReceiptId: true, box: { select: { code: true } } } });
   const catalogNumber = head ? `${head.box.code}-${head.evidNumber}` : `#${itemId}`;
+  // Už prodaný touto objednávkou (opakované zpracování po přerušení) → úspěch bez dalších zápisů
+  if (head?.sold && head.etsyReceiptId === BigInt(receiptId)) return { outcome: 'sold', catalogNumber, shopOrder: '' };
   let hadReservation = false;
   try {
     await applySoldTransition(
@@ -96,17 +119,25 @@ async function sellItemDb(itemId: number, receiptId: number, paidAt: Date): Prom
   return { outcome: hadReservation ? 'sold_with_reservation' : 'sold', catalogNumber, shopOrder: '' };
 }
 
+const STALE_CLAIM_MS = 10 * 60_000;
+
 export const prismaOrderDeps: OrderDeps = {
   claimOrder: async (receiptId, listingIds, paidAt) => {
     try {
       await prisma.etsyOrder.create({ data: { receiptId: BigInt(receiptId), listingIds: listingIds.map(BigInt), paidAt } });
       return true;
     } catch (err) {
-      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') return false;
-      throw err;
+      if (!(err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002')) throw err;
+      // Nedokončený claim starší než 10 min (proces spadl uprostřed) → převzít
+      const r = await prisma.etsyOrder.updateMany({
+        where: { receiptId: BigInt(receiptId), finishedAt: null, processedAt: { lt: new Date(Date.now() - STALE_CLAIM_MS) } },
+        data: { processedAt: new Date() },
+      });
+      return r.count > 0;
     }
   },
-  finishOrder: async (receiptId, data) => { await prisma.etsyOrder.update({ where: { receiptId: BigInt(receiptId) }, data }); },
+  releaseClaim: async (receiptId) => { await prisma.etsyOrder.deleteMany({ where: { receiptId: BigInt(receiptId), finishedAt: null } }); },
+  finishOrder: async (receiptId, data) => { await prisma.etsyOrder.update({ where: { receiptId: BigInt(receiptId) }, data: { ...data, finishedAt: new Date() } }); },
   mapItems: async (txs) => {
     const listings = await prisma.etsyListing.findMany({ where: { listingId: { in: txs.map((t) => BigInt(t.listing_id)) } }, select: { listingId: true, itemId: true } });
     const byListing = new Map(listings.map((l) => [String(l.listingId), l.itemId]));
@@ -131,9 +162,7 @@ export function handleEtsyReceipt(receipt: EtsyReceipt, source: 'webhook' | 'pol
 
 /** Polling zaplacených objednávek (záloha za webhook): od poslední zpracované − 1 h, první běh posledních 24 h. */
 export async function pollEtsyReceipts(client: EtsyClient): Promise<number> {
-  const last = await prisma.etsyOrder.findFirst({ orderBy: { processedAt: 'desc' }, select: { processedAt: true } });
-  const since = last ? last.processedAt.getTime() - 3_600_000 : Date.now() - 86_400_000;
-  const receipts = await client.getPaidReceipts(Math.floor(since / 1000));
+  const receipts = await client.getPaidReceipts(pollWindowStartSec(Date.now()));
   let n = 0;
   for (const r of receipts) {
     const res = await handleEtsyReceipt(r, 'poll');

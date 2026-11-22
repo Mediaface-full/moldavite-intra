@@ -7,6 +7,7 @@ function deps(over: Partial<OrderDeps> = {}) {
   const orders = new Set<number>();
   const saved: Record<string, unknown>[] = [];
   const d: OrderDeps = {
+    releaseClaim: vi.fn(async (id: number) => { orders.delete(id); }),
     claimOrder: vi.fn(async (id: number) => { if (orders.has(id)) return false; orders.add(id); return true; }),
     finishOrder: vi.fn(async (_id, data) => { saved.push(data); }),
     mapItems: vi.fn(async (tx: Array<{ listing_id: number }>) => tx.map((t) => ({ listingId: t.listing_id, itemId: t.listing_id === 999 ? null : t.listing_id }))),
@@ -65,7 +66,31 @@ describe('handleEtsyReceipt', () => {
 describe('receiptIdFromResourceUrl', () => {
   it('vytáhne číslo objednávky jen z adresy Etsy API', () => {
     expect(receiptIdFromResourceUrl('https://api.etsy.com/v3/application/shops/77/receipts/123456')).toBe(123456);
-    expect(receiptIdFromResourceUrl('https://evil.example/v3/application/shops/77/receipts/1')).toBeNull();
     expect(receiptIdFromResourceUrl(undefined)).toBeNull();
+  });
+});
+
+describe('opravy po kontrole', () => {
+  it('C1: sellItem selže → claim se uvolní a opakované doručení kámen prodá', async () => {
+    let fail = true;
+    const released: number[] = [];
+    const { d } = deps({
+      sellItem: vi.fn(async (itemId: number) => { if (fail) { fail = false; throw new Error('deadlock'); } return { outcome: 'sold' as const, catalogNumber: `K-${itemId}`, shopOrder: '' }; }),
+    });
+    const claimed = new Set<number>();
+    d.claimOrder = vi.fn(async (id: number) => { if (claimed.has(id)) return false; claimed.add(id); return true; });
+    d.releaseClaim = vi.fn(async (id: number) => { claimed.delete(id); released.push(id); });
+    await expect(handleEtsyReceiptWith(receipt([11]), 'webhook', d)).rejects.toThrow('deadlock');
+    expect(released).toEqual([9001]);
+    expect(await handleEtsyReceiptWith(receipt([11]), 'webhook', d)).toEqual({ status: 'sold', itemIds: [11] });
+  });
+  it('I8: číslo objednávky i z jiné domény Etsy, jen ze správné cesty', () => {
+    expect(receiptIdFromResourceUrl('https://openapi.etsy.com/v3/application/shops/77/receipts/42')).toBe(42);
+    expect(receiptIdFromResourceUrl('https://api.etsy.com/v3/application/shops/77/receipts/42?x=1')).toBe(42);
+    expect(receiptIdFromResourceUrl('https://api.etsy.com/v3/application/listings/42')).toBeNull();
+  });
+  it('I7: polling se dívá pevně 72 h zpět', async () => {
+    const { pollWindowStartSec } = await import('@/lib/etsy/orders');
+    expect(pollWindowStartSec(1_800_000_000_000)).toBe(1_800_000_000 - 72 * 3600);
   });
 });

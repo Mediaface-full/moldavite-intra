@@ -1,3 +1,4 @@
+import { listingBlocksDelete } from '@/lib/etsy/state';
 import { prisma } from '@/lib/prisma';
 import { NextResponse } from 'next/server';
 import { getSession, logActivity } from '@/lib/auth';
@@ -149,10 +150,15 @@ export async function DELETE(
 
   const box = await prisma.box.findUnique({
     where: { id: boxId },
-    include: { items: { select: { id: true, sold: true } } },
+    include: { items: { select: { id: true, sold: true, etsyListing: { select: { listingId: true, state: true } } } } },
   });
   if (!box) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
+  // Kameny, které jsou na Etsy v prodeji, nejdřív stáhnout (review I4)
+  const onEtsy = box.items.filter((i) => listingBlocksDelete(i.etsyListing)).length;
+  if (onEtsy > 0) {
+    return NextResponse.json({ error: `${onEtsy} kamenů kazety je na Etsy v prodeji — nejdřív u nich vypni „Na Etsy“ a počkej, až se listingy stáhnou.` }, { status: 409 });
+  }
   const itemCount = box.items.length;
   const soldCount = box.items.filter((i) => i.sold).length;
   const decision = decideBoxDelete({ itemCount, soldCount, withItems });

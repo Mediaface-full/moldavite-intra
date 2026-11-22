@@ -606,20 +606,22 @@ model EtsyListing {
   lastError     String?
   errorCount    Int       @default(0)
   inactiveSince DateTime?
+  alertedAt     DateTime? // upozornění „nejde stáhnout“ už odešlo (jedno na kámen, smaže se po úspěchu)
 }
 
 /// Fronta změn pro Etsy. Otevřený job (doneAt NULL) je na kámen a druh max jeden —
 /// částečný unikátní index "EtsyJob_open_unique" je jen v SQL migraci (Prisma ho neumí popsat).
 model EtsyJob {
-  id        Int       @id @default(autoincrement())
-  itemId    Int
-  kind      String // sync | activate | deactivate | remove
-  reason    String
-  runAfter  DateTime  @default(now())
-  attempts  Int       @default(0)
-  lastError String?
-  createdAt DateTime  @default(now())
-  doneAt    DateTime?
+  id          Int       @id @default(autoincrement())
+  itemId      Int
+  kind        String // sync | activate | deactivate | remove
+  reason      String
+  runAfter    DateTime  @default(now())
+  leasedUntil DateTime? // zpracovává se (lhůta 5 min) — oddělené od runAfter, aby nové zařazení nerušilo běžící job
+  attempts    Int       @default(0)
+  lastError   String?
+  createdAt   DateTime  @default(now())
+  doneAt      DateTime?
 
   @@index([doneAt, runAfter])
 }
@@ -635,6 +637,7 @@ model EtsyOrder {
   conflict     Boolean   @default(false)
   conflictNote String?
   resolvedAt   DateTime?
+  finishedAt   DateTime? // zpracování dokončeno; NULL = rozpracováno (po 10 min lze převzít)
 }
 
 /// Přijaté webhooky (webhook-id) — Etsy doručení opakuje.

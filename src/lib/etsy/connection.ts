@@ -9,7 +9,7 @@
  */
 import { createHmac, timingSafeEqual } from 'crypto';
 import { prisma } from '@/lib/prisma';
-import { EtsyClient } from './client';
+import { EtsyApiError, EtsyClient } from './client';
 import { etsyApiKeyHeader, etsyConfigured, etsyRedirectUri, ETSY_TOKEN_URL } from './config';
 import { decryptToken, encryptToken } from './crypto';
 import { alertEtsy } from './alerts';
@@ -73,6 +73,15 @@ export async function saveConnection(tokens: TokenResponse, shop: { shopId: bigi
   await prisma.etsyConnection.upsert({ where: { id: 1 }, create: { id: 1, ...data }, update: data });
 }
 
+// Jedna obnova najednou v procesu (review I3) + krátké podržení po dočasném selhání (review I5)
+const gc = globalThis as unknown as { __etsyRefresh?: Promise<string | null> | null; __etsyRefreshFailUntil?: number };
+export function resetEtsyConnectionStateForTests() { gc.__etsyRefresh = null; gc.__etsyRefreshFailUntil = 0; }
+
+/**
+ * Klient Etsy, nebo null, když je obchod nepřipojený/odpojený (job počká, upozornění už odešlo).
+ * Dočasné selhání obnovy přístupu (5xx, síť) = výjimka EtsyApiError(retryable) → worker ji počítá jako
+ * neúspěšný pokus a po 3 pokusech upozorní (jinak by kámen v košíku zůstal aktivní na Etsy bez upozornění).
+ */
 export async function getEtsyClient(deps: { store?: ConnectionStore; fetchImpl?: typeof fetch; alert?: typeof alertEtsy } = {}): Promise<EtsyClient | null> {
   if (!etsyConfigured()) return null;
   const store = deps.store ?? prismaStore;
@@ -80,28 +89,40 @@ export async function getEtsyClient(deps: { store?: ConnectionStore; fetchImpl?:
   const conn = await store.load();
   if (!conn || conn.disconnectedReason) return null;
 
-  let accessToken: string;
+  let accessToken: string | null;
   if (conn.accessExpiresAt.getTime() - Date.now() > REFRESH_MARGIN_MS) {
     accessToken = decryptToken(conn.accessTokenEnc);
   } else {
-    const r = await tokenRequest({ grant_type: 'refresh_token', refresh_token: decryptToken(conn.refreshTokenEnc) }, fetchImpl);
-    if (!r.data) {
-      if (r.status === 400 || r.status === 401) {
-        await store.markDisconnected('refresh_failed');
-        await (deps.alert ?? alertEtsy)('disconnected', { note: 'obnova přístupu selhala' });
-      } else {
-        console.error(`[etsy] obnova tokenu dočasně selhala (HTTP ${r.status || 'síť'})`);
-      }
-      return null;
-    }
-    accessToken = r.data.access_token;
+    if ((gc.__etsyRefreshFailUntil ?? 0) > Date.now()) throw new EtsyApiError(0, 'obnova přístupu k Etsy dočasně selhala', true);
+    gc.__etsyRefresh ??= refreshTokens(conn, store, fetchImpl, deps.alert ?? alertEtsy).finally(() => { gc.__etsyRefresh = null; });
+    accessToken = await gc.__etsyRefresh;
+  }
+  return accessToken ? new EtsyClient({ accessToken, shopId: conn.shopId, fetchImpl }) : null;
+}
+
+async function refreshTokens(conn: StoredConnection, store: ConnectionStore, fetchImpl: typeof fetch, alert: typeof alertEtsy): Promise<string | null> {
+  const r = await tokenRequest({ grant_type: 'refresh_token', refresh_token: decryptToken(conn.refreshTokenEnc) }, fetchImpl);
+  if (r.data) {
     await store.saveTokens({
       accessTokenEnc: encryptToken(r.data.access_token),
       refreshTokenEnc: encryptToken(r.data.refresh_token),
       accessExpiresAt: new Date(Date.now() + r.data.expires_in * 1000),
     });
+    return r.data.access_token;
   }
-  return new EtsyClient({ accessToken, shopId: conn.shopId, fetchImpl });
+  if (r.status === 400 || r.status === 401) {
+    // Mezitím tokeny obnovil někdo jiný? Pak náš starý refresh token už neplatí oprávněně — neodpojovat.
+    const now = await store.load();
+    if (now && !now.disconnectedReason && now.refreshTokenEnc !== conn.refreshTokenEnc && now.accessExpiresAt.getTime() > Date.now()) {
+      return decryptToken(now.accessTokenEnc);
+    }
+    await store.markDisconnected('refresh_failed');
+    await alert('disconnected', { note: 'obnova přístupu selhala' });
+    return null;
+  }
+  gc.__etsyRefreshFailUntil = Date.now() + 60_000;
+  console.error('[etsy] obnova tokenu dočasně selhala', r.status || 'síť');
+  throw new EtsyApiError(r.status, 'obnova přístupu k Etsy dočasně selhala', true);
 }
 
 // ── OAuth cookie (podepsaná, krátkodobá) ─────────────────────────────

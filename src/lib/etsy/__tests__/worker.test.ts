@@ -8,7 +8,7 @@ const ctx: WorkerContext = {
 };
 const item = (over: Partial<ItemSnapshot> = {}): ItemSnapshot => ({
   id: 1, catalogNumber: 'K0001-0001', nameEn: 'Moldavite', descriptionEn: '', longDescriptionEn: 'Long', weight: '5', pasShape: '',
-  onEtsy: true, sold: false, eligible: true, activeReservation: false, finalCzk: '1000',
+  onEtsy: true, sold: false, soldChannel: '', eligible: true, activeReservation: false, finalCzk: '1000',
   photoPath: 'K0001/x', mainPhoto: 1, shopPhotos: [], aiPhotos: null, listing: null, ...over,
 });
 const job = (over: Partial<JobRow> = {}): JobRow => ({ id: 100, itemId: 1, kind: 'sync', attempts: 0, ...over });
@@ -161,5 +161,52 @@ describe('sweep a reconcile', () => {
     const b = fakeClient(); b.client.getListing.mockResolvedValue({ listing_id: 555, state: 'inactive', quantity: 1 });
     const db = deps(null, b.client); await reconcileWith([sold], db.d);
     expect(db.jobs.enqueued).toEqual([]);
+  });
+});
+
+describe('opravy po kontrole (worker)', () => {
+  const active = { listingId: BigInt(555), state: 'active', syncedHash: 'x', imageIds: [], inactiveSince: null, alertedAt: null as Date | null };
+  it('I5: obnova přístupu dočasně selže (výjimka z clientFactory) → retry s attempts+1, ne tiché čekání', async () => {
+    const { d, jobs } = deps(item({ activeReservation: true, listing: active }), null, { clientFactory: async () => { throw new EtsyApiError(503, 'token', true); } });
+    await processJob(job({ kind: 'deactivate', attempts: 0 }), d);
+    expect(jobs.failed).toHaveLength(1);
+    expect(jobs.failed[0].attempts).toBe(1);
+  });
+  it('I1: upozornění jen jednou na kámen (alertedAt) — další neúspěch už e-mail nepošle', async () => {
+    const { client } = fakeClient();
+    client.updateListing.mockRejectedValue(new EtsyApiError(503, 'down', true));
+    const { d } = deps(item({ activeReservation: true, listing: { ...active, alertedAt: new Date() } }), client);
+    await processJob(job({ kind: 'sync', attempts: 5 }), d);
+    expect(d.alert).not.toHaveBeenCalled();
+  });
+  it('I1: první dosažení 3 pokusů → upozornění + uložení alertedAt', async () => {
+    const { client } = fakeClient();
+    client.updateListing.mockRejectedValue(new EtsyApiError(503, 'down', true));
+    const { d, saved } = deps(item({ activeReservation: true, listing: active }), client);
+    await processJob(job({ kind: 'sync', attempts: 2 }), d);
+    expect(d.alert).toHaveBeenCalledTimes(1);
+    expect(saved.some((p) => p.alertedAt instanceof Date)).toBe(true);
+  });
+  it('I5b: trvalá chyba (400) při stahování → upozornění hned', async () => {
+    const { client } = fakeClient();
+    client.updateListing.mockRejectedValue(new EtsyApiError(400, 'bad', false));
+    const { d } = deps(item({ sold: true, listing: active }), client);
+    await processJob(job({ kind: 'deactivate' }), d);
+    expect(d.alert).toHaveBeenCalledWith('deactivate_failing', expect.objectContaining({ catalogNumber: 'K0001-0001' }));
+  });
+  it('I6: prodáno na Etsy → listing je sold_out, nic se na Etsy nevolá', async () => {
+    const { calls, client } = fakeClient();
+    const { d, saved } = deps(item({ sold: true, soldChannel: 'etsy', listing: active }), client);
+    await processJob(job({ kind: 'deactivate' }), d);
+    expect(calls).toEqual([]);
+    expect(saved.at(-1)).toMatchObject({ state: 'sold_out', blockedReason: 'sold' });
+  });
+  it('I6: sold_out se bere jako stažený (sweep ani reconcile nic nedělají)', async () => {
+    const sold = item({ sold: true, soldChannel: 'etsy', listing: { ...active, state: 'sold_out', inactiveSince: new Date('2026-11-30') } });
+    const a = deps(null, null); await sweepWith([sold], a.d);
+    expect(a.jobs.enqueued).toEqual([]);
+    const c = fakeClient(); c.client.getListing.mockResolvedValue({ listing_id: 555, state: 'sold_out', quantity: 0 });
+    const b = deps(null, c.client); await reconcileWith([sold], b.d);
+    expect(b.jobs.enqueued).toEqual([]);
   });
 });

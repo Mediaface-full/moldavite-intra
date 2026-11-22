@@ -25,3 +25,12 @@ export function desiredEtsyState(input: {
   if (input.activeReservation) return off('reservation');
   return { state: 'active', blockedReason: null };
 }
+
+/**
+ * Smazání kamene/kazety: listing, který se na Etsy může prodat (aktivní, koncept, neznámý stav po chybě),
+ * mazání blokuje — jinak by po smazání zůstal v prodeji bez vazby na kámen (review I4).
+ */
+export function listingBlocksDelete(l: { listingId: bigint | null; state: string } | null): boolean {
+  if (!l?.listingId) return false;
+  return !['inactive', 'sold_out', 'expired', 'removed', 'none'].includes(l.state);
+}

@@ -50,6 +50,7 @@ CREATE TABLE "EtsyListing" (
     "lastError" TEXT,
     "errorCount" INTEGER NOT NULL DEFAULT 0,
     "inactiveSince" TIMESTAMP(3),
+    "alertedAt" TIMESTAMP(3),
 
     CONSTRAINT "EtsyListing_pkey" PRIMARY KEY ("id")
 );
@@ -61,6 +62,7 @@ CREATE TABLE "EtsyJob" (
     "kind" TEXT NOT NULL,
     "reason" TEXT NOT NULL,
     "runAfter" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "leasedUntil" TIMESTAMP(3),
     "attempts" INTEGER NOT NULL DEFAULT 0,
     "lastError" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -80,6 +82,7 @@ CREATE TABLE "EtsyOrder" (
     "conflict" BOOLEAN NOT NULL DEFAULT false,
     "conflictNote" TEXT,
     "resolvedAt" TIMESTAMP(3),
+    "finishedAt" TIMESTAMP(3),
 
     CONSTRAINT "EtsyOrder_pkey" PRIMARY KEY ("id")
 );

@@ -27,10 +27,10 @@ const LEASE_MS = 5 * 60_000;
 const ALERT_AT_ATTEMPT = 3;
 
 export interface JobRow { id: number; itemId: number; kind: string; attempts: number }
-export interface ListingSnapshot { listingId: bigint | null; state: string; syncedHash: string; imageIds: bigint[]; inactiveSince: Date | null }
+export interface ListingSnapshot { listingId: bigint | null; state: string; syncedHash: string; imageIds: bigint[]; inactiveSince: Date | null; alertedAt?: Date | null }
 export interface ItemSnapshot {
   id: number; catalogNumber: string; nameEn: string; descriptionEn: string; longDescriptionEn: string; weight: string; pasShape: string;
-  onEtsy: boolean; sold: boolean; eligible: boolean; activeReservation: boolean; finalCzk: string;
+  onEtsy: boolean; sold: boolean; soldChannel: string; eligible: boolean; activeReservation: boolean; finalCzk: string;
   photoPath: string; mainPhoto: number; shopPhotos: number[]; aiPhotos: unknown;
   listing: ListingSnapshot | null;
 }
@@ -44,7 +44,7 @@ export interface WorkerContext {
 }
 export type ListingPatch = Partial<{
   listingId: bigint | null; state: string; blockedReason: string | null; syncedHash: string; imageIds: bigint[];
-  priceSent: number | null; lastSyncAt: Date; lastError: string | null; errorCount: number; inactiveSince: Date | null;
+  priceSent: number | null; lastSyncAt: Date; lastError: string | null; errorCount: number; inactiveSince: Date | null; alertedAt: Date | null;
 }>;
 export interface WorkerDeps {
   clientFactory: () => Promise<EtsyClient | null>;
@@ -53,7 +53,7 @@ export interface WorkerDeps {
   saveListing: (itemId: number, patch: ListingPatch) => Promise<void>;
   completeJob: (jobId: number) => Promise<void>;
   failJob: (jobId: number, attempts: number, runAfter: Date, error: string) => Promise<void>;
-  enqueue: (itemId: number, kind: EtsyJobKind, reason: string) => Promise<void>;
+  enqueue: (itemId: number, kind: EtsyJobKind, reason: string) => Promise<void>; // neurgentní (sweep, reconcile)
   photos: { plan: (item: ItemSnapshot) => EtsyPhotoEntry[]; jpeg: (e: EtsyPhotoEntry) => Promise<Buffer> };
   alert: typeof alertEtsy;
   now: () => Date;
@@ -80,6 +80,9 @@ function build(item: ItemSnapshot, ctx: WorkerContext, d: WorkerDeps): Built {
 
 export function syncedHashOf(b: Pick<Built, 'contentHash' | 'photoHash'>): string { return `${b.contentHash}|${b.photoHash}`; }
 
+/** Stavy na Etsy, které splňují „stažený“ (sold_out = prodáno na Etsy, expired = vypršel) — review I6. */
+const OFF_STATES = new Set(['inactive', 'sold_out', 'expired']);
+
 function missingSettings(s: EtsySettingsSnapshot): boolean {
   return !s.taxonomyId || !s.shippingProfileId || !s.readinessStateId;
 }
@@ -97,7 +100,7 @@ function needsWork(item: ItemSnapshot, ctx: WorkerContext, d: WorkerDeps): boole
   const l = item.listing;
   if (want.state === 'none') return false;
   if (want.state === 'removed') return true;
-  if (want.state === 'inactive') return l?.state !== 'inactive';
+  if (want.state === 'inactive') return !OFF_STATES.has(l?.state ?? '');
   if (!l?.listingId || l.state !== 'active') return true;
   return l.syncedHash !== syncedHashOf(build(item, ctx, d));
 }
@@ -122,13 +125,21 @@ export async function processJob(job: JobRow, d: WorkerDeps): Promise<'done' | '
     return 'done';
   }
 
-  const client = await d.clientFactory();
-  if (!client) return 'skipped'; // nepřipojeno — job počká, nic se nemění
+  // Prodáno na Etsy: listing je tam sold_out sám od sebe — nic nevolat (PATCH na sold_out by mohl selhat; review I6)
+  if (want.state === 'inactive' && item.sold && item.soldChannel === 'etsy') {
+    await d.saveListing(item.id, { state: 'sold_out', blockedReason: 'sold', inactiveSince: l?.inactiveSince ?? d.now(), lastError: null, alertedAt: null });
+    await d.completeJob(job.id);
+    return 'done';
+  }
 
   try {
+    // Uvnitř try: dočasné selhání obnovy přístupu (výjimka) jde cestou opakování a upozornění (review I5)
+    const client = await d.clientFactory();
+    if (!client) return 'skipped'; // obchod odpojený — job počká, upozornění už odešlo při odpojení
+
     if (want.state === 'inactive') {
-      if (l?.listingId && l.state !== 'inactive') await client.updateListing(l.listingId, { state: 'inactive' });
-      await d.saveListing(item.id, { state: 'inactive', blockedReason: want.blockedReason, inactiveSince: l?.inactiveSince ?? d.now(), lastSyncAt: d.now(), lastError: null, errorCount: 0 });
+      if (l?.listingId && !OFF_STATES.has(l.state)) await client.updateListing(l.listingId, { state: 'inactive' });
+      await d.saveListing(item.id, { state: OFF_STATES.has(l?.state ?? '') ? l!.state : 'inactive', blockedReason: want.blockedReason, inactiveSince: l?.inactiveSince ?? d.now(), lastSyncAt: d.now(), lastError: null, errorCount: 0, alertedAt: null });
     } else if (want.state === 'removed') {
       if (l?.listingId) await client.deleteListing(l.listingId);
       await d.saveListing(item.id, { listingId: null, state: 'removed', imageIds: [], lastSyncAt: d.now(), lastError: null, errorCount: 0 });
@@ -149,15 +160,21 @@ export async function processJob(job: JobRow, d: WorkerDeps): Promise<'done' | '
       const attempts = job.attempts + 1;
       const delay = RETRY_DELAYS_MS[Math.min(attempts - 1, RETRY_DELAYS_MS.length - 1)];
       await d.failJob(job.id, attempts, new Date(d.now().getTime() + delay), message);
-      if (attempts === ALERT_AT_ATTEMPT && (job.kind === 'deactivate' || want.state !== 'active')) {
-        await d.alert('deactivate_failing', { catalogNumber: item.catalogNumber, note: message });
-      }
+      if (attempts >= ALERT_AT_ATTEMPT && want.state !== 'active') await alertOnce(item, message, d);
       return 'retry';
     }
     await d.saveListing(item.id, { state: 'error', lastError: message });
+    if (want.state !== 'active') await alertOnce(item, message, d); // trvalá chyba při stahování → hned (review I5b)
     await d.completeJob(job.id);
     return 'done';
   }
+}
+
+/** Upozornění „nejde stáhnout“ max jednou na kámen, dokud se stažení nepovede (review I1). */
+async function alertOnce(item: ItemSnapshot, message: string, d: WorkerDeps) {
+  if (item.listing?.alertedAt) return;
+  await d.alert('deactivate_failing', { catalogNumber: item.catalogNumber, note: message });
+  await d.saveListing(item.id, { alertedAt: d.now() });
 }
 
 async function syncActive(item: ItemSnapshot, l: ListingSnapshot | null, ctx: WorkerContext, client: EtsyClient, d: WorkerDeps) {
@@ -201,7 +218,7 @@ async function syncActive(item: ItemSnapshot, l: ListingSnapshot | null, ctx: Wo
 
   await d.saveListing(item.id, {
     listingId, state: 'active', blockedReason: null, syncedHash: syncedHashOf(b), imageIds, priceSent: b.price,
-    lastSyncAt: d.now(), lastError: null, errorCount: 0, inactiveSince: null,
+    lastSyncAt: d.now(), lastError: null, errorCount: 0, inactiveSince: null, alertedAt: null,
   });
 }
 
@@ -227,8 +244,8 @@ export async function reconcileWith(items: ItemSnapshot[], d: WorkerDeps): Promi
     try {
       const remote = await client.getListing(l.listingId);
       const want = desiredFor(item, d.now());
-      const wantRemote = want.state === 'active' ? 'active' : 'inactive';
-      if (remote.state !== wantRemote) {
+      const ok = want.state === 'active' ? remote.state === 'active' : OFF_STATES.has(remote.state);
+      if (!ok) {
         await d.saveListing(item.id, { state: remote.state });
         await d.enqueue(item.id, 'sync', 'reconcile');
         fixed++;
@@ -248,7 +265,9 @@ export async function reconcileWith(items: ItemSnapshot[], d: WorkerDeps): Promi
 
 // ── Napojení na Prisma ──────────────────────────────────────────
 
-const busyItems = new Set<number>();
+// Sdílené přes globalThis — plánovač (instrumentation) a route handlery jsou v Next oddělené moduly (review I2)
+const gw = globalThis as unknown as { __etsyBusyItems?: Set<number> };
+const busyItems = (gw.__etsyBusyItems ??= new Set<number>());
 
 const itemSelect = {
   id: true, evidNumber: true, nameEn: true, name: true, description: true, descriptionEn: true, longDescription: true, longDescriptionEn: true,
@@ -256,7 +275,8 @@ const itemSelect = {
   finalInternalPriceInclVatCzk: true, pricingStatus: true, onShop: true, onShopAt: true, onEtsy: true, sold: true, soldAt: true,
   certHash: true, certIssuedAt: true, photoPath: true, mainPhoto: true, shopPhotos: true, aiPhotos: true, storage: true, updatedAt: true,
   box: { select: { code: true } },
-  etsyListing: { select: { listingId: true, state: true, syncedHash: true, imageIds: true, inactiveSince: true } },
+  soldChannel: true,
+  etsyListing: { select: { listingId: true, state: true, syncedHash: true, imageIds: true, inactiveSince: true, alertedAt: true } },
 } as const;
 
 type ItemRow = NonNullable<Awaited<ReturnType<typeof loadRows>>>[number];
@@ -275,7 +295,7 @@ async function toSnapshots(rows: ItemRow[]): Promise<ItemSnapshot[]> {
     const built = buildCatalogItem({ ...(r as unknown as CatalogSourceItem), sold: false }, { options, rates: {}, photos: () => ({ photos: [], video: null }) });
     return {
       id: r.id, catalogNumber: `${r.box.code}-${r.evidNumber}`, nameEn: r.nameEn, descriptionEn: r.descriptionEn, longDescriptionEn: r.longDescriptionEn,
-      weight: r.weight.toString(), pasShape: r.pasShape, onEtsy: r.onEtsy, sold: r.sold, eligible: !('skip' in built),
+      weight: r.weight.toString(), pasShape: r.pasShape, onEtsy: r.onEtsy, sold: r.sold, soldChannel: r.soldChannel, eligible: !('skip' in built),
       activeReservation: r.shopReservations.length > 0, finalCzk: r.finalInternalPriceInclVatCzk?.toString() ?? '0',
       photoPath: r.photoPath, mainPhoto: r.mainPhoto, shopPhotos: r.shopPhotos, aiPhotos: r.aiPhotos,
       listing: r.etsyListing,
@@ -316,11 +336,11 @@ export function prismaDeps(over: Partial<WorkerDeps> = {}): WorkerDeps {
     saveListing: async (itemId, patch) => {
       await prisma.etsyListing.upsert({ where: { itemId }, create: { itemId, ...patch }, update: patch });
     },
-    completeJob: async (jobId) => { await prisma.etsyJob.update({ where: { id: jobId }, data: { doneAt: new Date() } }); },
+    completeJob: async (jobId) => { await prisma.etsyJob.update({ where: { id: jobId }, data: { doneAt: new Date(), leasedUntil: null } }); },
     failJob: async (jobId, attempts, runAfter, error) => {
-      await prisma.etsyJob.update({ where: { id: jobId }, data: { attempts, runAfter, lastError: error } });
+      await prisma.etsyJob.update({ where: { id: jobId }, data: { attempts, runAfter, lastError: error, leasedUntil: null } });
     },
-    enqueue: (itemId, kind, reason) => enqueueEtsyJob(prisma, itemId, kind, reason),
+    enqueue: (itemId, kind, reason) => enqueueEtsyJob(prisma, itemId, kind, reason, { urgent: false }),
     photos: { plan: (i) => etsyPhotoPlan(i), jpeg: etsyPhotoJpeg },
     alert: alertEtsy,
     now: () => new Date(),
@@ -333,13 +353,15 @@ export async function processDueJobs(opts: { itemIds?: number[]; limit?: number;
   const d = opts.deps ?? prismaDeps();
   const limit = opts.limit ?? 10;
   const ids = opts.itemIds?.length ? opts.itemIds : null;
+  // Lhůta je zvlášť (leasedUntil) — nové zařazení posune runAfter, ale běžící job znovu nevezme (review I1/I2)
+  const lease = `${LEASE_MS / 1000} seconds`;
   const jobs = ids
-    ? await prisma.$queryRaw<JobRow[]>`UPDATE "EtsyJob" SET "runAfter" = now() + ${`${LEASE_MS / 1000} seconds`}::interval WHERE id IN (SELECT id FROM "EtsyJob" WHERE "doneAt" IS NULL AND "runAfter" <= now() AND "itemId" = ANY(${ids}) ORDER BY "runAfter" LIMIT ${limit} FOR UPDATE SKIP LOCKED) RETURNING id, "itemId", kind, attempts`
-    : await prisma.$queryRaw<JobRow[]>`UPDATE "EtsyJob" SET "runAfter" = now() + ${`${LEASE_MS / 1000} seconds`}::interval WHERE id IN (SELECT id FROM "EtsyJob" WHERE "doneAt" IS NULL AND "runAfter" <= now() ORDER BY "runAfter" LIMIT ${limit} FOR UPDATE SKIP LOCKED) RETURNING id, "itemId", kind, attempts`;
+    ? await prisma.$queryRaw<JobRow[]>`UPDATE "EtsyJob" SET "leasedUntil" = now() + ${lease}::interval WHERE id IN (SELECT id FROM "EtsyJob" WHERE "doneAt" IS NULL AND "runAfter" <= now() AND ("leasedUntil" IS NULL OR "leasedUntil" < now()) AND "itemId" = ANY(${ids}) ORDER BY "runAfter" LIMIT ${limit} FOR UPDATE SKIP LOCKED) RETURNING id, "itemId", kind, attempts`
+    : await prisma.$queryRaw<JobRow[]>`UPDATE "EtsyJob" SET "leasedUntil" = now() + ${lease}::interval WHERE id IN (SELECT id FROM "EtsyJob" WHERE "doneAt" IS NULL AND "runAfter" <= now() AND ("leasedUntil" IS NULL OR "leasedUntil" < now()) ORDER BY "runAfter" LIMIT ${limit} FOR UPDATE SKIP LOCKED) RETURNING id, "itemId", kind, attempts`;
   let done = 0, failed = 0;
   for (const job of jobs) {
     if (busyItems.has(job.itemId)) {
-      await prisma.etsyJob.update({ where: { id: job.id }, data: { runAfter: new Date(Date.now() + 5_000) } });
+      await prisma.etsyJob.update({ where: { id: job.id }, data: { runAfter: new Date(Date.now() + 5_000), leasedUntil: null } });
       continue;
     }
     busyItems.add(job.itemId);
@@ -347,10 +369,11 @@ export async function processDueJobs(opts: { itemIds?: number[]; limit?: number;
       const r = await processJob(job, d);
       if (r === 'done') done++;
       else if (r === 'retry') failed++;
-      else await prisma.etsyJob.update({ where: { id: job.id }, data: { runAfter: new Date(Date.now() + 60_000) } }); // nepřipojeno
+      else await prisma.etsyJob.update({ where: { id: job.id }, data: { runAfter: new Date(Date.now() + 60_000), leasedUntil: null } }); // nepřipojeno
     } catch (err) {
       failed++;
-      console.error(`[etsy] job ${job.id} (kámen ${job.itemId}) spadl`, err instanceof Error ? err.message : err);
+      await prisma.etsyJob.update({ where: { id: job.id }, data: { leasedUntil: null, runAfter: new Date(Date.now() + 60_000) } }).catch(() => {});
+      console.error('[etsy] job spadl', job.id, job.itemId, err instanceof Error ? err.message : err);
     } finally {
       busyItems.delete(job.itemId);
     }

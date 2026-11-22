@@ -21,7 +21,7 @@ describe('enqueueEtsyJob', () => {
     await enqueueEtsyJob(db, 7, 'deactivate', 'reservation');
     expect(calls).toHaveLength(1);
     expect(calls[0].sql).toContain('ON CONFLICT ("itemId", "kind") WHERE "doneAt" IS NULL');
-    expect(calls[0].vals).toEqual([7, 'deactivate', 'reservation']);
+    expect(calls[0].vals.slice(0, 3)).toEqual([7, 'deactivate', 'reservation']);
   });
   it('bez konfigurace Etsy nic nezapíše', async () => {
     delete process.env.ETSY_KEYSTRING;
@@ -40,5 +40,20 @@ describe('kickEtsy', () => {
     expect(processDueJobs).toHaveBeenCalledWith({ itemIds: [7] });
     expect(err).toHaveBeenCalled();
     err.mockRestore();
+  });
+});
+
+describe('opravy po kontrole (fronta)', () => {
+  it('I1: opakované zařazení nenuluje pokusy; neurgentní neposouvá runAfter', async () => {
+    const { calls, db } = fakeDb();
+    await enqueueEtsyJob(db, 7, 'sync', 'drift', { urgent: false });
+    expect(calls[0].sql).not.toContain('"attempts" = 0');
+    expect(calls[0].sql).toContain('LEAST');
+    expect(calls[0].vals).toEqual([7, 'sync', 'drift', false]);
+  });
+  it('výchozí zařazení je urgentní (rezervace, prodej)', async () => {
+    const { calls, db } = fakeDb();
+    await enqueueEtsyJob(db, 7, 'deactivate', 'reservation');
+    expect(calls[0].vals).toEqual([7, 'deactivate', 'reservation', true]);
   });
 });

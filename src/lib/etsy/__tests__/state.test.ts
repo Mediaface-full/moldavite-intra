@@ -22,3 +22,18 @@ describe('desiredEtsyState', () => {
   it('rezervace bez listingu → none (nic nevytvářet)', () => expect(desiredEtsyState({ ...base, activeReservation: true, listingId: null })).toEqual({ state: 'none', blockedReason: 'reservation' }));
   it('nový kámen bez listingu → active (vytvořit)', () => expect(desiredEtsyState({ ...base, listingId: null })).toEqual({ state: 'active', blockedReason: null }));
 });
+
+describe('I4: smazání kamene s listingem na Etsy', () => {
+  it('listing, který na Etsy ještě visí, mazání blokuje', async () => {
+    const { listingBlocksDelete } = await import('@/lib/etsy/state');
+    expect(listingBlocksDelete({ listingId: BigInt(1), state: 'active' })).toBe(true);
+    // stažený listing se už prodat nedá — po vypnutí „Na Etsy“ jde kámen smazat
+    expect(listingBlocksDelete({ listingId: BigInt(1), state: 'inactive' })).toBe(false);
+    expect(listingBlocksDelete({ listingId: BigInt(1), state: 'sold_out' })).toBe(false);
+    expect(listingBlocksDelete({ listingId: BigInt(1), state: 'draft' })).toBe(true);
+    expect(listingBlocksDelete({ listingId: BigInt(1), state: 'error' })).toBe(true);
+    expect(listingBlocksDelete({ listingId: null, state: 'none' })).toBe(false);
+    expect(listingBlocksDelete({ listingId: null, state: 'removed' })).toBe(false);
+    expect(listingBlocksDelete(null)).toBe(false);
+  });
+});

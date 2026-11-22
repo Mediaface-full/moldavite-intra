@@ -7,6 +7,7 @@ import { applySoldTransition } from '@/lib/items/markSold';
 import { recalcOrder } from '@/lib/orders/recalcOrder';
 import { parseShopPhotos } from '@/lib/photos/shopSelection';
 import { enqueueEtsyJob, kickEtsy } from '@/lib/etsy/queue';
+import { listingBlocksDelete } from '@/lib/etsy/state';
 
 // Pole co user smi PATCHovat z UI.
 // ZAMERNE VYPUSTENE: purchasePrice, salePrice, purchasePricePerGramCzk
@@ -396,9 +397,12 @@ export async function DELETE(
   if (itemId === null) return NextResponse.json({ error: 'Invalid id' }, { status: 400 });
   const item = await prisma.item.findUnique({
     where: { id: itemId },
-    select: { orderId: true, evidNumber: true, box: { select: { code: true } } },
+    select: { orderId: true, evidNumber: true, box: { select: { code: true } }, etsyListing: { select: { listingId: true, state: true } } },
   });
   if (!item) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  if (listingBlocksDelete(item.etsyListing)) {
+    return NextResponse.json({ error: 'Kámen je na Etsy v prodeji — nejdřív vypni „Na Etsy“ a počkej, až se listing stáhne.' }, { status: 409 });
+  }
   await prisma.item.delete({ where: { id: itemId } });
   // Kámen byl v zakázce → součty zakázky se změnily (15. 9. 2026 — dřív se po
   // smazání nepřepočítávalo; stejná mezera jako u mazání kazety).

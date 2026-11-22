@@ -8,6 +8,6 @@ export async function reactivateExpiredReservations(): Promise<number> {
     where: { blockedReason: 'reservation', item: { shopReservations: { none: { releasedAt: null, expiresAt: { gt: now } } } } },
     select: { itemId: true },
   });
-  for (const r of rows) await enqueueEtsyJob(prisma, r.itemId, 'activate', 'reservation_expired');
+  for (const r of rows) await enqueueEtsyJob(prisma, r.itemId, 'activate', 'reservation_expired', { urgent: false });
   return rows.length;
 }

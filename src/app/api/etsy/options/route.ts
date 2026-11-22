@@ -16,9 +16,9 @@ export async function GET(request: Request) {
   if (s instanceof NextResponse) return s;
   const fresh = new URL(request.url).searchParams.get('fresh') === '1';
   if (cache && !fresh && Date.now() - cache.at < 600_000) return NextResponse.json(cache.data);
-  const client = await getEtsyClient();
-  if (!client) return NextResponse.json({ error: 'Obchod na Etsy není připojený' }, { status: 409 });
   try {
+    const client = await getEtsyClient();
+    if (!client) return NextResponse.json({ error: 'Obchod na Etsy není připojený' }, { status: 409 });
     const [taxonomy, shippingProfiles, readinessStates, returnPolicies] = await Promise.all([
       client.getSellerTaxonomy(), client.getShippingProfiles(), client.getReadinessStates(), client.getReturnPolicies(),
     ]);
