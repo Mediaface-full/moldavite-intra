@@ -20,7 +20,9 @@ export function encryptToken(plain: string, keyHex?: string): string {
 export function decryptToken(enc: string, keyHex?: string): string {
   const [v, iv, tag, data] = enc.split(':');
   if (v !== 'v1' || !iv || !tag || !data) throw new Error('Neplatný formát šifrovaného tokenu');
-  const decipher = createDecipheriv('aes-256-gcm', key(keyHex), Buffer.from(iv, 'base64'));
-  decipher.setAuthTag(Buffer.from(tag, 'base64'));
+  const tagBuf = Buffer.from(tag, 'base64');
+  if (tagBuf.length !== 16) throw new Error('Neplatná délka autentizačního tagu');
+  const decipher = createDecipheriv('aes-256-gcm', key(keyHex), Buffer.from(iv, 'base64'), { authTagLength: 16 });
+  decipher.setAuthTag(tagBuf);
   return Buffer.concat([decipher.update(Buffer.from(data, 'base64')), decipher.final()]).toString('utf8');
 }

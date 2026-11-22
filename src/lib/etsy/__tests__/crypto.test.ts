@@ -23,3 +23,11 @@ describe('šifrování tokenů', () => {
     expect(encryptToken('stejne', K1)).not.toBe(encryptToken('stejne', K1));
   });
 });
+
+describe('šifrování — délka autentizačního tagu', () => {
+  it('zkrácený tag (4 B) → chyba', () => {
+    const [v, iv, tag, data] = encryptToken('tajne', K1).split(':');
+    const short = Buffer.from(tag, 'base64').subarray(0, 4).toString('base64');
+    expect(() => decryptToken([v, iv, short, data].join(':'), K1)).toThrow();
+  });
+});
