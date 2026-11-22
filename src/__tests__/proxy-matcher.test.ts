@@ -191,3 +191,16 @@ describe('proxy — Etsy OAuth callback (jen přesná cesta + GET)', () => {
     }
   });
 });
+
+describe('proxy — Etsy webhook (jen přesná cesta + POST, bez cookie i CSRF)', () => {
+  it('POST /api/etsy/webhook bez cookie a CSRF projde do handleru', () => {
+    const res = proxy(new NextRequest('https://app.example.com/api/etsy/webhook', { method: 'POST', body: '{}' }));
+    expect(res.headers.get('x-middleware-next')).toBe('1');
+  });
+  it('GET /api/etsy/webhook a POST /api/etsy/webhookx → neprojde', () => {
+    for (const [p, method] of [['/api/etsy/webhook', 'GET'], ['/api/etsy/webhookx', 'POST'], ['/api/etsy/webhook/x', 'POST']]) {
+      const res = proxy(new NextRequest(`https://app.example.com${p}`, { method }));
+      expect(res.headers.get('x-middleware-next')).toBeNull();
+    }
+  });
+});
