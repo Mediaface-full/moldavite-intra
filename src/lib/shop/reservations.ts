@@ -66,8 +66,8 @@ export async function reserveItem(itemId: number, ref: string, ttlSeconds: numbe
 export async function releaseReservation(id: string): Promise<{ released: boolean; itemId?: number }> {
   const res = await prisma.shopReservation.updateMany({ where: { id, releasedAt: null }, data: { releasedAt: new Date() } });
   if (res.count === 0) return { released: false };
-  const r = await prisma.shopReservation.findUnique({ where: { id }, select: { itemId: true } });
-  if (r) {
+  const r = await prisma.shopReservation.findUnique({ where: { id }, select: { itemId: true, item: { select: { onEtsy: true, etsyListing: { select: { id: true } } } } } });
+  if (r && (r.item.onEtsy || r.item.etsyListing)) {
     // Košík bez nákupu → listing na Etsy zpátky (worker ověří, že kámen nemá jinou rezervaci ani není prodaný)
     await enqueueEtsyJob(prisma, r.itemId, 'activate', 'reservation_released');
     kickEtsy([r.itemId]);

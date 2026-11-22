@@ -22,6 +22,7 @@ export async function POST(request: Request) {
   const limit = checkRateLimit(`etsy-webhook:${getClientIp(request)}`, 120, 60_000);
   if (!limit.ok) return NextResponse.json({ error: 'rate_limited' }, { status: 429 });
 
+  if (Number(request.headers.get('content-length') ?? 0) > MAX_BODY) return NextResponse.json({ error: 'too_large' }, { status: 413 });
   const raw = await request.text();
   if (raw.length > MAX_BODY) return NextResponse.json({ error: 'too_large' }, { status: 413 });
   const h = request.headers;

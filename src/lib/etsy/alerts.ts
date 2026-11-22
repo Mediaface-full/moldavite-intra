@@ -9,7 +9,7 @@ import { prisma } from '@/lib/prisma';
 import { logActivity } from '@/lib/auth';
 import { sendEmail } from '@/lib/email';
 
-export type EtsyAlertKind = 'double_sale' | 'sold_with_reservation' | 'deactivate_failing' | 'disconnected' | 'order_canceled';
+export type EtsyAlertKind = 'double_sale' | 'sold_with_reservation' | 'deactivate_failing' | 'disconnected' | 'order_canceled' | 'unknown_listing';
 export interface EtsyAlertCtx { catalogNumber?: string; receiptId?: bigint | number; shopOrder?: string; note?: string }
 
 export const ETSY_SYSTEM_EMAIL = 'etsy@system.bohemianmoldavite.local';
@@ -40,6 +40,8 @@ export function alertText(kind: EtsyAlertKind, ctx: EtsyAlertCtx): { subject: st
       return { subject: `Etsy: nejde stáhnout ${k}`, text: `${k} je v košíku nebo prodaný, ale listing na Etsy se nepodařilo stáhnout ani na třetí pokus.${ctx.note ? ` Důvod: ${ctx.note}` : ''} Stáhni ho ručně na Etsy.` };
     case 'disconnected':
       return { subject: 'Etsy: obchod odpojen', text: `Intra ztratila přístup k obchodu na Etsy${ctx.note ? ` (${ctx.note})` : ''}. Připoj ho znovu v Administraci → Etsy. Do té doby se nic nepropisuje.` };
+    case 'unknown_listing':
+      return { subject: 'Etsy: objednávka s neznámým listingem', text: `Etsy objednávka${etsy} obsahuje listing, který intra nezná${ctx.note ? ` (${ctx.note})` : ''}. Zkontroluj, o který kámen jde, a jestli není ještě v prodeji na e-shopu.` };
     case 'order_canceled':
       return { subject: `Etsy: zrušená objednávka${ctx.catalogNumber ? ` ${k}` : ''}`, text: `Objednávka na Etsy${etsy} byla zrušena. Kámen zůstává v intru prodaný — až se vrátí, vrať ho do prodeje ručně.` };
   }

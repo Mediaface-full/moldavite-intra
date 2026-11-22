@@ -87,3 +87,11 @@ describe('OAuth cookie', () => {
     expect(readOauthCookie(old)).toBeNull();
   });
 });
+
+describe('odložené drobnosti (cookie)', () => {
+  it('M8: bez NEXTAUTH_SECRET se cookie nepodepíše prázdným klíčem', () => {
+    delete process.env.NEXTAUTH_SECRET;
+    expect(() => signOauthCookie({ verifier: 'v', state: 's', userId: 1 })).toThrow();
+    expect(readOauthCookie('x.y')).toBeNull();
+  });
+});
