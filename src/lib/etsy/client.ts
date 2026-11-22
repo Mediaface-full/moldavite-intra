@@ -96,6 +96,10 @@ export class EtsyClient {
     return this.formRequest<{ listing_id: number; state: string }>('PATCH', `/shops/${this.shop()}/listings/${listingId}?legacy=false`, { ...patch });
   }
   deleteListing(listingId: number | bigint) { return this.request<unknown>('DELETE', `/listings/${listingId}`); }
+  /** Koncepty obchodu (převzetí konceptu, jehož vytvoření skončilo bez odpovědi). */
+  async getDraftListings() {
+    return (await this.request<{ results: Array<{ listing_id: number; title: string; created_timestamp: number }> }>('GET', `/shops/${this.shop()}/listings?state=draft&limit=100`)).results;
+  }
   getListing(listingId: number | bigint) { return this.request<{ listing_id: number; state: string; quantity: number }>('GET', `/listings/${listingId}`); }
 
   uploadListingImage(listingId: number | bigint, jpeg: Buffer, rank: number, filename: string) {

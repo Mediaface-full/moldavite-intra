@@ -94,3 +94,11 @@ describe('opravy po kontrole', () => {
     expect(pollWindowStartSec(1_800_000_000_000)).toBe(1_800_000_000 - 72 * 3600);
   });
 });
+
+describe('odložené drobnosti (objednávky)', () => {
+  it('M7: neznámý listing v objednávce → i upozornění (kámen může být ještě na e-shopu)', async () => {
+    const { d } = deps();
+    await handleEtsyReceiptWith(receipt([999]), 'webhook', d);
+    expect(d.alert).toHaveBeenCalledWith('unknown_listing', expect.objectContaining({ receiptId: 9001 }));
+  });
+});
