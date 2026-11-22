@@ -6,6 +6,7 @@ import { resolvePpg } from '@/lib/pricing/resolve';
 import { applySoldTransition } from '@/lib/items/markSold';
 import { recalcOrder } from '@/lib/orders/recalcOrder';
 import { parseShopPhotos } from '@/lib/photos/shopSelection';
+import { enqueueEtsyJob, kickEtsy } from '@/lib/etsy/queue';
 
 // Pole co user smi PATCHovat z UI.
 // ZAMERNE VYPUSTENE: purchasePrice, salePrice, purchasePricePerGramCzk
@@ -299,6 +300,7 @@ export async function PATCH(
     if (prev && !prev.sold) {
       isBecomingSold = true;
       if (!prev.soldAt) data.soldAt = new Date();
+      data.soldChannel = 'manual';
     }
   }
 
@@ -320,6 +322,12 @@ export async function PATCH(
     await applySoldTransition(itemId, data);
   } else {
     await prisma.item.update({ where: { id: itemId }, data });
+  }
+
+  // Etsy: prodej / vystavení / stažení se propíše hned (ostatní změny zachytí plánovač otiskem obsahu)
+  if (data.sold !== undefined || data.onEtsy !== undefined) {
+    await enqueueEtsyJob(prisma, itemId, data.sold === true ? 'deactivate' : 'sync', data.sold === true ? 'sold' : 'item_update');
+    kickEtsy([itemId]);
   }
 
   // Recalc ct when weight changes (1g = 5ct)
