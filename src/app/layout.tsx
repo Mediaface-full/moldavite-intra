@@ -8,6 +8,7 @@ import LogoutButton from "@/components/LogoutButton";
 import ThemeToggle from "@/components/ThemeToggle";
 import SidebarToggle from "@/components/SidebarToggle";
 import { BUILD_INFO } from "@/lib/buildInfo";
+import EtsyAlertBar from "@/components/etsy/EtsyAlertBar";
 import "./globals.css";
 
 // MediaFace Admin styl — Space Grotesk pro nadpisy a UI, JetBrains Mono
@@ -48,6 +49,7 @@ const icons: Record<string, string> = {
   pricing: "M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z",
   attributes: "M9.568 3H5.25A2.25 2.25 0 003 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581c.699.699 1.78.872 2.607.33a18.095 18.095 0 005.223-5.223c.542-.827.369-1.908-.33-2.607L11.16 3.66A2.25 2.25 0 009.568 3z",
   sellers: "M8.25 18.75a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h6m-9-1.5h12.225c.412 0 .75-.338.75-.75v-1.5a.75.75 0 00-.75-.75H2.625m9 5.25h6m-6 0a1.5 1.5 0 00-3 0m3 0a1.5 1.5 0 01-3 0m6 0a1.5 1.5 0 011.5-1.5h.375c.621 0 1.125-.504 1.125-1.125V12.75M14.25 18.75a1.5 1.5 0 00-1.5-1.5H8.25m7.5 1.5H21M3.75 12V6.75a1.5 1.5 0 011.5-1.5h7.5a1.5 1.5 0 011.5 1.5v12M14.25 6.75h2.25l4.5 4.5v6.75",
+  store: "M13.5 21v-7.5a.75.75 0 01.75-.75h3a.75.75 0 01.75.75V21m-4.5 0H2.36m11.14 0H18m0 0h3.64m-1.39 0V9.349m-16.5 11.65V9.35m0 0a3.001 3.001 0 003.75-.615A2.993 2.993 0 009.75 9.75c.896 0 1.7-.393 2.25-1.016a2.993 2.993 0 002.25 1.016c.896 0 1.7-.393 2.25-1.016a3.001 3.001 0 003.75.614m-16.5 0a3.004 3.004 0 01-.621-4.72L4.318 3.44A1.5 1.5 0 015.378 3h13.243a1.5 1.5 0 011.06.44l1.19 1.189a3 3 0 01-.621 4.72m-13.5 8.65h3.75a.75.75 0 00.75-.75V13.5a.75.75 0 00-.75-.75H6.75a.75.75 0 00-.75.75v3.75c0 .415.336.75.75.75z",
   sparkles: "M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 0 0-2.456 2.456ZM16.894 20.567 16.5 21.75l-.394-1.183a2.25 2.25 0 0 0-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 0 0 1.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 0 0 1.423 1.423l1.183.394-1.183.394a2.25 2.25 0 0 0-1.423 1.423Z",
 };
 
@@ -116,6 +118,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
                     <NavLink href="/admin/thumbnails" icon="thumbnails">Obrázky</NavLink>
                     <NavLink href="/admin/ai-fotky" icon="sparkles">Kontrola AI fotek</NavLink>
                     <NavLink href="/admin/certificates" icon="file">Certifikáty</NavLink>
+                    <NavLink href="/admin/etsy" icon="store">Etsy</NavLink>
                     <NavLink href="/admin/users" icon="users">Uživatelé</NavLink>
                     <NavLink href="/admin/pricing-config" icon="pricing">Cenotvorba</NavLink>
                     <NavLink href="/admin/attributes" icon="attributes">Atributy</NavLink>
@@ -150,7 +153,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
                 position: sticky (pravý sloupec detailu kamene). Široké tabulky mají
                 vlastní overflow-x-auto; min-w-0 brání roztažení flex položky. */}
             <main className="flex-1 min-w-0">
-              <div className="p-8">{children}</div>
+              <div className="p-8">{session.role === 'ADMIN' && <EtsyAlertBar />}{children}</div>
             </main>
           </>
         ) : (

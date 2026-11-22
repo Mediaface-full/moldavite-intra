@@ -10,6 +10,7 @@ import { prisma } from '@/lib/prisma';
 import { applySoldTransition } from '@/lib/items/markSold';
 import { ensureCertificate, verifyUrlFor } from '@/lib/items/certificate';
 import { skuOf } from '@/lib/shop/catalog';
+import { enqueueEtsyJob, kickEtsy } from '@/lib/etsy/queue';
 
 export const MIN_TTL = 60;
 export const MAX_TTL = 86_400;
@@ -24,7 +25,7 @@ async function lockItem(tx: Prisma.TransactionClient, itemId: number) {
   await tx.$queryRaw`SELECT id FROM "Item" WHERE id = ${itemId} FOR UPDATE`;
   const item = await tx.item.findUnique({
     where: { id: itemId },
-    select: { id: true, sold: true, onShop: true, shopOrderNumber: true, certHash: true, certIssuedAt: true, soldAt: true, evidNumber: true, box: { select: { code: true } } },
+    select: { id: true, sold: true, onShop: true, onEtsy: true, shopOrderNumber: true, certHash: true, certIssuedAt: true, soldAt: true, evidNumber: true, box: { select: { code: true } } },
   });
   if (!item) throw new ShopConflict('not_found');
   return item;
@@ -33,7 +34,7 @@ async function lockItem(tx: Prisma.TransactionClient, itemId: number) {
 /** Vytvoří nebo prodlouží rezervaci (stejný itemId + ref = prodloužení). */
 export async function reserveItem(itemId: number, ref: string, ttlSeconds: number) {
   const ttl = Math.min(MAX_TTL, Math.max(MIN_TTL, Math.floor(ttlSeconds)));
-  return prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx) => {
     const item = await lockItem(tx, itemId);
     if (item.sold) throw new ShopConflict('item_sold');
     if (!item.onShop) throw new ShopConflict('not_on_shop');
@@ -52,8 +53,13 @@ export async function reserveItem(itemId: number, ref: string, ttlSeconds: numbe
       create: { itemId, ref, expiresAt },
       select: { id: true, itemId: true, expiresAt: true },
     });
-    return { reservation, sku: skuOf(item) };
+    // Pojistka proti dvojímu prodeji: kámen v košíku e-shopu se hned stáhne z Etsy (e-shop má přednost).
+    // Jen zápis do fronty v téže transakci — samotné volání Etsy běží až po commitu a rezervaci neblokuje.
+    if (item.onEtsy) await enqueueEtsyJob(tx, itemId, 'deactivate', 'reservation');
+    return { reservation, sku: skuOf(item), onEtsy: item.onEtsy };
   });
+  if (result.onEtsy) kickEtsy([itemId]);
+  return { reservation: result.reservation, sku: result.sku };
 }
 
 /** Uvolní rezervaci (idempotentní — neexistující / už uvolněná = false). */
@@ -61,6 +67,11 @@ export async function releaseReservation(id: string): Promise<{ released: boolea
   const res = await prisma.shopReservation.updateMany({ where: { id, releasedAt: null }, data: { releasedAt: new Date() } });
   if (res.count === 0) return { released: false };
   const r = await prisma.shopReservation.findUnique({ where: { id }, select: { itemId: true } });
+  if (r) {
+    // Košík bez nákupu → listing na Etsy zpátky (worker ověří, že kámen nemá jinou rezervaci ani není prodaný)
+    await enqueueEtsyJob(prisma, r.itemId, 'activate', 'reservation_released');
+    kickEtsy([r.itemId]);
+  }
   return { released: true, itemId: r?.itemId };
 }
 
@@ -91,8 +102,9 @@ export async function markSoldFromShop(input: SoldInput) {
   const soldAt = input.paidAt ?? new Date();
   const result = await applySoldTransition(
     input.itemId,
-    { sold: true, soldAt, shopOrderNumber: input.orderNumber },
+    { sold: true, soldAt, shopOrderNumber: input.orderNumber, soldChannel: 'shop' },
     async (tx) => {
+      await enqueueEtsyJob(tx, input.itemId, 'deactivate', 'sold');
       await tx.shopReservation.updateMany({ where: { itemId: input.itemId, releasedAt: null }, data: { releasedAt: new Date() } });
       const item = await tx.item.findUniqueOrThrow({
         where: { id: input.itemId },
@@ -107,6 +119,7 @@ export async function markSoldFromShop(input: SoldInput) {
     },
   );
 
+  kickEtsy([input.itemId]);
   return {
     idempotent: false,
     item: { id: input.itemId, sku: result!.sku, soldAt },

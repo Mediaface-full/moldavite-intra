@@ -22,6 +22,15 @@ const SHOP_API_PREFIX = '/api/shop/v1/';
 // cesta + metoda + platný secret; handler secret ověřuje znovu.
 const CRON_BACKUP_PATH = '/api/admin/backup';
 
+// Etsy OAuth návrat (GET z etsy.com). Session cookie je SameSite=Strict → při návratu z cizí domény
+// chybí, proto route ověřuje vlastní podepsanou cookie `etsy_oauth` (lib/etsy/connection.ts) a admina v DB.
+// Jen přesná cesta + GET. Spec: docs/superpowers/specs/2026-11-21-etsy-napojeni-design.md
+const ETSY_OAUTH_CALLBACK_PATH = '/api/etsy/oauth/callback';
+
+// Etsy webhook (order.paid / order.canceled) — server–server z Etsy, bez cookie i CSRF. Route ověřuje
+// podpis (ETSY_WEBHOOK_SECRET, lib/etsy/webhookSignature.ts), stáří a idempotenci. Jen přesná cesta + POST.
+const ETSY_WEBHOOK_PATH = '/api/etsy/webhook';
+
 // CSRF: default-deny (audit 10. 9. 2026). Dřív allow-list prefixů — každý
 // nový API prefix (naposledy /api/library/) se do ní musel ručně přidat a
 // zapomnělo se na to. Teď KAŽDÁ mutace pod /api/ vyžaduje double-submit
@@ -32,6 +41,7 @@ const CSRF_EXEMPT_PATHS = new Set(['/api/auth/login']);
 
 function requiresCsrf(pathname: string, method: string): boolean {
   if (!CSRF_METHODS.has(method)) return false;
+  if (pathname === ETSY_WEBHOOK_PATH && method === 'POST') return false;
   if (CSRF_EXEMPT_PATHS.has(pathname)) return false;
   return pathname.startsWith('/api/');
 }
@@ -137,6 +147,20 @@ export function proxy(request: NextRequest) {
 
   // Shop API v1 — autentizace až v route handleru (lib/shop/auth.ts), viz SHOP_API_PREFIX.
   if (pathname.startsWith(SHOP_API_PREFIX)) {
+    const res = NextResponse.next({ request: { headers: forwardedHeaders } });
+    applySecurityHeaders(res, nonce, isProd);
+    return res;
+  }
+
+  // Etsy webhook, viz ETSY_WEBHOOK_PATH.
+  if (pathname === ETSY_WEBHOOK_PATH && request.method === 'POST') {
+    const res = NextResponse.next({ request: { headers: forwardedHeaders } });
+    applySecurityHeaders(res, nonce, isProd);
+    return res;
+  }
+
+  // Etsy OAuth návrat, viz ETSY_OAUTH_CALLBACK_PATH.
+  if (pathname === ETSY_OAUTH_CALLBACK_PATH && request.method === 'GET') {
     const res = NextResponse.next({ request: { headers: forwardedHeaders } });
     applySecurityHeaders(res, nonce, isProd);
     return res;

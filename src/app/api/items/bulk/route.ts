@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma';
+import { enqueueEtsyJob, kickEtsy } from '@/lib/etsy/queue';
 import { NextResponse } from 'next/server';
 import { getSession, logActivity } from '@/lib/auth';
 import { listingDates } from '@/lib/items/listingDates';
@@ -46,6 +47,11 @@ export async function PATCH(request: Request) {
       return prisma.item.update({ where: { id: id as number }, data });
     })
   );
+
+  // Etsy: hromadné zapnutí/vypnutí nebo prodej se propíše přes frontu
+  const etsyIds = updates.filter((u) => u.onEtsy !== undefined || u.sold !== undefined).map((u) => u.id as number);
+  for (const id of etsyIds) await enqueueEtsyJob(prisma, id, 'sync', 'bulk_update');
+  kickEtsy(etsyIds);
 
   await logActivity(session.id, 'item.bulk_update', '', `Bulk update: ${results.length} items`);
   return NextResponse.json({ updated: results.length });

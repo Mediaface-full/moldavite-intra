@@ -132,5 +132,5 @@ certifikát** (`certHash`, `certIssuedAt`).
 
 Po změně kamene/číselníku intra pošle `POST {SHOP_WEBHOOK_URL}` (e-shop
 `/wp-json/bm/v1/intra`) s tělem `{ "event": "items.changed" | "dictionaries.changed", "ids": [412] }`
-a hlavičkou `X-BM-Signature: sha256=<HMAC(body, SHOP_WEBHOOK_SECRET)>`. Fire-and-forget (timeout 3 s);
+a hlavičkou `X-BM-Signature: sha256=<HMAC(body, SHOP_WEBHOOK_SECRET)>`. Fire-and-forget (timeout 3 s; od 22. 11. 2026 intra posílá `items.changed` po prodeji na Etsy — `lib/shop/notify.ts`);
 e-shop si pak stáhne `/catalog`. Pojistka: e-shop navíc synchronizuje celý katalog každých 15 min.

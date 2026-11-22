@@ -6,6 +6,8 @@ import { resolvePpg } from '@/lib/pricing/resolve';
 import { applySoldTransition } from '@/lib/items/markSold';
 import { recalcOrder } from '@/lib/orders/recalcOrder';
 import { parseShopPhotos } from '@/lib/photos/shopSelection';
+import { enqueueEtsyJob, kickEtsy } from '@/lib/etsy/queue';
+import { listingBlocksDelete } from '@/lib/etsy/state';
 
 // Pole co user smi PATCHovat z UI.
 // ZAMERNE VYPUSTENE: purchasePrice, salePrice, purchasePricePerGramCzk
@@ -299,6 +301,7 @@ export async function PATCH(
     if (prev && !prev.sold) {
       isBecomingSold = true;
       if (!prev.soldAt) data.soldAt = new Date();
+      data.soldChannel = 'manual';
     }
   }
 
@@ -320,6 +323,12 @@ export async function PATCH(
     await applySoldTransition(itemId, data);
   } else {
     await prisma.item.update({ where: { id: itemId }, data });
+  }
+
+  // Etsy: prodej / vystavení / stažení se propíše hned (ostatní změny zachytí plánovač otiskem obsahu)
+  if (data.sold !== undefined || data.onEtsy !== undefined) {
+    await enqueueEtsyJob(prisma, itemId, data.sold === true ? 'deactivate' : 'sync', data.sold === true ? 'sold' : 'item_update');
+    kickEtsy([itemId]);
   }
 
   // Recalc ct when weight changes (1g = 5ct)
@@ -388,9 +397,12 @@ export async function DELETE(
   if (itemId === null) return NextResponse.json({ error: 'Invalid id' }, { status: 400 });
   const item = await prisma.item.findUnique({
     where: { id: itemId },
-    select: { orderId: true, evidNumber: true, box: { select: { code: true } } },
+    select: { orderId: true, evidNumber: true, box: { select: { code: true } }, etsyListing: { select: { listingId: true, state: true } } },
   });
   if (!item) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  if (listingBlocksDelete(item.etsyListing)) {
+    return NextResponse.json({ error: 'Kámen je na Etsy v prodeji — nejdřív vypni „Na Etsy“ a počkej, až se listing stáhne.' }, { status: 409 });
+  }
   await prisma.item.delete({ where: { id: itemId } });
   // Kámen byl v zakázce → součty zakázky se změnily (15. 9. 2026 — dřív se po
   // smazání nepřepočítávalo; stejná mezera jako u mazání kazety).

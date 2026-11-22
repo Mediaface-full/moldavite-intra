@@ -173,3 +173,34 @@ describe('proxy — noční záloha z DSM cronu (x-cron-secret bez cookie)', () 
     finally { if (prev !== undefined) process.env.CRON_SECRET = prev; }
   });
 });
+
+describe('proxy — Etsy OAuth callback (jen přesná cesta + GET)', () => {
+  it('GET /api/etsy/oauth/callback bez cookie projde do handleru', () => {
+    const res = proxy(new NextRequest('https://app.example.com/api/etsy/oauth/callback?code=x&state=y'));
+    expect(res.headers.get('x-middleware-next')).toBe('1');
+  });
+  it('POST /api/etsy/oauth/callback bez cookie → neprojde', () => {
+    const res = proxy(new NextRequest('https://app.example.com/api/etsy/oauth/callback', { method: 'POST' }));
+    expect(res.headers.get('x-middleware-next')).toBeNull();
+    expect([401, 403]).toContain(res.status);
+  });
+  it('GET /api/etsy/oauth/callbackx a /api/etsy/oauth/start bez cookie → neprojde', () => {
+    for (const p of ['/api/etsy/oauth/callbackx', '/api/etsy/oauth/start', '/api/etsy/settings']) {
+      const res = proxy(new NextRequest(`https://app.example.com${p}`));
+      expect(res.headers.get('x-middleware-next')).toBeNull();
+    }
+  });
+});
+
+describe('proxy — Etsy webhook (jen přesná cesta + POST, bez cookie i CSRF)', () => {
+  it('POST /api/etsy/webhook bez cookie a CSRF projde do handleru', () => {
+    const res = proxy(new NextRequest('https://app.example.com/api/etsy/webhook', { method: 'POST', body: '{}' }));
+    expect(res.headers.get('x-middleware-next')).toBe('1');
+  });
+  it('GET /api/etsy/webhook a POST /api/etsy/webhookx → neprojde', () => {
+    for (const [p, method] of [['/api/etsy/webhook', 'GET'], ['/api/etsy/webhookx', 'POST'], ['/api/etsy/webhook/x', 'POST']]) {
+      const res = proxy(new NextRequest(`https://app.example.com${p}`, { method }));
+      expect(res.headers.get('x-middleware-next')).toBeNull();
+    }
+  });
+});

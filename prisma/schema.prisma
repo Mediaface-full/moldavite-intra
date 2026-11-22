@@ -268,6 +268,11 @@ model Item {
   shopOrderNumber  String            @default("")
   shopReservations ShopReservation[]
 
+  // Etsy (docs/superpowers/specs/2026-11-21-etsy-napojeni-design.md): kanál prodeje a číslo Etsy objednávky.
+  soldChannel   String       @default("") // shop | etsy | manual | "" (staré prodeje)
+  etsyReceiptId BigInt?
+  etsyListing   EtsyListing?
+
   @@unique([boxId, evidNumber])
   @@index([boxId])
   @@index([orderId])
@@ -551,4 +556,92 @@ model ShopReservation {
 
   @@unique([itemId, ref])
   @@index([itemId, expiresAt])
+}
+
+// ─── Etsy (Open API v3) ─────────────────────────────────────────
+// Spec: app/docs/superpowers/specs/2026-11-21-etsy-napojeni-design.md
+
+/// Připojený obchod (1 řádek, id=1). Tokeny jen šifrované (lib/etsy/crypto.ts, klíč ETSY_TOKEN_KEY).
+model EtsyConnection {
+  id                 Int      @id @default(1)
+  shopId             BigInt
+  shopName           String
+  currencyCode       String
+  etsyUserId         BigInt
+  accessTokenEnc     String
+  refreshTokenEnc    String
+  accessExpiresAt    DateTime
+  scopes             String
+  connectedAt        DateTime @default(now())
+  disconnectedReason String?
+}
+
+/// Nastavení listingů (1 řádek, id=1). Provize a zaokrouhlení: ExportConfig exportType='etsy'.
+model EtsySettings {
+  id                Int      @id @default(1)
+  taxonomyId        Int?
+  shippingProfileId BigInt?
+  readinessStateId  BigInt?
+  returnPolicyId    BigInt?
+  whoMade           String   @default("someone_else")
+  whenMade          String   @default("before_2007")
+  isSupply          Boolean  @default(false)
+  tags              String[] @default([])
+  materials         String[] @default([])
+  updatedAt         DateTime @updatedAt
+}
+
+/// Listing kamene na Etsy (1:1 s Item).
+model EtsyListing {
+  id            Int       @id @default(autoincrement())
+  itemId        Int       @unique
+  item          Item      @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  listingId     BigInt?   @unique
+  state         String    @default("none") // none | draft | active | inactive | removed | error
+  blockedReason String? // reservation | sold | off | ineligible
+  syncedHash    String    @default("")
+  imageIds      BigInt[]  @default([])
+  priceSent     Decimal?  @db.Decimal(10, 2)
+  lastSyncAt    DateTime?
+  lastError     String?
+  errorCount    Int       @default(0)
+  inactiveSince DateTime?
+  alertedAt     DateTime? // upozornění „nejde stáhnout“ už odešlo (jedno na kámen, smaže se po úspěchu)
+}
+
+/// Fronta změn pro Etsy. Otevřený job (doneAt NULL) je na kámen a druh max jeden —
+/// částečný unikátní index "EtsyJob_open_unique" je jen v SQL migraci (Prisma ho neumí popsat).
+model EtsyJob {
+  id          Int       @id @default(autoincrement())
+  itemId      Int
+  kind        String // sync | activate | deactivate | remove
+  reason      String
+  runAfter    DateTime  @default(now())
+  leasedUntil DateTime? // zpracovává se (lhůta 5 min) — oddělené od runAfter, aby nové zařazení nerušilo běžící job
+  attempts    Int       @default(0)
+  lastError   String?
+  createdAt   DateTime  @default(now())
+  doneAt      DateTime?
+
+  @@index([doneAt, runAfter])
+}
+
+/// Zpracované Etsy objednávky (idempotence webhooku i pollingu) + konflikty dvojího prodeje.
+model EtsyOrder {
+  id           Int       @id @default(autoincrement())
+  receiptId    BigInt    @unique
+  listingIds   BigInt[]  @default([])
+  itemIds      Int[]     @default([])
+  paidAt       DateTime?
+  processedAt  DateTime  @default(now())
+  conflict     Boolean   @default(false)
+  conflictNote String?
+  resolvedAt   DateTime?
+  finishedAt   DateTime? // zpracování dokončeno; NULL = rozpracováno (po 10 min lze převzít)
+}
+
+/// Přijaté webhooky (webhook-id) — Etsy doručení opakuje.
+model EtsyWebhookEvent {
+  webhookId  String   @id
+  receivedAt DateTime @default(now())
 }
