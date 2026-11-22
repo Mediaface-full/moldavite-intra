@@ -25,6 +25,7 @@ function fakeClient() {
     updateListing: rec('updateListing', { listing_id: 555, state: 'active' }),
     deleteListing: rec('deleteListing'),
     getListing: rec('getListing', { listing_id: 555, state: 'active', quantity: 1 }),
+    getDraftListings: vi.fn(async () => [] as Array<{ listing_id: number; title: string; created_timestamp: number }>),
   };
   return { calls, client };
 }
@@ -208,5 +209,32 @@ describe('opravy po kontrole (worker)', () => {
     const c = fakeClient(); c.client.getListing.mockResolvedValue({ listing_id: 555, state: 'sold_out', quantity: 0 });
     const b = deps(null, c.client); await reconcileWith([sold], b.d);
     expect(b.jobs.enqueued).toEqual([]);
+  });
+});
+
+describe('odložené drobnosti (worker)', () => {
+  const l = (over: object) => ({ listingId: BigInt(555), state: 'active', syncedHash: 'x', imageIds: [], inactiveSince: null, alertedAt: null, ...over });
+  it('M2: kámen prodaný na Etsy a pak ručně vrácený do prodeje → sold_out listing smazat a založit nový', async () => {
+    const { calls, client } = fakeClient();
+    const { d, saved } = deps(item({ listing: l({ state: 'sold_out' }) }), client);
+    await processJob(job(), d);
+    expect(calls[0]).toBe('deleteListing');
+    expect(calls).toContain('createDraftListing');
+    expect(calls.at(-1)).toBe('updateListing:"active"');
+    expect(saved.at(-1)).toMatchObject({ state: 'active', listingId: BigInt(555) });
+  });
+  it('M5: předchozí vytvoření skončilo bez odpovědi (state creating) → převzít koncept se stejným názvem, nezakládat druhý', async () => {
+    const { calls, client } = fakeClient();
+    client.getDraftListings.mockResolvedValue([{ listing_id: 777, title: 'Moldavite', created_timestamp: Math.floor(new Date('2026-12-01T11:30:00Z').getTime() / 1000) }]);
+    const { d, saved } = deps(item({ listing: l({ listingId: null, state: 'creating' }) }), client);
+    await processJob(job(), d);
+    expect(calls).not.toContain('createDraftListing');
+    expect(saved.at(-1)).toMatchObject({ listingId: BigInt(777), state: 'active' });
+  });
+  it('M5: před voláním createDraftListing se uloží stav creating', async () => {
+    const { client } = fakeClient();
+    const { d, saved } = deps(item(), client);
+    await processJob(job(), d);
+    expect(saved[0]).toMatchObject({ state: 'creating' });
   });
 });

@@ -45,11 +45,12 @@ async function flagEtsyDoubleSale(itemId: number, shopOrder: string) {
     const item = await prisma.item.findUnique({ where: { id: itemId }, select: { soldChannel: true, etsyReceiptId: true, evidNumber: true, box: { select: { code: true } } } });
     if (!item || item.soldChannel !== 'etsy' || !item.etsyReceiptId) return;
     const catalogNumber = `${item.box.code}-${item.evidNumber}`;
-    await prisma.etsyOrder.updateMany({
-      where: { receiptId: item.etsyReceiptId },
+    // Jen při prvním hlášení — e-shop 409 opakuje a každé opakování by poslalo další e-mail
+    const r = await prisma.etsyOrder.updateMany({
+      where: { receiptId: item.etsyReceiptId, conflict: false },
       data: { conflict: true, conflictNote: `${catalogNumber} zaplacen i na e-shopu (objednávka ${shopOrder})`, resolvedAt: null },
     });
-    await alertEtsy('double_sale', { catalogNumber, receiptId: item.etsyReceiptId, shopOrder });
+    if (r.count > 0) await alertEtsy('double_sale', { catalogNumber, receiptId: item.etsyReceiptId, shopOrder });
   } catch (err) {
     console.error('[shop-api] upozornění na dvojí prodej selhalo', err instanceof Error ? err.message : err);
   }

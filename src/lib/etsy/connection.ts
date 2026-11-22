@@ -128,7 +128,9 @@ async function refreshTokens(conn: StoredConnection, store: ConnectionStore, fet
 // ── OAuth cookie (podepsaná, krátkodobá) ─────────────────────────────
 
 function hmac(payload: string): string {
-  return createHmac('sha256', process.env.NEXTAUTH_SECRET ?? '').update(`etsy-oauth:${payload}`).digest('base64url');
+  const secret = process.env.NEXTAUTH_SECRET ?? '';
+  if (secret.length < 32) throw new Error('NEXTAUTH_SECRET chybí — OAuth cookie nelze podepsat');
+  return createHmac('sha256', secret).update(`etsy-oauth:${payload}`).digest('base64url');
 }
 
 export function signOauthCookie(v: { verifier: string; state: string; userId: number }, issuedAt = Date.now()): string {
@@ -140,7 +142,9 @@ export function readOauthCookie(value: string | undefined | null): { verifier: s
   if (!value) return null;
   const [payload, sig] = value.split('.');
   if (!payload || !sig) return null;
-  const a = Buffer.from(sig), b = Buffer.from(hmac(payload));
+  let expected: string;
+  try { expected = hmac(payload); } catch { return null; }
+  const a = Buffer.from(sig), b = Buffer.from(expected);
   if (a.length !== b.length || !timingSafeEqual(a, b)) return null;
   try {
     const v = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'));

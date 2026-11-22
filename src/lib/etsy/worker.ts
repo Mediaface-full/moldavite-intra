@@ -192,11 +192,26 @@ async function syncActive(item: ItemSnapshot, l: ListingSnapshot | null, ctx: Wo
   let listingId = l?.listingId ?? null;
   let imageIds = l?.imageIds ?? [];
   let created = false;
+  // Prodáno na Etsy a pak ručně vráceno do prodeje: sold_out listing Etsy dovolí jen smazat → nový listing
+  if (listingId && l?.state === 'sold_out') {
+    await client.deleteListing(listingId);
+    await d.saveListing(item.id, { listingId: null, state: 'none', imageIds: [] });
+    listingId = null;
+  }
   if (!listingId) {
-    const r = await client.createDraftListing({ quantity: 1, ...content });
-    listingId = BigInt(r.listing_id);
+    // Předchozí vytvoření skončilo bez odpovědi (timeout)? Převzít koncept se stejným názvem z poslední doby.
+    if (l?.state === 'creating') {
+      const since = d.now().getTime() / 1000 - 2 * 3600;
+      const draft = (await client.getDraftListings()).find((x) => x.title === b.title && x.created_timestamp >= since);
+      if (draft) listingId = BigInt(draft.listing_id);
+    }
+    if (!listingId) {
+      await d.saveListing(item.id, { state: 'creating' }); // zapsat PŘED voláním — pád/timeout pak nezaloží druhý listing
+      const r = await client.createDraftListing({ quantity: 1, ...content });
+      listingId = BigInt(r.listing_id);
+    }
     created = true;
-    await d.saveListing(item.id, { listingId, state: 'draft', imageIds: [] }); // ať případný pád nezaloží druhý listing
+    await d.saveListing(item.id, { listingId, state: 'draft', imageIds: [] });
     imageIds = [];
   } else if (oldContent !== b.contentHash) {
     await client.updateListing(listingId, content);
@@ -356,8 +371,8 @@ export async function processDueJobs(opts: { itemIds?: number[]; limit?: number;
   // Lhůta je zvlášť (leasedUntil) — nové zařazení posune runAfter, ale běžící job znovu nevezme (review I1/I2)
   const lease = `${LEASE_MS / 1000} seconds`;
   const jobs = ids
-    ? await prisma.$queryRaw<JobRow[]>`UPDATE "EtsyJob" SET "leasedUntil" = now() + ${lease}::interval WHERE id IN (SELECT id FROM "EtsyJob" WHERE "doneAt" IS NULL AND "runAfter" <= now() AND ("leasedUntil" IS NULL OR "leasedUntil" < now()) AND "itemId" = ANY(${ids}) ORDER BY "runAfter" LIMIT ${limit} FOR UPDATE SKIP LOCKED) RETURNING id, "itemId", kind, attempts`
-    : await prisma.$queryRaw<JobRow[]>`UPDATE "EtsyJob" SET "leasedUntil" = now() + ${lease}::interval WHERE id IN (SELECT id FROM "EtsyJob" WHERE "doneAt" IS NULL AND "runAfter" <= now() AND ("leasedUntil" IS NULL OR "leasedUntil" < now()) ORDER BY "runAfter" LIMIT ${limit} FOR UPDATE SKIP LOCKED) RETURNING id, "itemId", kind, attempts`;
+    ? await prisma.$queryRaw<JobRow[]>`UPDATE "EtsyJob" SET "leasedUntil" = now() + ${lease}::interval WHERE id IN (SELECT id FROM "EtsyJob" WHERE "doneAt" IS NULL AND "runAfter" <= now() AND ("leasedUntil" IS NULL OR "leasedUntil" < now()) AND "itemId" = ANY(${ids}) ORDER BY (kind = 'deactivate') DESC, "runAfter" LIMIT ${limit} FOR UPDATE SKIP LOCKED) RETURNING id, "itemId", kind, attempts`
+    : await prisma.$queryRaw<JobRow[]>`UPDATE "EtsyJob" SET "leasedUntil" = now() + ${lease}::interval WHERE id IN (SELECT id FROM "EtsyJob" WHERE "doneAt" IS NULL AND "runAfter" <= now() AND ("leasedUntil" IS NULL OR "leasedUntil" < now()) ORDER BY (kind = 'deactivate') DESC, "runAfter" LIMIT ${limit} FOR UPDATE SKIP LOCKED) RETURNING id, "itemId", kind, attempts`;
   let done = 0, failed = 0;
   for (const job of jobs) {
     if (busyItems.has(job.itemId)) {

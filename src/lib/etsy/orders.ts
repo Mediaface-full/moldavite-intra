@@ -59,6 +59,7 @@ export async function handleEtsyReceiptWith(receipt: EtsyReceipt, source: 'webho
   for (const m of mapped) {
     if (m.itemId === null) {
       await d.log('etsy.unknown_listing', `Etsy objednávka ${receipt.receipt_id}: listing ${m.listingId} intra nezná (${source})`);
+      await d.alert('unknown_listing', { receiptId: receipt.receipt_id, note: `listing ${m.listingId}` });
       continue;
     }
     const r = await d.sellItem(m.itemId, receipt.receipt_id, paidAt);
