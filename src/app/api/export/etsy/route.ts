@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma';
 import { NextResponse } from 'next/server';
 import { getSession, logActivity } from '@/lib/auth';
 import { getPasShape } from '@/lib/pasShapes';
+import { etsyTags, DEFAULT_ETSY_MATERIALS } from '@/lib/etsy/content';
 
 export async function GET() {
   const session = await getSession();
@@ -57,9 +58,9 @@ export async function GET() {
       : '';
     const desc = shapePrefix + baseDesc;
     // Etsy allows max 13 tags; add shape as one extra tag when set (lowercase, no spaces issue).
-    const baseTags = 'moldavite,czech moldavite,tektite,natural moldavite,genuine moldavite,raw moldavite,green tektite,bohemian moldavite';
-    const tags = shape ? `${baseTags},${shape.en.split('/')[0].trim().toLowerCase()}` : baseTags;
-    const materials = 'moldavite,tektite';
+    // Štítky sdílené s napojením přes Etsy API (lib/etsy/content.ts) — CSV i API dávají totéž.
+    const tags = etsyTags([], shape ? item.pasShape : '').join(',');
+    const materials = DEFAULT_ETSY_MATERIALS.join(',');
 
     const mainIdx = item.mainPhoto || 1;
     const mainImg = `${baseUrl}/images/${item.photoPath}/${String(mainIdx).padStart(2, '0')}.jpg`;
