@@ -9,6 +9,8 @@ import BoxPlacement from '@/components/BoxPlacement';
 import CassetteTypePicker from '@/components/CassetteTypePicker';
 import AiBulkButton from '@/components/AiBulkButton';
 import AiPhotosButton from '@/components/AiPhotosButton';
+import BoxEtsyToggle from '@/components/etsy/BoxEtsyToggle';
+import { etsyConfigured } from '@/lib/etsy/config';
 import { shopPhotoStats } from '@/lib/photos/missing';
 import { isMissingTexts } from '@/lib/ai/bulkFields';
 import BoxDeleteButton from '@/components/BoxDeleteButton';
@@ -212,6 +214,9 @@ export default async function BoxDetailPage({
               />
             );
           })()}
+          {isAdmin && etsyConfigured() && (
+            <BoxEtsyToggle itemIds={box.items.filter((i) => !i.sold).map((i) => i.id)} onCount={box.items.filter((i) => !i.sold && i.onEtsy).length} />
+          )}
           {isAdmin && (
             <BoxMoveToOrderButton
               boxId={box.id}

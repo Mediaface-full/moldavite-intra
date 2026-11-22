@@ -4,9 +4,10 @@
 import Icon from '../Icon';
 import { useItemForm } from './ItemFormProvider';
 import { SectionCard, Switch, fmtCzk, fmtDate } from './primitives';
+import EtsyListingStatus from '../etsy/EtsyListingStatus';
 
-function ChannelCard({ title, color, on, blocked, blockedTitle, at, priceLine, onToggle, label }: {
-  title: string; color: string; on: boolean; blocked: boolean; blockedTitle?: string; at: string | null; priceLine: string; onToggle: () => void; label: string;
+function ChannelCard({ title, color, on, blocked, blockedTitle, at, priceLine, onToggle, label, extra }: {
+  title: string; color: string; on: boolean; blocked: boolean; blockedTitle?: string; at: string | null; priceLine: string; onToggle: () => void; label: string; extra?: React.ReactNode;
 }) {
   const active = on && !blocked;
   return (
@@ -21,6 +22,7 @@ function ChannelCard({ title, color, on, blocked, blockedTitle, at, priceLine, o
           </p>
           <p className="text-[11px] text-muted-foreground font-mono mt-1">{priceLine}</p>
           {blocked && <p className="text-[10px] font-mono mt-1.5 leading-snug" style={{ color: 'var(--warning)' }}>{blockedTitle}</p>}
+          {extra}
         </div>
         <Switch on={on} disabled={blocked} color={color} title={blockedTitle} label={label} onToggle={onToggle} />
       </div>
@@ -29,7 +31,7 @@ function ChannelCard({ title, color, on, blocked, blockedTitle, at, priceLine, o
 }
 
 export default function StonePublishingSection() {
-  const { item, formData, setField, publishBlocked, blockedTitle, vatRate } = useItemForm();
+  const { item, formData, setField, publishBlocked, blockedTitle, vatRate, isAdmin } = useItemForm();
   // finální = max(doporučená, speciální) ze serveru; salePrice jen legacy fallback
   const saleIncl = Number(item.finalInternalPriceInclVatCzk ?? 0) > 0 ? Number(item.finalInternalPriceInclVatCzk) : Number(formData.salePrice ?? 0);
   const saleEx = saleIncl > 0 ? saleIncl / (1 + vatRate / 100) : 0;
@@ -62,6 +64,7 @@ export default function StonePublishingSection() {
         <ChannelCard title="E-shop" color="var(--success)" on={formData.onShop} blocked={publishBlocked} blockedTitle={blockedTitle} at={fmtDate(item.onShopAt)} priceLine={priceLine} label="Vystavit na e-shop"
           onToggle={() => { if (publishBlocked) { alert(blockedTitle); return; } setField('onShop', !formData.onShop); }} />
         <ChannelCard title="Etsy" color="var(--warning)" on={formData.onEtsy} blocked={publishBlocked} blockedTitle={blockedTitle} at={fmtDate(item.onEtsyAt)} priceLine={priceLine} label="Vystavit na Etsy"
+          extra={<EtsyListingStatus itemId={item.id} isAdmin={isAdmin} />}
           onToggle={() => { if (publishBlocked) { alert(blockedTitle); return; } setField('onEtsy', !formData.onEtsy); }} />
       </div>
       <p className="mt-3 text-[11px] text-muted-foreground font-mono flex items-center gap-3 flex-wrap">
